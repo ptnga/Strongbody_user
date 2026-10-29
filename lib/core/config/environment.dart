@@ -27,7 +27,7 @@ class AppConfig {
     await dotenv.load(fileName: fileName);
   }
 
-  static String get appName => dotenv.env['APP_NAME'] ?? 'StrongBody Buyer';
+  static String get appName => dotenv.env['APP_NAME'] ?? 'StrongBody.AI';
 
   /// Base URL đã bao gồm `/v1` — endpoint không lặp lại `/v1`.
   static String get baseUrl =>
