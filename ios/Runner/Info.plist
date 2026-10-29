@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>StrongBody needs the camera so you can take and attach photos to your request.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>StrongBody needs the microphone so you can speak your request.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
