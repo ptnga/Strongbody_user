@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 
@@ -181,11 +183,9 @@ class _DoneButtonState extends State<_DoneButton>
               customBorder: const CircleBorder(),
               child: SizedBox.square(
                 dimension: size,
-                child: Icon(
-                  Icons.check_rounded,
-                  size: 36.r,
-                  color: Colors.white,
-                  semanticLabel: LocaleKeys.voiceRequestDone.tr(),
+                child: Semantics(
+                  label: LocaleKeys.voiceRequestDone.tr(),
+                  child: AppIcon(AppSvg.check, size: 36.r, color: Colors.white),
                 ),
               ),
             ),

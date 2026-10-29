@@ -2,28 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 /// Trạng thái trống / lỗi giữa màn: vòng tròn hồng + icon đỏ, tiêu đề, mô tả, nút đỏ.
 /// Là ListView cuộn được để vẫn kéo-làm-mới trong `RefreshIndicator`.
 class EmptyStateView extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final String? iconAsset;
   final String title;
   final String message;
   final String? actionLabel;
   final IconData? actionIcon;
+  final String? actionIconAsset;
   final VoidCallback? onAction;
 
   const EmptyStateView({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconAsset,
     required this.title,
     required this.message,
     this.actionLabel,
     this.actionIcon,
+    this.actionIconAsset,
     this.onAction,
-  });
+  }) : assert(icon != null || iconAsset != null);
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +45,9 @@ class EmptyStateView extends StatelessWidget {
               color: theme.primaryLight(context),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 32.r, color: theme.primary(context)),
+            child: iconAsset != null
+                ? AppIcon(iconAsset!, size: 32.r, color: theme.primary(context))
+                : Icon(icon, size: 32.r, color: theme.primary(context)),
           ),
         ),
         Gap(18.h),
@@ -77,7 +84,10 @@ class EmptyStateView extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (actionIcon != null) ...[
+                  if (actionIconAsset != null) ...[
+                    AppIcon(actionIconAsset!, size: 19.r),
+                    Gap(8.w),
+                  ] else if (actionIcon != null) ...[
                     Icon(actionIcon, size: 19.r),
                     Gap(8.w),
                   ],

@@ -34,7 +34,7 @@ class StrongBodyLogo extends StatelessWidget {
             text: 'StrongBody',
             children: const [
               TextSpan(
-                text: '.ai',
+                text: '.AI',
                 style: TextStyle(color: Colour.primary),
               ),
             ],

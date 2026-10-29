@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -42,12 +44,16 @@ class HomeMenuDrawer extends StatelessWidget {
         child: BlocBuilder<HomeMenuCubit, HomeMenuState>(
           builder: (context, state) {
             Widget link(
-              IconData icon,
+              String icon,
               String label,
               VoidCallback onTap, {
               ValueNotifier<int>? badge,
             }) => ListTile(
-              leading: Icon(icon, color: theme.textPrimary(context)),
+              leading: AppIcon(
+                icon,
+                size: 24.r,
+                color: theme.textPrimary(context),
+              ),
               title: Text(
                 label,
                 style: AppTextStyle.lightBodyMediumSemiBold.copyWith(
@@ -95,7 +101,7 @@ class HomeMenuDrawer extends StatelessWidget {
                       const Spacer(),
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
+                        icon: AppIcon(AppSvg.close, size: 24.r),
                       ),
                     ],
                   ),
@@ -112,7 +118,7 @@ class HomeMenuDrawer extends StatelessWidget {
                           extra: const VoiceRequestPageArgs(source: 'menu'),
                         ),
                       ),
-                      icon: const Icon(Icons.mic_none_rounded),
+                      icon: AppIcon(AppSvg.microphone, size: 24.r),
                       label: Text(LocaleKeys.homeMenuNewRequest.tr()),
                       style: FilledButton.styleFrom(
                         backgroundColor: theme.primary(context),
@@ -126,19 +132,19 @@ class HomeMenuDrawer extends StatelessWidget {
                 ),
                 Gap(8.h),
                 link(
-                  Icons.move_to_inbox_outlined,
+                  AppSvg.box,
                   LocaleKeys.myRequestsTitle.tr(),
                   () => _go(context, (r) => r.go(RouteName.myRequests)),
                   badge: getIt<NewOffersBadgeNotifier>(),
                 ),
                 link(
-                  Icons.chat_bubble_outline_rounded,
+                  AppSvg.message,
                   LocaleKeys.messagesTitle.tr(),
                   () => _go(context, (r) => r.go(RouteName.messages)),
                   badge: getIt<ChatBadgeNotifier>(),
                 ),
                 link(
-                  Icons.search_rounded,
+                  AppSvg.search,
                   LocaleKeys.homeMenuBrowseProviders.tr(),
                   () => _go(
                     context,

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
@@ -32,8 +34,8 @@ class FlowHeader extends StatelessWidget {
           children: [
             IconButton(
               onPressed: onBack,
-              icon: Icon(
-                Icons.arrow_back_rounded,
+              icon: AppIcon(
+                AppSvg.arrowBack,
                 size: 24.r,
                 color: theme.textPrimary(context),
               ),
@@ -82,18 +84,20 @@ class FlowCard extends StatelessWidget {
 
 /// Ô vuông bo góc nền xám chứa icon (đầu dòng "I understood", thẻ hành động...).
 class FlowIconBox extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final String? iconAsset;
   final Color? background;
   final Color? color;
   final double? size;
 
   const FlowIconBox({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconAsset,
     this.background,
     this.color,
     this.size,
-  });
+  }) : assert(icon != null || iconAsset != null);
 
   @override
   Widget build(BuildContext context) {
@@ -106,11 +110,17 @@ class FlowIconBox extends StatelessWidget {
         color: background ?? theme.muted(context),
         borderRadius: BorderRadius.circular(10.r),
       ),
-      child: Icon(
-        icon,
-        size: dimension * 0.5,
-        color: color ?? theme.textPrimary(context),
-      ),
+      child: iconAsset != null
+          ? AppIcon(
+              iconAsset!,
+              size: dimension * 0.5,
+              color: color ?? theme.textPrimary(context),
+            )
+          : Icon(
+              icon,
+              size: dimension * 0.5,
+              color: color ?? theme.textPrimary(context),
+            ),
     );
   }
 }

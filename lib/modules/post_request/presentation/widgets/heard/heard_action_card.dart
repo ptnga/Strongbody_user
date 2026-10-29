@@ -10,7 +10,8 @@ import '../common/flow_header.dart';
 
 /// Thẻ lựa chọn ở "What would you like to do?". `primary` = nền tối (Post request).
 class HeardActionCard extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final String? iconAsset;
   final String title;
   final String subtitle;
   final bool primary;
@@ -19,13 +20,14 @@ class HeardActionCard extends StatelessWidget {
 
   const HeardActionCard({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconAsset,
     required this.title,
     required this.subtitle,
     this.primary = false,
     this.loading = false,
     this.onTap,
-  });
+  }) : assert(icon != null || iconAsset != null);
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +60,7 @@ class HeardActionCard extends StatelessWidget {
                     )
                   : FlowIconBox(
                       icon: icon,
+                      iconAsset: iconAsset,
                       size: 44.r,
                       background: primary
                           ? Colors.white.withValues(alpha: 0.14)

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -58,8 +60,8 @@ class HomeNewOffersPill extends StatelessWidget {
                           ),
                         ),
                         Gap(4.w),
-                        Icon(
-                          Icons.chevron_right_rounded,
+                        AppIcon(
+                          AppSvg.chevronRight,
                           size: 18.r,
                           color: theme.textPrimary(context),
                         ),

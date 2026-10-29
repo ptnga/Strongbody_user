@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -104,8 +106,8 @@ class ProviderCard extends StatelessWidget {
                         ),
                         if (provider.verified) ...[
                           Gap(4.w),
-                          Icon(
-                            Icons.verified_rounded,
+                          AppIcon(
+                            AppSvg.verified,
                             size: 16.r,
                             color: Colour.success,
                           ),
@@ -125,8 +127,8 @@ class ProviderCard extends StatelessWidget {
                       Gap(2.h),
                       Row(
                         children: [
-                          Icon(
-                            Icons.star_rounded,
+                          AppIcon(
+                            AppSvg.starFilled,
                             size: 16.r,
                             color: const Color(0xFFF5A524),
                           ),
@@ -171,7 +173,7 @@ class ProviderCard extends StatelessWidget {
             Gap(10.h),
             Row(
               children: [
-                Icon(Icons.schedule_rounded, size: 15.r, color: Colour.success),
+                AppIcon(AppSvg.clock, size: 15.r, color: Colour.success),
                 Gap(6.w),
                 Text(
                   LocaleKeys.providersAvailable.tr(
@@ -192,7 +194,7 @@ class ProviderCard extends StatelessWidget {
               child: isSelected
                   ? FilledButton.icon(
                       onPressed: onToggleSelect,
-                      icon: Icon(Icons.check_rounded, size: 18.r),
+                      icon: AppIcon(AppSvg.check, size: 18.r),
                       label: Text(LocaleKeys.providersSelected.tr()),
                       style: _filledStyle(context),
                     )
@@ -210,7 +212,7 @@ class ProviderCard extends StatelessWidget {
                     height: 44.h,
                     child: OutlinedButton.icon(
                       onPressed: onVoiceMessage,
-                      icon: Icon(Icons.mic_none_rounded, size: 18.r),
+                      icon: AppIcon(AppSvg.microphone, size: 18.r),
                       label: Text(LocaleKeys.providersVoiceMessage.tr()),
                       style: _outlinedStyle(context),
                     ),

@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -51,8 +53,8 @@ class VoiceLanguageChip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.translate_rounded,
+                AppIcon(
+                  AppSvg.translate,
                   size: 17.r,
                   color: theme.textPrimary(context),
                 ),
@@ -89,8 +91,9 @@ class _LanguageSheet extends StatelessWidget {
     }) {
       return ListTile(
         onTap: () => Navigator.of(context).pop(result),
-        leading: Icon(
-          Icons.translate_rounded,
+        leading: AppIcon(
+          AppSvg.translate,
+          size: 24.r,
           color: selected
               ? theme.primary(context)
               : theme.textSecondary(context),
@@ -111,7 +114,7 @@ class _LanguageSheet extends StatelessWidget {
                 ),
               ),
         trailing: selected
-            ? Icon(Icons.check_rounded, color: theme.primary(context))
+            ? AppIcon(AppSvg.check, size: 24.r, color: theme.primary(context))
             : null,
       );
     }

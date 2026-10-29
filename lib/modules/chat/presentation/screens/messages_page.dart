@@ -6,6 +6,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/domain/global_dependencies.dart';
@@ -227,8 +229,8 @@ class _SearchField extends StatelessWidget {
       child: Row(
         children: [
           Gap(12.w),
-          Icon(
-            Icons.search_rounded,
+          AppIcon(
+            AppSvg.search,
             size: 22.r,
             color: theme.textSecondary(context),
           ),
@@ -253,8 +255,8 @@ class _SearchField extends StatelessWidget {
           ),
           IconButton(
             onPressed: onMic,
-            icon: Icon(
-              Icons.mic_none_rounded,
+            icon: AppIcon(
+              AppSvg.microphone,
               size: 22.r,
               color: theme.primary(context),
             ),

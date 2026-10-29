@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -82,8 +84,8 @@ class ConversationTile extends StatelessWidget {
                   Row(
                     children: [
                       if (isVoice) ...[
-                        Icon(
-                          Icons.mic_none_rounded,
+                        AppIcon(
+                          AppSvg.microphone,
                           size: 15.r,
                           color: theme.textPrimary(context),
                         ),

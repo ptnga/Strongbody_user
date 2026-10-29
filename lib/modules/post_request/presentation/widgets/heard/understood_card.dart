@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -173,14 +175,14 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
         final rows = [
           (
             _Field.what,
-            Icons.favorite_border_rounded,
+            (Icons.favorite_border_rounded, null),
             LocaleKeys.heardRowWhat.tr(),
             RequestFormatters.headline(values.description),
             2,
           ),
           (
             _Field.category,
-            Icons.sell_outlined,
+            (null, AppSvg.shop),
             LocaleKeys.heardRowCategory.tr(),
             RequestFormatters.categories(
                   state.assistant?.categoryIds ?? const [],
@@ -190,14 +192,14 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
           ),
           (
             _Field.where,
-            Icons.location_on_outlined,
+            (null, AppSvg.location),
             LocaleKeys.heardRowWhere.tr(),
             RequestFormatters.where(values) ?? notSpecified,
             2,
           ),
           (
             _Field.when,
-            Icons.event_outlined,
+            (null, AppSvg.calendar),
             LocaleKeys.heardRowWhen.tr(),
             RequestFormatters.when(values, locale) ??
                 LocaleKeys.heardFlexible.tr(),
@@ -205,7 +207,7 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
           ),
           (
             _Field.budget,
-            Icons.payments_outlined,
+            (null, AppSvg.money),
             LocaleKeys.heardRowBudget.tr(),
             RequestFormatters.budget(values) ?? notSpecified,
             1,
@@ -261,7 +263,8 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
                   ],
                 ),
               ),
-              for (final (field, icon, label, value, maxLines) in rows)
+              for (final (field, (iconData, iconAsset), label, value, maxLines)
+                  in rows)
                 if (_editing == field)
                   _InlineEditor(
                     label: label,
@@ -272,7 +275,8 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
                   )
                 else
                   _UnderstoodRow(
-                    icon: icon,
+                    icon: iconData,
+                    iconAsset: iconAsset,
                     label: label,
                     value: value,
                     maxLines: maxLines,
@@ -356,7 +360,8 @@ class _InlineEditor extends StatelessWidget {
 }
 
 class _UnderstoodRow extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final String? iconAsset;
   final String label;
   final String value;
   final int maxLines;
@@ -364,7 +369,8 @@ class _UnderstoodRow extends StatelessWidget {
   final VoidCallback? onTap;
 
   const _UnderstoodRow({
-    required this.icon,
+    this.icon,
+    this.iconAsset,
     required this.label,
     required this.value,
     required this.maxLines,
@@ -384,7 +390,7 @@ class _UnderstoodRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            FlowIconBox(icon: icon, size: 36.r),
+            FlowIconBox(icon: icon, iconAsset: iconAsset, size: 36.r),
             Gap(12.w),
             Expanded(
               child: Column(
@@ -412,8 +418,8 @@ class _UnderstoodRow extends StatelessWidget {
               ),
             ),
             Gap(8.w),
-            Icon(
-              Icons.edit_outlined,
+            AppIcon(
+              AppSvg.edit,
               size: 18.r,
               color: theme.textTertiary(context),
             ),

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -124,8 +126,8 @@ class ReviewVoiceNoteRow extends StatelessWidget {
               color: theme.muted(context),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.mic_none_rounded,
+            child: AppIcon(
+              AppSvg.microphone,
               size: 20.r,
               color: theme.textPrimary(context),
             ),
@@ -183,8 +185,8 @@ class ReviewVoiceNoteRow extends StatelessWidget {
             IconButton(
               tooltip: LocaleKeys.reviewRemoveVoice.tr(),
               onPressed: onRemove,
-              icon: Icon(
-                Icons.delete_outline_rounded,
+              icon: AppIcon(
+                AppSvg.trash,
                 size: 22.r,
                 color: theme.textSecondary(context),
               ),
@@ -243,8 +245,8 @@ class ReviewDeliveryChips extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (selected) ...[
-                          Icon(
-                            Icons.check_rounded,
+                          AppIcon(
+                            AppSvg.check,
                             size: 16.r,
                             color: theme.textPrimary(context),
                           ),
@@ -359,8 +361,8 @@ class ReviewBudgetLabel extends StatelessWidget {
                 color: theme.textPrimary(context),
               ),
             ),
-            Icon(
-              Icons.arrow_drop_down_rounded,
+            AppIcon(
+              AppSvg.arrowDown,
               size: 22.r,
               color: theme.textSecondary(context),
             ),
