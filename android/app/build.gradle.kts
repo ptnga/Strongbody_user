@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "ai.strongbody.strongbody_buyer"
+    namespace = "ai.strongbody.request"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "ai.strongbody.strongbody_buyer"
+        applicationId = "ai.strongbody.request"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -31,11 +31,11 @@ android {
         create("dev") {
             dimension = "env"
             applicationIdSuffix = ".dev"
-            manifestPlaceholders["appName"] = "StrongBody Buyer Dev"
+            manifestPlaceholders["appName"] = "StrongBody.AI Dev"
         }
         create("prod") {
             dimension = "env"
-            manifestPlaceholders["appName"] = "StrongBody Buyer"
+            manifestPlaceholders["appName"] = "StrongBody.AI"
         }
     }
 
