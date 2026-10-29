@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 class _Suggestion {
   final String titleKey;
@@ -126,9 +127,7 @@ class _SuggestionCard extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyle.lightBodyMediumBold.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),
@@ -137,8 +136,7 @@ class _SuggestionCard extends StatelessWidget {
                 subtitle,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.sp,
+                style: AppTextStyle.lightBodySmallRegular.copyWith(
                   color: theme.textSecondary(context),
                 ),
               ),

@@ -18,6 +18,7 @@ import 'package:strongbody_buyer/modules/chat/presentation/chat_formatters.dart'
 import 'package:strongbody_buyer/modules/chat/presentation/chat_page_args.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/my_request_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/widgets/my_requests/my_request_formatters.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/offer_checkout/offer_checkout_bloc.dart';
 
@@ -151,11 +152,12 @@ class _QuoteView extends StatelessWidget {
     final session = offerSessionLabel(offer, locale);
     final paying = state.status == OfferCheckoutStatus.paying;
     final canPay = quote.isFree || state.selectedCardId != null;
-    final label = TextStyle(
-      fontSize: 14.sp,
+    final label = AppTextStyle.lightBodyMediumRegular.copyWith(
       color: theme.textSecondary(context),
     );
-    final value = TextStyle(fontSize: 14.sp, color: theme.textPrimary(context));
+    final value = AppTextStyle.lightBodyMediumRegular.copyWith(
+      color: theme.textPrimary(context),
+    );
 
     Widget row(String left, Widget right) => Padding(
       padding: EdgeInsets.symmetric(vertical: 5.h),
@@ -172,9 +174,7 @@ class _QuoteView extends StatelessWidget {
       children: [
         Text(
           LocaleKeys.checkoutAcceptTitle.tr(args: [firstName]),
-          style: TextStyle(
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w800,
+          style: AppTextStyle.lightHeadingSmall.copyWith(
             color: theme.textPrimary(context),
           ),
         ),
@@ -252,7 +252,7 @@ class _QuoteView extends StatelessWidget {
                 LocaleKeys.checkoutTotal.tr(),
                 Text(
                   _money(quote.total, currency),
-                  style: value.copyWith(fontWeight: FontWeight.w800),
+                  style: value.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -282,8 +282,7 @@ class _QuoteView extends StatelessWidget {
               Expanded(
                 child: Text(
                   LocaleKeys.checkoutEscrow.tr(args: [firstName]),
-                  style: TextStyle(
-                    fontSize: 13.sp,
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
                     height: 1.35,
                     color: const Color(0xFF1F6B45),
                   ),
@@ -307,10 +306,7 @@ class _QuoteView extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12.r),
               ),
-              textStyle: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
-              ),
+              textStyle: AppTextStyle.lightBodyMediumBold,
             ),
             child: paying
                 ? const CupertinoActivityIndicator(color: Colors.white)
@@ -357,9 +353,7 @@ class _PaymentMethods extends StatelessWidget {
       children: [
         Text(
           LocaleKeys.checkoutPaymentMethod.tr(),
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w700,
+          style: AppTextStyle.lightBodyMediumBold.copyWith(
             color: theme.textPrimary(context),
           ),
         ),
@@ -367,8 +361,7 @@ class _PaymentMethods extends StatelessWidget {
         if (state.cards.isEmpty)
           Text(
             LocaleKeys.checkoutNoCard.tr(),
-            style: TextStyle(
-              fontSize: 13.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               color: theme.textSecondary(context),
             ),
           ),
@@ -401,8 +394,7 @@ class _PaymentMethods extends StatelessWidget {
                   Expanded(
                     child: Text(
                       '${card.brand.isEmpty ? 'Card' : card.brand[0].toUpperCase() + card.brand.substring(1)} •••• ${card.last4}',
-                      style: TextStyle(
-                        fontSize: 14.sp,
+                      style: AppTextStyle.lightBodyMediumRegular.copyWith(
                         color: theme.textPrimary(context),
                       ),
                     ),
@@ -414,8 +406,7 @@ class _PaymentMethods extends StatelessWidget {
                           '${card.expMonth.toString().padLeft(2, '0')}/${card.expYear % 100}',
                         ],
                       ),
-                      style: TextStyle(
-                        fontSize: 12.sp,
+                      style: AppTextStyle.lightBodySmallRegular.copyWith(
                         color: theme.textSecondary(context),
                       ),
                     ),
@@ -439,10 +430,7 @@ class _PaymentMethods extends StatelessWidget {
             style: TextButton.styleFrom(
               foregroundColor: theme.textPrimary(context),
               padding: EdgeInsets.zero,
-              textStyle: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-              ),
+              textStyle: AppTextStyle.lightBodyMediumSemiBold,
             ),
           ),
         ),
@@ -497,9 +485,7 @@ class _ResultView extends StatelessWidget {
               ? LocaleKeys.checkoutPendingTitle.tr()
               : LocaleKeys.checkoutBookedTitle.tr(args: [firstName]),
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w800,
+          style: AppTextStyle.lightHeadingSmall.copyWith(
             color: theme.textPrimary(context),
           ),
         ),
@@ -507,8 +493,7 @@ class _ResultView extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 13.sp,
+          style: AppTextStyle.lightBodySmallRegular.copyWith(
             height: 1.4,
             color: theme.textSecondary(context),
           ),
@@ -524,10 +509,7 @@ class _ResultView extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r),
                 ),
-                textStyle: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w700,
-                ),
+                textStyle: AppTextStyle.lightBodyMediumBold,
               ),
               child: Text(LocaleKeys.checkoutMessage.tr(args: [firstName])),
             ),

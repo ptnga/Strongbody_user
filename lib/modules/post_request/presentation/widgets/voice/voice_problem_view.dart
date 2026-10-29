@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../bloc/voice_request/voice_request_bloc.dart';
 
@@ -95,9 +96,7 @@ class VoiceProblemView extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w800,
+              style: AppTextStyle.lightHeadingSmall.copyWith(
                 color: theme.textPrimary(context),
               ),
             ),
@@ -105,8 +104,7 @@ class VoiceProblemView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14.sp,
+              style: AppTextStyle.lightBodyMediumRegular.copyWith(
                 height: 1.4,
                 color: theme.textSecondary(context),
               ),
@@ -120,10 +118,7 @@ class VoiceProblemView extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: theme.primary(context),
                     shape: shape,
-                    textStyle: TextStyle(
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    textStyle: AppTextStyle.lightBodyMediumBold,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -147,10 +142,7 @@ class VoiceProblemView extends StatelessWidget {
                   foregroundColor: theme.textPrimary(context),
                   side: BorderSide(color: theme.border(context)),
                   shape: shape,
-                  textStyle: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  textStyle: AppTextStyle.lightBodyMediumSemiBold,
                 ),
                 child: Text(LocaleKeys.voiceProblemTypeInstead.tr()),
               ),

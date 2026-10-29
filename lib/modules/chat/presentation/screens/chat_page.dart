@@ -14,6 +14,7 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/toast_util.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/chat_message_entity.dart';
 import '../bloc/chat/chat_bloc.dart';
@@ -252,8 +253,7 @@ class _ChatPageState extends State<ChatPage> {
                       ? LocaleKeys.chatSignedOut.tr()
                       : LocaleKeys.chatConnectError.tr(),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14.sp,
+                  style: AppTextStyle.lightBodyMediumRegular.copyWith(
                     color: theme.textSecondary(context),
                   ),
                 ),
@@ -295,8 +295,7 @@ class _ChatPageState extends State<ChatPage> {
               args: [ChatFormatters.firstName(partnerName)],
             ),
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14.sp,
+            style: AppTextStyle.lightBodyMediumRegular.copyWith(
               height: 1.45,
               color: theme.textSecondary(context),
             ),
@@ -376,8 +375,7 @@ class _DaySeparator extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 12.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               color: theme.textSecondary(context),
             ),
           ),

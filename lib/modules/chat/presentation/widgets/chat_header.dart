@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 /// Back · avatar · tên + "Physiotherapist · speaks Vietnamese" · nút "Translate on".
 class ChatHeader extends StatelessWidget {
@@ -60,9 +61,7 @@ class ChatHeader extends StatelessWidget {
                   name.isEmpty ? '—' : name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w800,
+                  style: AppTextStyle.lightBodyLargeBold.copyWith(
                     color: theme.textPrimary(context),
                   ),
                 ),
@@ -71,8 +70,7 @@ class ChatHeader extends StatelessWidget {
                     subtitle!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.sp,
+                    style: AppTextStyle.lightBodySmallRegular.copyWith(
                       height: 1.25,
                       color: theme.textSecondary(context),
                     ),
@@ -110,10 +108,7 @@ class ChatHeader extends StatelessWidget {
                   translateOn
                       ? LocaleKeys.chatTranslateOn.tr()
                       : LocaleKeys.chatTranslateOff.tr(),
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTextStyle.lightBodySmallSemiBold,
                 ),
               ],
             ),

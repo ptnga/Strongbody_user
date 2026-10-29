@@ -16,6 +16,7 @@ import 'package:strongbody_buyer/core/utils/toast_util.dart';
 
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_page_args.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/provider_entity.dart';
 import '../../domain/entities/provider_refine_query.dart';
@@ -195,8 +196,7 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
           state.matchCount == 1
               ? LocaleKeys.providersMatchOne.tr()
               : LocaleKeys.providersMatchMany.tr(args: ['${state.matchCount}']),
-          style: TextStyle(
-            fontSize: 13.sp,
+          style: AppTextStyle.lightBodySmallRegular.copyWith(
             color: theme.textSecondary(context),
           ),
         ),
@@ -230,9 +230,7 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
                 Text(
                   LocaleKeys.providersNoMatchTitle.tr(),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w700,
+                  style: AppTextStyle.lightBodyLargeBold.copyWith(
                     color: theme.textPrimary(context),
                   ),
                 ),
@@ -240,8 +238,7 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
                 Text(
                   LocaleKeys.providersNoMatchMessage.tr(),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13.sp,
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
                     height: 1.4,
                     color: theme.textSecondary(context),
                   ),
@@ -269,8 +266,7 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
             child: Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14.sp,
+              style: AppTextStyle.lightBodyMediumRegular.copyWith(
                 color: theme.textSecondary(context),
               ),
             ),
@@ -317,16 +313,13 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
                   children: [
                     Text(
                       LocaleKeys.providersNotSure.tr(),
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w700,
+                      style: AppTextStyle.lightBodyMediumBold.copyWith(
                         color: theme.textPrimary(context),
                       ),
                     ),
                     Text(
                       LocaleKeys.providersNotSureHint.tr(),
-                      style: TextStyle(
-                        fontSize: 12.sp,
+                      style: AppTextStyle.lightBodySmallRegular.copyWith(
                         color: theme.textSecondary(context),
                       ),
                     ),
@@ -346,10 +339,7 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
                     horizontal: 16.w,
                     vertical: 12.h,
                   ),
-                  textStyle: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  textStyle: AppTextStyle.lightBodyMediumSemiBold,
                 ),
                 child: Text(LocaleKeys.providersPostRequest.tr()),
               ),
@@ -382,10 +372,7 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r),
                 ),
-                textStyle: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w700,
-                ),
+                textStyle: AppTextStyle.lightBodyMediumBold,
               ),
               child: Text(
                 LocaleKeys.providersDone.tr(args: ['${selected.length}']),
@@ -441,8 +428,7 @@ class _SearchHeaderState extends State<_SearchHeader> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textStyle = TextStyle(
-      fontSize: 15.sp,
+    final textStyle = AppTextStyle.lightBodyMediumRegular.copyWith(
       color: theme.textPrimary(context),
     );
     return Padding(
@@ -493,10 +479,10 @@ class _SearchHeaderState extends State<_SearchHeader> {
                                   isCollapsed: true,
                                   border: InputBorder.none,
                                   hintText: LocaleKeys.providersSearchHint.tr(),
-                                  hintStyle: TextStyle(
-                                    fontSize: 14.sp,
-                                    color: theme.textTertiary(context),
-                                  ),
+                                  hintStyle: AppTextStyle.lightBodyMediumRegular
+                                      .copyWith(
+                                        color: theme.textTertiary(context),
+                                      ),
                                 ),
                                 onSubmitted: (text) {
                                   _focusNode.unfocus();
@@ -637,9 +623,7 @@ class _FilterChipsState extends State<_FilterChips> {
                               state.context,
                               locale,
                             ),
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w500,
+                            style: AppTextStyle.lightBodyMediumMedium.copyWith(
                               color: theme.textPrimary(context),
                             ),
                           ),
@@ -685,8 +669,7 @@ class _RefineHint extends StatelessWidget {
               Expanded(
                 child: Text(
                   LocaleKeys.providersRefineHint.tr(),
-                  style: TextStyle(
-                    fontSize: 13.sp,
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
                     height: 1.35,
                     color: theme.textSecondary(context),
                   ),

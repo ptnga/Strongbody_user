@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design_tokens/colour.dart';
 import 'app_font_family.dart';
+import 'app_text_style.dart';
 
 class AppThemeClass {
   AppThemeClass._();
@@ -18,14 +19,46 @@ class AppThemeClass {
       surface: Colour.surface,
       error: Colour.error,
     ),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: Colour.surface,
       foregroundColor: Colour.textPrimary,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: true,
+      titleTextStyle: AppTextStyle.lightBodyLargeBold,
     ),
     dividerColor: Colour.border,
+    hintColor: Colour.textTertiary,
+    // Thang chữ + map vào TextTheme giống Multime `AppThemeClass.lightTheme`.
+    textTheme: TextTheme(
+      headlineLarge: AppTextStyle.lightHeadingLarge,
+      headlineMedium: AppTextStyle.lightHeadingMedium,
+      headlineSmall: AppTextStyle.lightHeadingSmall,
+      titleLarge: AppTextStyle.lightBodyLargeBold,
+      titleMedium: AppTextStyle.lightBodyMediumBold,
+      titleSmall: AppTextStyle.lightBodySmallBold,
+      bodyLarge: AppTextStyle.lightBodyLargeMedium,
+      bodyMedium: AppTextStyle.lightBodyMediumMedium,
+      bodySmall: AppTextStyle.lightBodySmallMedium,
+      displayLarge: AppTextStyle.lightBodyXLargeMedium,
+      displayMedium: AppTextStyle.lightBodyLargeMedium,
+      displaySmall: AppTextStyle.lightBodyMediumMedium,
+      labelLarge: AppTextStyle.lightBodyLargeMedium,
+      labelMedium: AppTextStyle.lightBodyMediumMedium,
+      labelSmall: AppTextStyle.lightBodySmallMedium,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      errorMaxLines: 2,
+      hintStyle: AppTextStyle.lightBodySmallMedium.copyWith(
+        color: Colour.textTertiary,
+        fontWeight: FontWeight.w400,
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      contentTextStyle: AppTextStyle.lightBodyMediumRegular.copyWith(
+        color: Colour.surface,
+      ),
+    ),
   );
 }
 

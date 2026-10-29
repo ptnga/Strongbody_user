@@ -7,6 +7,7 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/widgets/common/voice_note_player.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/chat_message_entity.dart';
 import '../../domain/entities/chat_session_entity.dart';
@@ -86,7 +87,9 @@ class ChatMessageBubble extends StatelessWidget {
                     (message.type == ChatMessageType.image
                         ? LocaleKeys.messagesPhoto.tr()
                         : LocaleKeys.messagesFile.tr()),
-                style: TextStyle(fontSize: 15.sp, color: foreground),
+                style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                  color: foreground,
+                ),
               ),
             ),
           ],
@@ -95,13 +98,15 @@ class ChatMessageBubble extends StatelessWidget {
         if (message.type == ChatMessageType.voice) Gap(10.h),
         Text(
           body,
-          style: TextStyle(fontSize: 15.sp, height: 1.4, color: foreground),
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
+            height: 1.4,
+            color: foreground,
+          ),
         ),
       ] else if (message.type == ChatMessageType.other)
         Text(
           LocaleKeys.messagesOtherType.tr(),
-          style: TextStyle(
-            fontSize: 15.sp,
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
             fontStyle: FontStyle.italic,
             color: foreground,
           ),
@@ -119,8 +124,7 @@ class ChatMessageBubble extends StatelessWidget {
                   ? LocaleKeys.chatShowTranslation.tr()
                   : LocaleKeys.chatShowOriginal.tr(),
             ].join(' · '),
-            style: TextStyle(
-              fontSize: 12.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               color: theme.textSecondary(context),
               decoration: TextDecoration.underline,
               decorationColor: theme.textSecondary(context),
@@ -173,8 +177,7 @@ class ChatMessageBubble extends StatelessWidget {
         Gap(4.h),
         Text(
           meta,
-          style: TextStyle(
-            fontSize: 11.sp,
+          style: AppTextStyle.lightBodyXSmallRegular.copyWith(
             color: theme.textSecondary(context),
           ),
         ),
@@ -203,9 +206,7 @@ class _OfferContent extends StatelessWidget {
         children: [
           Text(
             '${LocaleKeys.chatOfferTitle.tr()} · $label',
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.lightBodySmallSemiBold.copyWith(
               color: mine
                   ? Colors.white.withValues(alpha: 0.8)
                   : theme.textSecondary(context),
@@ -215,20 +216,12 @@ class _OfferContent extends StatelessWidget {
           if (offer.title.isNotEmpty)
             Text(
               offer.title,
-              style: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
+              style: AppTextStyle.lightBodyMediumBold.copyWith(color: color),
             ),
           if (offer.price case final p? when p > 0)
             Text(
               RequestFormatters.money(p, 'USD'),
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
+              style: AppTextStyle.lightBodyXLargeBold.copyWith(color: color),
             ),
         ],
       ),

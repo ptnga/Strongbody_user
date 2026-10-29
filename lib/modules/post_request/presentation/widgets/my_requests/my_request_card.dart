@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../../domain/entities/my_request_entity.dart';
 import '../../request_formatters.dart';
@@ -96,10 +97,8 @@ class MyRequestCard extends StatelessWidget {
                       RequestFormatters.headline(request.description),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16.sp,
+                      style: AppTextStyle.lightBodyLargeBold.copyWith(
                         height: 1.3,
-                        fontWeight: FontWeight.w800,
                         color: theme.textPrimary(context),
                       ),
                     ),
@@ -116,8 +115,7 @@ class MyRequestCard extends StatelessWidget {
                 Gap(4.h),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 13.sp,
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
                     height: 1.35,
                     color: theme.textSecondary(context),
                   ),
@@ -199,9 +197,7 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w600,
+        style: AppTextStyle.lightBodySmallSemiBold.copyWith(
           color: success ? _successText : theme.textPrimary(context),
         ),
       ),
@@ -254,9 +250,7 @@ class _Chip extends StatelessWidget {
           ],
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w500,
+            style: AppTextStyle.lightBodySmallMedium.copyWith(
               color: theme.textPrimary(context),
             ),
           ),
@@ -309,8 +303,7 @@ class _OffersStrip extends StatelessWidget {
             summary,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               height: 1.35,
               color: theme.textSecondary(context),
             ),
@@ -324,9 +317,7 @@ class _OffersStrip extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: 6.h),
             child: Text(
               LocaleKeys.myRequestsCompare.tr(),
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
+              style: AppTextStyle.lightBodyMediumBold.copyWith(
                 color: theme.textPrimary(context),
               ),
             ),

@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../bloc/voice_request/voice_request_bloc.dart';
 
@@ -61,9 +62,7 @@ class VoiceStatusLine extends StatelessWidget {
               Gap(8.w),
               Text(
                 text,
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.lightBodyMediumSemiBold.copyWith(
                   color: color,
                 ),
               ),

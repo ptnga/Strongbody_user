@@ -15,6 +15,7 @@ import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/toast_util.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_page_args.dart';
 import 'package:strongbody_buyer/modules/checkout/presentation/widgets/offer_checkout_sheet.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/my_request_entity.dart';
 import '../bloc/request_offers/request_offers_bloc.dart';
@@ -84,11 +85,10 @@ class _RequestOffersPageState extends State<RequestOffersPage> {
                             children: [
                               Text(
                                 LocaleKeys.offersTitle.tr(),
-                                style: TextStyle(
-                                  fontSize: 18.sp,
-                                  fontWeight: FontWeight.w800,
-                                  color: theme.textPrimary(context),
-                                ),
+                                style: AppTextStyle.lightBodyXLargeBold
+                                    .copyWith(
+                                      color: theme.textPrimary(context),
+                                    ),
                               ),
                               if (request != null)
                                 Text(
@@ -97,10 +97,10 @@ class _RequestOffersPageState extends State<RequestOffersPage> {
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13.sp,
-                                    color: theme.textSecondary(context),
-                                  ),
+                                  style: AppTextStyle.lightBodySmallRegular
+                                      .copyWith(
+                                        color: theme.textSecondary(context),
+                                      ),
                                 ),
                             ],
                           ),
@@ -257,9 +257,7 @@ class _SortChips extends StatelessWidget {
               ),
               child: Text(
                 label(sort),
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.lightBodySmallSemiBold.copyWith(
                   color: sort == selected
                       ? Colors.white
                       : theme.textPrimary(context),

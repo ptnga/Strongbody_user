@@ -13,6 +13,7 @@ import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/services/microphone_permission_service.dart';
 import 'package:strongbody_buyer/modules/home/presentation/home_composer_focus.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/voice_request/voice_request_bloc.dart';
 import '../post_request_flow_args.dart';
@@ -201,8 +202,7 @@ extension on _VoiceRequestPageState {
           args.refine
               ? LocaleKeys.voiceRequestRefineHint.tr()
               : LocaleKeys.voiceRequestHint.tr(),
-          style: TextStyle(
-            fontSize: 12.sp,
+          style: AppTextStyle.lightBodySmallRegular.copyWith(
             color: theme.textSecondary(context),
           ),
         ),
@@ -217,8 +217,7 @@ extension on _VoiceRequestPageState {
           child: Text(
             LocaleKeys.voiceRequestFooter.tr(),
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               color: theme.textSecondary(context),
             ),
           ),

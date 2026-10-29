@@ -20,6 +20,7 @@ import 'package:strongbody_buyer/modules/chat/presentation/chat_formatters.dart'
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_options.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/matching_providers_page_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/post_request_flow_args.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/account/account_bloc.dart';
 import '../widgets/account_widgets.dart';
@@ -46,7 +47,7 @@ class AccountPage extends StatelessWidget {
       backgroundColor: theme.surface(context),
       builder: (context) {
         Widget option(String? code, String label, String? hint) => ListTile(
-          title: Text(label, style: TextStyle(fontSize: 15.sp)),
+          title: Text(label, style: AppTextStyle.lightBodyMediumRegular),
           subtitle: hint == null ? null : Text(hint),
           trailing: current == code
               ? Icon(Icons.check_rounded, color: theme.textPrimary(context))
@@ -149,9 +150,7 @@ class AccountPage extends StatelessWidget {
                 padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
                 child: Text(
                   LocaleKeys.accountTitle.tr(),
-                  style: TextStyle(
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w800,
+                  style: AppTextStyle.lightHeadingMedium.copyWith(
                     color: theme.textPrimary(context),
                   ),
                 ),
@@ -317,10 +316,7 @@ class AccountPage extends StatelessWidget {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14.r),
                               ),
-                              textStyle: TextStyle(
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              textStyle: AppTextStyle.lightBodyMediumSemiBold,
                             ),
                             child: state.loggingOut
                                 ? const CupertinoActivityIndicator()
@@ -399,9 +395,7 @@ class _ProfileCard extends StatelessWidget {
                   state.displayName.isEmpty ? '—' : state.displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 17.sp,
-                    fontWeight: FontWeight.w800,
+                  style: AppTextStyle.lightBodyXLargeBold.copyWith(
                     color: theme.textPrimary(context),
                   ),
                 ),
@@ -411,8 +405,7 @@ class _ProfileCard extends StatelessWidget {
                     details.isNotEmpty ? details : profile!.email!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13.sp,
+                    style: AppTextStyle.lightBodySmallRegular.copyWith(
                       height: 1.3,
                       color: theme.textSecondary(context),
                     ),
@@ -491,17 +484,14 @@ class _LionPointsCard extends StatelessWidget {
               children: [
                 Text(
                   LocaleKeys.accountLionPoints.tr(args: [count]),
-                  style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w800,
+                  style: AppTextStyle.lightBodyMediumBold.copyWith(
                     color: theme.textPrimary(context),
                   ),
                 ),
                 if (money != null)
                   Text(
                     LocaleKeys.accountLionWorth.tr(args: [money]),
-                    style: TextStyle(
-                      fontSize: 13.sp,
+                    style: AppTextStyle.lightBodySmallRegular.copyWith(
                       color: theme.textPrimary(context),
                     ),
                   ),
@@ -512,10 +502,7 @@ class _LionPointsCard extends StatelessWidget {
             onPressed: onHistory,
             style: TextButton.styleFrom(
               foregroundColor: theme.textPrimary(context),
-              textStyle: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-              ),
+              textStyle: AppTextStyle.lightBodyMediumSemiBold,
             ),
             child: Text(LocaleKeys.accountHistory.tr()),
           ),
@@ -545,17 +532,14 @@ class _GuestCard extends StatelessWidget {
         children: [
           Text(
             LocaleKeys.accountGuestTitle.tr(),
-            style: TextStyle(
-              fontSize: 17.sp,
-              fontWeight: FontWeight.w800,
+            style: AppTextStyle.lightBodyXLargeBold.copyWith(
               color: theme.textPrimary(context),
             ),
           ),
           Gap(4.h),
           Text(
             LocaleKeys.accountGuestMessage.tr(),
-            style: TextStyle(
-              fontSize: 13.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               height: 1.4,
               color: theme.textSecondary(context),
             ),
@@ -618,9 +602,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
             children: [
               Text(
                 LocaleKeys.accountEdit.tr(),
-                style: TextStyle(
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.w800,
+                style: AppTextStyle.lightHeadingSmall.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),

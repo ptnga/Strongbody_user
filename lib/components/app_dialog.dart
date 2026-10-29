@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 class AppDialog {
   AppDialog._();
@@ -24,16 +25,13 @@ class AppDialog {
         ),
         title: Text(
           title,
-          style: TextStyle(
-            fontSize: 17.sp,
-            fontWeight: FontWeight.w700,
+          style: AppTextStyle.lightBodyXLargeBold.copyWith(
             color: theme.textPrimary(context),
           ),
         ),
         content: Text(
           message,
-          style: TextStyle(
-            fontSize: 14.sp,
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
             color: theme.textSecondary(context),
           ),
         ),

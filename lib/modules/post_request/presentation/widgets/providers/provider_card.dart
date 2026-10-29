@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../../domain/entities/provider_entity.dart';
 import 'provider_formatters.dart';
@@ -96,9 +97,7 @@ class ProviderCard extends StatelessWidget {
                             provider.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w700,
+                            style: AppTextStyle.lightBodyLargeBold.copyWith(
                               color: theme.textPrimary(context),
                             ),
                           ),
@@ -118,8 +117,7 @@ class ProviderCard extends StatelessWidget {
                         subtitle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13.sp,
+                        style: AppTextStyle.lightBodySmallRegular.copyWith(
                           color: theme.textSecondary(context),
                         ),
                       ),
@@ -135,16 +133,13 @@ class ProviderCard extends StatelessWidget {
                           Gap(2.w),
                           Text(
                             provider.rating.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w700,
+                            style: AppTextStyle.lightBodySmallBold.copyWith(
                               color: theme.textPrimary(context),
                             ),
                           ),
                           Text(
                             ' (${provider.reviewCount})',
-                            style: TextStyle(
-                              fontSize: 13.sp,
+                            style: AppTextStyle.lightBodySmallRegular.copyWith(
                               color: theme.textSecondary(context),
                             ),
                           ),
@@ -182,9 +177,7 @@ class ProviderCard extends StatelessWidget {
                   LocaleKeys.providersAvailable.tr(
                     args: [ProviderFormatters.slot(next, locale)],
                   ),
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w500,
+                  style: AppTextStyle.lightBodySmallMedium.copyWith(
                     color: Colour.success,
                   ),
                 ),
@@ -247,7 +240,7 @@ class ProviderCard extends StatelessWidget {
       foregroundColor: theme.textPrimary(context),
       side: BorderSide(color: theme.border(context)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-      textStyle: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600),
+      textStyle: AppTextStyle.lightBodyMediumSemiBold,
       padding: EdgeInsets.symmetric(horizontal: 8.w),
     );
   }
@@ -258,7 +251,7 @@ class ProviderCard extends StatelessWidget {
       backgroundColor: theme.secondary(context),
       foregroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-      textStyle: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
+      textStyle: AppTextStyle.lightBodyMediumBold,
       padding: EdgeInsets.symmetric(horizontal: 8.w),
     );
   }
@@ -282,11 +275,7 @@ class _Avatar extends StatelessWidget {
       onForegroundImageError: provider.avatarUrl == null ? null : (_, _) {},
       child: Text(
         provider.initials,
-        style: TextStyle(
-          fontSize: 15.sp,
-          fontWeight: FontWeight.w700,
-          color: foreground,
-        ),
+        style: AppTextStyle.lightBodyMediumBold.copyWith(color: foreground),
       ),
     );
   }
@@ -306,8 +295,7 @@ class _Price extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final small = TextStyle(
-      fontSize: 12.sp,
+    final small = AppTextStyle.lightBodySmallRegular.copyWith(
       color: theme.textSecondary(context),
     );
     return Column(
@@ -316,9 +304,7 @@ class _Price extends StatelessWidget {
         Text(LocaleKeys.providersFrom.tr(), style: small),
         Text(
           ProviderFormatters.money(amount, currency),
-          style: TextStyle(
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w800,
+          style: AppTextStyle.lightBodyXLargeBold.copyWith(
             color: theme.textPrimary(context),
           ),
         ),
@@ -344,7 +330,9 @@ class _Tag extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 12.sp, color: theme.textPrimary(context)),
+        style: AppTextStyle.lightBodySmallRegular.copyWith(
+          color: theme.textPrimary(context),
+        ),
       ),
     );
   }

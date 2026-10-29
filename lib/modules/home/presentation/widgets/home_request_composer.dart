@@ -10,6 +10,7 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/app_logger.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 typedef RequestSendCallback =
     void Function(String text, List<String> attachmentPaths);
@@ -179,14 +180,12 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
                       textCapitalization: TextCapitalization.sentences,
                       onChanged: (_) => setState(() {}),
                       onSubmitted: (_) => _sendText(),
-                      style: TextStyle(
-                        fontSize: 16.sp,
+                      style: AppTextStyle.lightBodyLargeRegular.copyWith(
                         color: theme.textPrimary(context),
                       ),
                       decoration: InputDecoration(
                         hintText: LocaleKeys.homeAskPlaceholder.tr(),
-                        hintStyle: TextStyle(
-                          fontSize: 16.sp,
+                        hintStyle: AppTextStyle.lightBodyLargeRegular.copyWith(
                           color: theme.textTertiary(context),
                         ),
                         border: InputBorder.none,

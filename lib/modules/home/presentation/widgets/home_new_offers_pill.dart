@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 /// "● 3 new offers >" — chỉ hiện khi có offer mới.
 class HomeNewOffersPill extends StatelessWidget {
@@ -52,9 +53,7 @@ class HomeNewOffersPill extends StatelessWidget {
                               : LocaleKeys.homeNewOffersMany.tr(
                                   args: ['$count'],
                                 ),
-                          style: TextStyle(
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w500,
+                          style: AppTextStyle.lightBodySmallMedium.copyWith(
                             color: theme.textPrimary(context),
                           ),
                         ),

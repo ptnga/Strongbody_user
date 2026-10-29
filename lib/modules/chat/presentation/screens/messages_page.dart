@@ -13,6 +13,7 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/conversations/conversations_bloc.dart';
 import '../chat_page_args.dart';
@@ -74,9 +75,7 @@ class _MessagesPageState extends State<MessagesPage> {
                   children: [
                     Text(
                       LocaleKeys.messagesTitle.tr(),
-                      style: TextStyle(
-                        fontSize: 24.sp,
-                        fontWeight: FontWeight.w800,
+                      style: AppTextStyle.lightHeadingMedium.copyWith(
                         color: theme.textPrimary(context),
                       ),
                     ),
@@ -149,11 +148,12 @@ class _MessagesPageState extends State<MessagesPage> {
                                       ),
                                       child: Text(
                                         LocaleKeys.messagesPeople.tr(),
-                                        style: TextStyle(
-                                          fontSize: 13.sp,
-                                          fontWeight: FontWeight.w700,
-                                          color: theme.textSecondary(context),
-                                        ),
+                                        style: AppTextStyle.lightBodySmallBold
+                                            .copyWith(
+                                              color: theme.textSecondary(
+                                                context,
+                                              ),
+                                            ),
                                       ),
                                     ),
                                   if (state.isSearching)
@@ -175,11 +175,10 @@ class _MessagesPageState extends State<MessagesPage> {
                                       ),
                                       title: Text(
                                         p.name.isEmpty ? '—' : p.name,
-                                        style: TextStyle(
-                                          fontSize: 15.sp,
-                                          fontWeight: FontWeight.w700,
-                                          color: theme.textPrimary(context),
-                                        ),
+                                        style: AppTextStyle.lightBodyMediumBold
+                                            .copyWith(
+                                              color: theme.textPrimary(context),
+                                            ),
                                       ),
                                       onTap: () => _openChat(
                                         ChatPageArgs(
@@ -239,16 +238,14 @@ class _SearchField extends StatelessWidget {
               controller: controller,
               onChanged: onChanged,
               textInputAction: TextInputAction.search,
-              style: TextStyle(
-                fontSize: 15.sp,
+              style: AppTextStyle.lightBodyMediumRegular.copyWith(
                 color: theme.textPrimary(context),
               ),
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
                 hintText: LocaleKeys.messagesSearchHint.tr(),
-                hintStyle: TextStyle(
-                  fontSize: 15.sp,
+                hintStyle: AppTextStyle.lightBodyMediumRegular.copyWith(
                   color: theme.textSecondary(context),
                 ),
               ),
@@ -297,9 +294,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 17.sp,
-              fontWeight: FontWeight.w800,
+            style: AppTextStyle.lightBodyXLargeBold.copyWith(
               color: theme.textPrimary(context),
             ),
           ),
@@ -308,8 +303,7 @@ class _EmptyState extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14.sp,
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
             height: 1.45,
             color: theme.textSecondary(context),
           ),

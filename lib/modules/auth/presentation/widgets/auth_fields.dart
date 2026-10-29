@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/auth/auth_bloc.dart';
 
@@ -59,9 +60,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
       children: [
         Text(
           widget.label,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
+          style: AppTextStyle.lightBodyMediumSemiBold.copyWith(
             color: theme.textPrimary(context),
           ),
         ),
@@ -75,7 +74,9 @@ class _AuthTextFieldState extends State<AuthTextField> {
           autofillHints: widget.autofillHints,
           autocorrect: false,
           enableSuggestions: !widget.password,
-          style: TextStyle(fontSize: 15.sp, color: theme.textPrimary(context)),
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
+            color: theme.textPrimary(context),
+          ),
           decoration: InputDecoration(
             isDense: true,
             filled: true,
@@ -107,14 +108,15 @@ class _AuthTextFieldState extends State<AuthTextField> {
           Gap(4.h),
           Text(
             error!,
-            style: TextStyle(fontSize: 12.sp, color: Colour.error),
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
+              color: Colour.error,
+            ),
           ),
         ] else if (widget.hint != null) ...[
           Gap(4.h),
           Text(
             widget.hint!,
-            style: TextStyle(
-              fontSize: 12.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               color: theme.textSecondary(context),
             ),
           ),
@@ -156,7 +158,7 @@ class AuthPrimaryButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.r),
           ),
-          textStyle: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700),
+          textStyle: AppTextStyle.lightBodyMediumBold,
         ),
         child: loading
             ? Row(
@@ -201,8 +203,7 @@ class AuthSocialButtons extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 12.w),
               child: Text(
                 LocaleKeys.authOr.tr(),
-                style: TextStyle(
-                  fontSize: 13.sp,
+                style: AppTextStyle.lightBodySmallRegular.copyWith(
                   color: theme.textSecondary(context),
                 ),
               ),
@@ -228,19 +229,14 @@ class AuthSocialButtons extends StatelessWidget {
                     children: [
                       Text(
                         'G',
-                        style: TextStyle(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w800,
+                        style: AppTextStyle.lightBodyXLargeBold.copyWith(
                           color: const Color(0xFF4285F4),
                         ),
                       ),
                       Gap(8.w),
                       Text(
                         LocaleKeys.authContinueGoogle.tr(),
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppTextStyle.lightBodyMediumSemiBold,
                       ),
                     ],
                   ),
@@ -295,8 +291,7 @@ class AuthSwitchLink extends StatelessWidget {
         children: [
           Text(
             '$question ',
-            style: TextStyle(
-              fontSize: 14.sp,
+            style: AppTextStyle.lightBodyMediumRegular.copyWith(
               color: theme.textSecondary(context),
             ),
           ),
@@ -304,9 +299,7 @@ class AuthSwitchLink extends StatelessWidget {
             onTap: onTap,
             child: Text(
               action,
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w700,
+              style: AppTextStyle.lightBodyMediumBold.copyWith(
                 color: theme.primary(context),
               ),
             ),
@@ -332,7 +325,7 @@ class AuthFormError extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 13.sp, color: Colour.error),
+        style: AppTextStyle.lightBodySmallRegular.copyWith(color: Colour.error),
       ),
     );
   }

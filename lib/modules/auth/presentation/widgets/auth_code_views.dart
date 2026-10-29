@@ -8,21 +8,16 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/auth/auth_bloc.dart';
 import 'auth_fields.dart';
 
-TextStyle _title(BuildContext context) => TextStyle(
-  fontSize: 22.sp,
-  fontWeight: FontWeight.w800,
-  color: Theme.of(context).textPrimary(context),
-);
+TextStyle _title(BuildContext context) => AppTextStyle.lightHeadingSmall
+    .copyWith(color: Theme.of(context).textPrimary(context));
 
-TextStyle _body(BuildContext context) => TextStyle(
-  fontSize: 14.sp,
-  height: 1.4,
-  color: Theme.of(context).textSecondary(context),
-);
+TextStyle _body(BuildContext context) => AppTextStyle.lightBodyMediumRegular
+    .copyWith(height: 1.4, color: Theme.of(context).textSecondary(context));
 
 /// Nhập mã 4 số — xác minh email (web `ModalVerifyOtp`) hoặc mã quên mật khẩu.
 class AuthOtpView extends StatefulWidget {
@@ -70,9 +65,7 @@ class _AuthOtpViewState extends State<AuthOtpView> {
             ),
             Text(
               state.email,
-              style: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
+              style: AppTextStyle.lightBodyMediumBold.copyWith(
                 color: theme.textPrimary(context),
               ),
             ),
@@ -88,9 +81,7 @@ class _AuthOtpViewState extends State<AuthOtpView> {
               onChanged: (code) {
                 if (code.length == 4) bloc.add(AuthOtpSubmitted(code));
               },
-              style: TextStyle(
-                fontSize: 28.sp,
-                fontWeight: FontWeight.w700,
+              style: AppTextStyle.lightHeadingMedium.copyWith(
                 letterSpacing: 18.w,
                 color: theme.textPrimary(context),
               ),
@@ -121,7 +112,9 @@ class _AuthOtpViewState extends State<AuthOtpView> {
               Gap(6.h),
               Text(
                 error!,
-                style: TextStyle(fontSize: 12.sp, color: Colour.error),
+                style: AppTextStyle.lightBodySmallRegular.copyWith(
+                  color: Colour.error,
+                ),
               ),
             ],
             Gap(14.h),
@@ -140,9 +133,7 @@ class _AuthOtpViewState extends State<AuthOtpView> {
                     seconds > 0
                         ? LocaleKeys.authResendIn.tr(args: [countdown])
                         : LocaleKeys.authResend.tr(),
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w700,
+                    style: AppTextStyle.lightBodyMediumBold.copyWith(
                       color: seconds > 0
                           ? theme.textTertiary(context)
                           : theme.primary(context),

@@ -7,6 +7,7 @@ import 'package:strongbody_buyer/modules/checkout/presentation/offer_payment_gua
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../../domain/entities/my_request_entity.dart';
 import '../../../domain/entities/request_form_values.dart';
@@ -111,9 +112,7 @@ class OfferCard extends StatelessWidget {
                               offer.sellerName.isEmpty ? '—' : offer.sellerName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w800,
+                              style: AppTextStyle.lightBodyMediumBold.copyWith(
                                 color: theme.textPrimary(context),
                               ),
                             ),
@@ -150,8 +149,7 @@ class OfferCard extends StatelessWidget {
                             ],
                           ),
                           maxLines: 2,
-                          style: TextStyle(
-                            fontSize: 13.sp,
+                          style: AppTextStyle.lightBodySmallRegular.copyWith(
                             height: 1.3,
                             color: theme.textSecondary(context),
                           ),
@@ -172,17 +170,14 @@ class OfferCard extends StatelessWidget {
                               ? offer.currency!
                               : fallbackCurrency,
                         ),
-                        style: TextStyle(
-                          fontSize: 20.sp,
+                        style: AppTextStyle.lightHeadingSmall.copyWith(
                           height: 1.1,
-                          fontWeight: FontWeight.w800,
                           color: theme.textPrimary(context),
                         ),
                       ),
                       Text(
                         LocaleKeys.offersPerSession.tr(),
-                        style: TextStyle(
-                          fontSize: 12.sp,
+                        style: AppTextStyle.lightBodySmallRegular.copyWith(
                           color: theme.textSecondary(context),
                         ),
                       ),
@@ -215,8 +210,7 @@ class OfferCard extends StatelessWidget {
                     if (message.isNotEmpty)
                       Text(
                         '“$message”',
-                        style: TextStyle(
-                          fontSize: 14.sp,
+                        style: AppTextStyle.lightBodyMediumRegular.copyWith(
                           height: 1.4,
                           color: theme.textPrimary(context),
                         ),
@@ -250,8 +244,7 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
-              fontSize: 13.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               color: theme.textPrimary(context),
             ),
           ),
@@ -279,7 +272,7 @@ class _Actions extends StatelessWidget {
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(10.r),
     );
-    final textStyle = TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700);
+    final textStyle = AppTextStyle.lightBodyMediumBold;
     final closedLabel = switch (offer.status) {
       'completed' => LocaleKeys.myRequestsStatusCompleted.tr(),
       'accepted' || 'delivered' => LocaleKeys.myRequestsStatusBooked.tr(),

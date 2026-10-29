@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../bloc/voice_request/voice_request_bloc.dart';
 
@@ -39,12 +40,8 @@ class _VoiceTranscriptState extends State<VoiceTranscript> {
     super.dispose();
   }
 
-  TextStyle _style(BuildContext context) => TextStyle(
-    fontSize: 25.sp,
-    height: 1.35,
-    fontWeight: FontWeight.w700,
-    color: Theme.of(context).textPrimary(context),
-  );
+  TextStyle _style(BuildContext context) => AppTextStyle.lightHeadingMedium
+      .copyWith(height: 1.35, color: Theme.of(context).textPrimary(context));
 
   void _startEditing(String transcript) {
     _textController.text = transcript;

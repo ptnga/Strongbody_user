@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 /// Ô "Message Minh..." + nút đỏ: mic (trống) / gửi (có chữ) / gửi voice (đang ghi).
 class ChatComposer extends StatefulWidget {
@@ -112,21 +113,20 @@ class _ChatComposerState extends State<ChatComposer> {
                                         ),
                                       ],
                                     ),
-                                    style: TextStyle(
-                                      fontSize: 15.sp,
-                                      color: theme.textPrimary(context),
-                                    ),
+                                    style: AppTextStyle.lightBodyMediumRegular
+                                        .copyWith(
+                                          color: theme.textPrimary(context),
+                                        ),
                                   ),
                                 ),
                                 TextButton(
                                   onPressed: widget.onRecordCancel,
                                   child: Text(
                                     LocaleKeys.chatCancel.tr(),
-                                    style: TextStyle(
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.textSecondary(context),
-                                    ),
+                                    style: AppTextStyle.lightBodyMediumSemiBold
+                                        .copyWith(
+                                          color: theme.textSecondary(context),
+                                        ),
                                   ),
                                 ),
                               ],
@@ -137,18 +137,16 @@ class _ChatComposerState extends State<ChatComposer> {
                               minLines: 1,
                               maxLines: 4,
                               textCapitalization: TextCapitalization.sentences,
-                              style: TextStyle(
-                                fontSize: 15.sp,
-                                color: theme.textPrimary(context),
-                              ),
+                              style: AppTextStyle.lightBodyMediumRegular
+                                  .copyWith(color: theme.textPrimary(context)),
                               decoration: InputDecoration(
                                 isDense: true,
                                 border: InputBorder.none,
                                 hintText: widget.hint,
-                                hintStyle: TextStyle(
-                                  fontSize: 15.sp,
-                                  color: theme.textSecondary(context),
-                                ),
+                                hintStyle: AppTextStyle.lightBodyMediumRegular
+                                    .copyWith(
+                                      color: theme.textSecondary(context),
+                                    ),
                               ),
                             ),
                     ),
@@ -176,8 +174,7 @@ class _ChatComposerState extends State<ChatComposer> {
                     ? LocaleKeys.chatRecordingHint.tr()
                     : widget.footer,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12.sp,
+                style: AppTextStyle.lightBodySmallRegular.copyWith(
                   color: theme.textSecondary(context),
                 ),
               ),

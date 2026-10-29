@@ -10,9 +10,9 @@ class Colour {
   static const Color primaryLight = Color(0xFFFDECEC);
   static const Color secondary = Color(0xFF1F2C43);
 
-  // Text
-  static const Color textPrimary = Color(0xFF111827);
-  static const Color textSecondary = Color(0xFF687588);
+  // Text — như Multime `AppColors.textPrimary` / `textSecondary`.
+  static const Color textPrimary = Color(0xFF1F2D44);
+  static const Color textSecondary = Color(0xFF738093);
   static const Color textTertiary = Color(0xFF9CA3AF);
 
   // Surface

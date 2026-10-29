@@ -13,6 +13,7 @@ import 'package:strongbody_buyer/modules/auth/presentation/bloc/auth/auth_bloc.d
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/request_form_values.dart';
 import '../bloc/post_request_flow/post_request_flow_bloc.dart';
@@ -190,8 +191,7 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
           maxLines: 8,
           maxLength: RequestFormValues.maxDescription,
           textCapitalization: TextCapitalization.sentences,
-          style: TextStyle(
-            fontSize: 15.sp,
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
             height: 1.4,
             color: theme.textPrimary(context),
           ),
@@ -213,8 +213,7 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
                 '${RequestFormValues.maxDescription}',
               ],
             ),
-            style: TextStyle(
-              fontSize: 12.sp,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
               color: theme.textSecondary(context),
             ),
           ),
@@ -253,8 +252,7 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
                     height: 50.h,
                     child: TextField(
                       controller: _budget,
-                      style: TextStyle(
-                        fontSize: 15.sp,
+                      style: AppTextStyle.lightBodyMediumRegular.copyWith(
                         color: theme.textPrimary(context),
                       ),
                       decoration: reviewInputDecoration(
@@ -308,9 +306,7 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
                           : LocaleKeys.reviewChosenCount.tr(
                               args: ['${state.selectedProviders.length}'],
                             ),
-                      style: TextStyle(
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.lightBodySmallSemiBold.copyWith(
                         color: theme.primary(context),
                       ),
                     ),
@@ -339,10 +335,7 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14.r),
               ),
-              textStyle: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-              ),
+              textStyle: AppTextStyle.lightBodyLargeBold,
             ),
             child: state.isSubmitting || state.isAnalyzing
                 ? Row(
@@ -364,8 +357,7 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
         Text(
           LocaleKeys.reviewDisclaimer.tr(),
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12.sp,
+          style: AppTextStyle.lightBodySmallRegular.copyWith(
             height: 1.4,
             color: theme.textSecondary(context),
           ),

@@ -41,3 +41,7 @@ lib/
 - Route: thêm hằng vào `RouteName`, `GoRoute` với `BlocProvider(create: (_) => getIt<XBloc>()..add(...))`. `context.push/go`; `Navigator.pop` chỉ cho dialog/sheet.
 - UI: ScreenUtil 375x812 (`.w/.h/.sp/.r`), `Gap`, `AppSpacing`, `LocaleKeys.x.tr()`, màu qua theme extension / `Colour` — không hardcode `Color(0x..)`. Log bằng `AppLogger`, không `print`. Spinner inline `CupertinoActivityIndicator`.
 - Text mới: thêm key vào `assets/translations/en.json` + `vi.json`, rồi chạy lệnh generate LocaleKeys.
+
+## Text style
+
+Thang chữ giống Multime: `lib/core/themes/app_text_style.dart` (`AppTextStyle.lightBodyMediumRegular`, `lightHeadingSmall`…, hoặc `Theme.of(context).textTheme.lightBodyMediumBold`). Chỉ dùng token + `copyWith(color: ...)`; không tự đặt `fontSize`/`fontWeight` (cỡ 10/12/14/16/18, heading 20/24/32/40/48; weight tối đa 700). Màu chữ `Colour.textPrimary` #1F2D44 / `textSecondary` #738093 như Multime.

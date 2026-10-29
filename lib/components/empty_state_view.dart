@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 /// Trạng thái trống / lỗi giữa màn: vòng tròn hồng + icon đỏ, tiêu đề, mô tả, nút đỏ.
 /// Là ListView cuộn được để vẫn kéo-làm-mới trong `RefreshIndicator`.
@@ -46,9 +47,7 @@ class EmptyStateView extends StatelessWidget {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w800,
+          style: AppTextStyle.lightBodyXLargeBold.copyWith(
             color: theme.textPrimary(context),
           ),
         ),
@@ -56,8 +55,7 @@ class EmptyStateView extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14.sp,
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
             height: 1.4,
             color: theme.textSecondary(context),
           ),
@@ -74,10 +72,7 @@ class EmptyStateView extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r),
                 ),
-                textStyle: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w700,
-                ),
+                textStyle: AppTextStyle.lightBodyMediumBold,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

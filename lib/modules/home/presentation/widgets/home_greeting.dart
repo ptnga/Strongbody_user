@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/core/constants/app_spacings.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/home/home_bloc.dart';
 
@@ -31,8 +32,7 @@ class HomeGreeting extends StatelessWidget {
                       padding: EdgeInsets.only(bottom: 6.h),
                       child: Text(
                         LocaleKeys.homeGreeting.tr(args: [firstName]),
-                        style: TextStyle(
-                          fontSize: 14.sp,
+                        style: AppTextStyle.lightBodyMediumRegular.copyWith(
                           color: theme.textSecondary(context),
                         ),
                       ),
@@ -41,11 +41,8 @@ class HomeGreeting extends StatelessWidget {
             Text(
               LocaleKeys.homeQuestion.tr(),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 25.sp,
+              style: AppTextStyle.lightHeadingMedium.copyWith(
                 height: 1.25,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
                 color: theme.textPrimary(context),
               ),
             ),

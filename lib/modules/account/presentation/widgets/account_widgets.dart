@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 /// Tiêu đề nhóm ("Voice & language").
 class AccountSectionTitle extends StatelessWidget {
@@ -15,9 +16,7 @@ class AccountSectionTitle extends StatelessWidget {
     padding: EdgeInsets.fromLTRB(4.w, 18.h, 4.w, 8.h),
     child: Text(
       title,
-      style: TextStyle(
-        fontSize: 13.sp,
-        fontWeight: FontWeight.w700,
+      style: AppTextStyle.lightBodySmallBold.copyWith(
         color: Theme.of(context).textSecondary(context),
       ),
     ),
@@ -81,8 +80,7 @@ class AccountNavRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(
-                  fontSize: 15.sp,
+                style: AppTextStyle.lightBodyMediumRegular.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),
@@ -90,8 +88,7 @@ class AccountNavRow extends StatelessWidget {
             if (value != null)
               Text(
                 value!,
-                style: TextStyle(
-                  fontSize: 14.sp,
+                style: AppTextStyle.lightBodyMediumRegular.copyWith(
                   color: theme.textSecondary(context),
                 ),
               ),
@@ -138,16 +135,14 @@ class AccountSwitchRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 15.sp,
+                    style: AppTextStyle.lightBodyMediumRegular.copyWith(
                       color: theme.textPrimary(context),
                     ),
                   ),
                   Gap(2.h),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 12.sp,
+                    style: AppTextStyle.lightBodySmallRegular.copyWith(
                       height: 1.3,
                       color: theme.textSecondary(context),
                     ),

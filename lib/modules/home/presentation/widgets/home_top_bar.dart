@@ -8,6 +8,7 @@ import 'package:strongbody_buyer/core/themes/theme.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/home/home_bloc.dart';
 
@@ -58,9 +59,7 @@ class HomeTopBar extends StatelessWidget {
               child: Text(
                 LocaleKeys.homeBrand.tr(),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17.sp,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyle.lightBodyXLargeBold.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),
@@ -109,9 +108,7 @@ class _Avatar extends StatelessWidget {
             )
           : Text(
               initials,
-              style: TextStyle(
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w700,
+              style: AppTextStyle.lightBodySmallBold.copyWith(
                 color: theme.textPrimary(context),
               ),
             ),

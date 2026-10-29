@@ -13,6 +13,7 @@ import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_badge_notifier.dart';
 import 'package:strongbody_buyer/modules/home/presentation/new_offers_badge_notifier.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import 'app_nav_icons.dart';
 
@@ -209,9 +210,7 @@ class AppBottomNav extends StatelessWidget {
                 child: Text(
                   LocaleKeys.navSpeak.tr(),
                   maxLines: 1,
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.lightBodyXSmallSemiBold.copyWith(
                     color: _SpeakButton.labelColor,
                   ),
                 ),
@@ -305,10 +304,8 @@ class _NavItem extends StatelessWidget {
                       ),
                       child: Text(
                         count > 99 ? '99+' : '$count',
-                        style: TextStyle(
-                          fontSize: 10.sp,
+                        style: AppTextStyle.lightBodyXSmallSemiBold.copyWith(
                           height: 1,
-                          fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
@@ -319,9 +316,7 @@ class _NavItem extends StatelessWidget {
             SizedBox(height: 3.h),
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontFamily: theme.textTheme.bodyMedium?.fontFamily,
-                fontSize: 11.sp,
+              style: AppTextStyle.lightBodyXSmallRegular.copyWith(
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 color: color,
               ),

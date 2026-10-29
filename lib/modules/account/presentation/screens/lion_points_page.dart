@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/account_entities.dart';
 import '../bloc/lion_points/lion_points_bloc.dart';
@@ -67,7 +68,7 @@ class _LionPointsPageState extends State<LionPointsPage> {
         ),
         title: Text(
           LocaleKeys.accountPointsHistoryTitle.tr(),
-          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w800),
+          style: AppTextStyle.lightBodyXLargeBold,
         ),
       ),
       body: BlocBuilder<LionPointsBloc, LionPointsState>(
@@ -89,9 +90,7 @@ class _LionPointsPageState extends State<LionPointsPage> {
                     LocaleKeys.accountPointsAvailable.tr(
                       args: [format.format(state.wallet!.points)],
                     ),
-                    style: TextStyle(
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.w800,
+                    style: AppTextStyle.lightHeadingSmall.copyWith(
                       color: theme.textPrimary(context),
                     ),
                   ),
@@ -104,8 +103,7 @@ class _LionPointsPageState extends State<LionPointsPage> {
                           ? LocaleKeys.accountPointsLoadError.tr()
                           : LocaleKeys.accountPointsEmpty.tr(),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14.sp,
+                      style: AppTextStyle.lightBodyMediumRegular.copyWith(
                         color: theme.textSecondary(context),
                       ),
                     ),
@@ -121,30 +119,27 @@ class _LionPointsPageState extends State<LionPointsPage> {
                             children: [
                               Text(
                                 _title(item),
-                                style: TextStyle(
-                                  fontSize: 15.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.textPrimary(context),
-                                ),
+                                style: AppTextStyle.lightBodyMediumSemiBold
+                                    .copyWith(
+                                      color: theme.textPrimary(context),
+                                    ),
                               ),
                               if (item.at != null)
                                 Text(
                                   DateFormat.yMMMd(
                                     locale,
                                   ).add_Hm().format(item.at!),
-                                  style: TextStyle(
-                                    fontSize: 12.sp,
-                                    color: theme.textSecondary(context),
-                                  ),
+                                  style: AppTextStyle.lightBodySmallRegular
+                                      .copyWith(
+                                        color: theme.textSecondary(context),
+                                      ),
                                 ),
                             ],
                           ),
                         ),
                         Text(
                           '${item.amount > 0 ? '+' : ''}${format.format(item.amount)}',
-                          style: TextStyle(
-                            fontSize: 15.sp,
-                            fontWeight: FontWeight.w700,
+                          style: AppTextStyle.lightBodyMediumBold.copyWith(
                             color: item.amount > 0
                                 ? Colour.success
                                 : theme.textSecondary(context),

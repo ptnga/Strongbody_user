@@ -4,6 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../themes/theme.dart';
 
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
+
 class AppPrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -40,13 +42,7 @@ class AppPrimaryButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon != null) ...[icon!, SizedBox(width: 8.w)],
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text(label, style: AppTextStyle.lightBodyMediumSemiBold),
                 ],
               ),
       ),

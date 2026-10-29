@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../../domain/entities/request_category.dart';
 import '../../../domain/entities/request_form_values.dart';
@@ -109,7 +110,9 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
             : TextInputType.multiline,
         textCapitalization: TextCapitalization.sentences,
         onChanged: (_) => setState(() {}),
-        style: TextStyle(fontSize: 15.sp, color: theme.textPrimary(context)),
+        style: AppTextStyle.lightBodyMediumRegular.copyWith(
+          color: theme.textPrimary(context),
+        ),
         decoration: reviewInputDecoration(
           context,
           hint: field == _Field.budget
@@ -130,8 +133,7 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
               selected: _draftCategory == category.id,
               onSelected: (_) => setState(() => _draftCategory = category.id),
               showCheckmark: false,
-              labelStyle: TextStyle(
-                fontSize: 13.sp,
+              labelStyle: AppTextStyle.lightBodySmallRegular.copyWith(
                 color: theme.textPrimary(context),
               ),
               backgroundColor: theme.surface(context),
@@ -226,9 +228,7 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
                     Gap(8.w),
                     Text(
                       LocaleKeys.heardUnderstood.tr(),
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
+                      style: AppTextStyle.lightBodyLargeBold.copyWith(
                         color: theme.textPrimary(context),
                       ),
                     ),
@@ -249,10 +249,10 @@ class _UnderstoodCardState extends State<UnderstoodCard> {
                                   : LocaleKeys.heardTapToFix.tr(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                color: theme.textSecondary(context),
-                              ),
+                              style: AppTextStyle.lightBodySmallRegular
+                                  .copyWith(
+                                    color: theme.textSecondary(context),
+                                  ),
                             ),
                           ),
                         ],
@@ -320,9 +320,7 @@ class _InlineEditor extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
+            style: AppTextStyle.lightBodySmallSemiBold.copyWith(
               color: theme.textSecondary(context),
             ),
           ),
@@ -394,8 +392,7 @@ class _UnderstoodRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: TextStyle(
-                      fontSize: 12.sp,
+                    style: AppTextStyle.lightBodySmallRegular.copyWith(
                       color: theme.textSecondary(context),
                     ),
                   ),
@@ -407,9 +404,7 @@ class _UnderstoodRow extends StatelessWidget {
                       value,
                       maxLines: maxLines,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.lightBodyMediumSemiBold.copyWith(
                         color: theme.textPrimary(context),
                       ),
                     ),

@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../common/flow_header.dart';
 
@@ -70,17 +71,14 @@ class HeardActionCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
+                      style: AppTextStyle.lightBodyLargeBold.copyWith(
                         color: foreground,
                       ),
                     ),
                     Gap(2.h),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13.sp,
+                      style: AppTextStyle.lightBodySmallRegular.copyWith(
                         height: 1.3,
                         color: secondary,
                       ),

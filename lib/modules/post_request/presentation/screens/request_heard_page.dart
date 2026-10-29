@@ -11,6 +11,7 @@ import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/toast_util.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/post_request_flow/post_request_flow_bloc.dart';
 import '../matching_providers_page_args.dart';
@@ -116,9 +117,7 @@ class _HeardActions extends StatelessWidget {
             children: [
               Text(
                 LocaleKeys.heardQuestion.tr(),
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyle.lightBodyLargeBold.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),
@@ -175,10 +174,7 @@ class _HeardActions extends StatelessWidget {
                   label: Text(LocaleKeys.heardSayAgain.tr()),
                   style: TextButton.styleFrom(
                     foregroundColor: theme.textPrimary(context),
-                    textStyle: TextStyle(
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    textStyle: AppTextStyle.lightBodyMediumMedium,
                   ),
                 ),
               ),

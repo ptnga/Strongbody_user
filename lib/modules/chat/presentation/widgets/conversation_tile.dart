@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/chat_message_entity.dart';
 import '../../domain/entities/conversation_entity.dart';
@@ -63,9 +64,7 @@ class ConversationTile extends StatelessWidget {
                           c.partnerName.isEmpty ? '—' : c.partnerName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 15.sp,
-                            fontWeight: FontWeight.w700,
+                          style: AppTextStyle.lightBodyMediumBold.copyWith(
                             color: theme.textPrimary(context),
                           ),
                         ),
@@ -73,8 +72,7 @@ class ConversationTile extends StatelessWidget {
                       if (c.lastAt != null)
                         Text(
                           ChatFormatters.listTime(c.lastAt!, locale),
-                          style: TextStyle(
-                            fontSize: 12.sp,
+                          style: AppTextStyle.lightBodySmallRegular.copyWith(
                             color: theme.textSecondary(context),
                           ),
                         ),
@@ -96,8 +94,7 @@ class ConversationTile extends StatelessWidget {
                           ChatFormatters.preview(c, myUserId),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14.sp,
+                          style: AppTextStyle.lightBodyMediumRegular.copyWith(
                             fontWeight: unread > 0
                                 ? FontWeight.w600
                                 : FontWeight.w400,
@@ -118,9 +115,7 @@ class ConversationTile extends StatelessWidget {
                           ),
                           child: Text(
                             unread > 99 ? '99+' : '$unread',
-                            style: TextStyle(
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w700,
+                            style: AppTextStyle.lightBodyXSmallBold.copyWith(
                               color: Colors.white,
                             ),
                           ),
@@ -132,8 +127,7 @@ class ConversationTile extends StatelessWidget {
                     Gap(2.h),
                     Text(
                       LocaleKeys.messagesAutoTranslated.tr(args: [source]),
-                      style: TextStyle(
-                        fontSize: 12.sp,
+                      style: AppTextStyle.lightBodySmallRegular.copyWith(
                         color: theme.textSecondary(context),
                       ),
                     ),

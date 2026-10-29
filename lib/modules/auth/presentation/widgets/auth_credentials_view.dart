@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/usecases/auth_use_cases.dart';
 import '../bloc/auth/auth_bloc.dart';
@@ -64,17 +65,14 @@ class _AuthCredentialsViewState extends State<AuthCredentialsView> {
               widget.signUp
                   ? LocaleKeys.authSignUpTitle.tr()
                   : LocaleKeys.authSignInTitle.tr(),
-              style: TextStyle(
-                fontSize: 22.sp,
-                fontWeight: FontWeight.w800,
+              style: AppTextStyle.lightHeadingSmall.copyWith(
                 color: theme.textPrimary(context),
               ),
             ),
             Gap(6.h),
             Text(
               widget.subtitle,
-              style: TextStyle(
-                fontSize: 14.sp,
+              style: AppTextStyle.lightBodyMediumRegular.copyWith(
                 height: 1.4,
                 color: theme.textSecondary(context),
               ),
@@ -125,9 +123,7 @@ class _AuthCredentialsViewState extends State<AuthCredentialsView> {
                   ),
                   child: Text(
                     LocaleKeys.authForgotPassword.tr(),
-                    style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w600,
+                    style: AppTextStyle.lightBodySmallSemiBold.copyWith(
                       color: theme.textPrimary(context),
                     ),
                   ),
@@ -206,17 +202,14 @@ class _EmailExistsBanner extends StatelessWidget {
               children: [
                 Text(
                   LocaleKeys.authEmailExistsTitle.tr(),
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
+                  style: AppTextStyle.lightBodyMediumBold.copyWith(
                     color: theme.primary(context),
                   ),
                 ),
                 Gap(2.h),
                 Text(
                   LocaleKeys.authEmailExistsMessage.tr(),
-                  style: TextStyle(
-                    fontSize: 13.sp,
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
                     color: theme.textPrimary(context),
                   ),
                 ),

@@ -16,6 +16,7 @@ import 'package:strongbody_buyer/modules/post_request/presentation/request_offer
 
 import 'package:strongbody_buyer/modules/checkout/presentation/widgets/offer_checkout_sheet.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/my_request_entity.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/chat_message_entity.dart';
 import '../../domain/entities/chat_session_entity.dart';
@@ -116,9 +117,7 @@ class ChatOfferStrip extends StatelessWidget {
             ),
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.lightBodySmallSemiBold.copyWith(
                 color: success ? _successText : theme.textPrimary(context),
               ),
             ),
@@ -129,8 +128,7 @@ class ChatOfferStrip extends StatelessWidget {
               summary,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13.sp,
+              style: AppTextStyle.lightBodySmallRegular.copyWith(
                 color: theme.textPrimary(context),
               ),
             ),
@@ -139,10 +137,7 @@ class ChatOfferStrip extends StatelessWidget {
             onPressed: () => openChatOffer(context, offer, partner: partner),
             style: TextButton.styleFrom(
               foregroundColor: theme.textPrimary(context),
-              textStyle: TextStyle(
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w700,
-              ),
+              textStyle: AppTextStyle.lightBodySmallBold,
             ),
             child: Text(LocaleKeys.chatDetails.tr()),
           ),
@@ -178,9 +173,7 @@ Future<void> showChatOfferSheet(
               offer.title.isEmpty
                   ? LocaleKeys.chatOfferTitle.tr()
                   : offer.title,
-              style: TextStyle(
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w800,
+              style: AppTextStyle.lightHeadingSmall.copyWith(
                 color: theme.textPrimary(context),
               ),
             ),
@@ -191,8 +184,7 @@ Future<void> showChatOfferSheet(
                 if (offer.orderNo != null)
                   LocaleKeys.chatOfferOrderNo.tr(args: [offer.orderNo!]),
               ].join(' · '),
-              style: TextStyle(
-                fontSize: 13.sp,
+              style: AppTextStyle.lightBodySmallRegular.copyWith(
                 color: theme.textSecondary(context),
               ),
             ),
@@ -200,9 +192,7 @@ Future<void> showChatOfferSheet(
               Gap(12.h),
               Text(
                 RequestFormatters.money(p, 'USD'),
-                style: TextStyle(
-                  fontSize: 24.sp,
-                  fontWeight: FontWeight.w800,
+                style: AppTextStyle.lightHeadingMedium.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),
@@ -211,8 +201,7 @@ Future<void> showChatOfferSheet(
               Gap(12.h),
               Text(
                 offer.description,
-                style: TextStyle(
-                  fontSize: 14.sp,
+                style: AppTextStyle.lightBodyMediumRegular.copyWith(
                   height: 1.45,
                   color: theme.textPrimary(context),
                 ),

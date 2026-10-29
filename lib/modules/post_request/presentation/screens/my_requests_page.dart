@@ -15,6 +15,7 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
 import 'package:strongbody_buyer/modules/home/presentation/new_offers_badge_notifier.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/my_requests/my_requests_bloc.dart';
 import '../request_offers_page_args.dart';
@@ -72,9 +73,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                   children: [
                     Text(
                       LocaleKeys.myRequestsTitle.tr(),
-                      style: TextStyle(
-                        fontSize: 24.sp,
-                        fontWeight: FontWeight.w800,
+                      style: AppTextStyle.lightHeadingMedium.copyWith(
                         color: theme.textPrimary(context),
                       ),
                     ),
@@ -207,9 +206,7 @@ class _TabSwitch extends StatelessWidget {
             ),
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.lightBodyMediumSemiBold.copyWith(
                 color: active
                     ? theme.textPrimary(context)
                     : theme.textSecondary(context),

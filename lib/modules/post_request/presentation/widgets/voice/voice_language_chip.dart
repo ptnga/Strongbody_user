@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../../domain/entities/voice_language_option.dart';
 import '../../bloc/voice_request/voice_request_bloc.dart';
@@ -58,9 +59,7 @@ class VoiceLanguageChip extends StatelessWidget {
                 Gap(6.w),
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyle.lightBodyMediumSemiBold.copyWith(
                     color: theme.textPrimary(context),
                   ),
                 ),
@@ -98,8 +97,7 @@ class _LanguageSheet extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: TextStyle(
-            fontSize: 15.sp,
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             color: theme.textPrimary(context),
           ),
@@ -108,8 +106,7 @@ class _LanguageSheet extends StatelessWidget {
             ? null
             : Text(
                 subtitle,
-                style: TextStyle(
-                  fontSize: 12.sp,
+                style: AppTextStyle.lightBodySmallRegular.copyWith(
                   color: theme.textSecondary(context),
                 ),
               ),
@@ -130,9 +127,7 @@ class _LanguageSheet extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 8.h),
               child: Text(
                 LocaleKeys.voiceRequestLanguageTitle.tr(),
-                style: TextStyle(
-                  fontSize: 17.sp,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyle.lightBodyXLargeBold.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),

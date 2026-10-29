@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/app_logger.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../request_formatters.dart';
 
@@ -149,8 +150,7 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
           RequestFormatters.duration(
             remaining.isNegative ? Duration.zero : remaining,
           ),
-          style: TextStyle(
-            fontSize: 13.sp,
+          style: AppTextStyle.lightBodySmallRegular.copyWith(
             color: widget.onDark
                 ? Colors.white.withValues(alpha: 0.8)
                 : theme.textSecondary(context),

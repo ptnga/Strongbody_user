@@ -16,6 +16,7 @@ import 'package:strongbody_buyer/modules/post_request/presentation/post_request_
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_offers_page_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/home_menu/home_menu_cubit.dart';
 import '../new_offers_badge_notifier.dart';
@@ -49,9 +50,7 @@ class HomeMenuDrawer extends StatelessWidget {
               leading: Icon(icon, color: theme.textPrimary(context)),
               title: Text(
                 label,
-                style: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyle.lightBodyMediumSemiBold.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),
@@ -72,11 +71,8 @@ class HomeMenuDrawer extends StatelessWidget {
                               ),
                               child: Text(
                                 '$count',
-                                style: TextStyle(
-                                  fontSize: 11.sp,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
+                                style: AppTextStyle.lightBodyXSmallBold
+                                    .copyWith(color: Colors.white),
                               ),
                             ),
                     ),
@@ -92,9 +88,7 @@ class HomeMenuDrawer extends StatelessWidget {
                     children: [
                       Text(
                         'StrongBody',
-                        style: TextStyle(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w800,
+                        style: AppTextStyle.lightBodyXLargeBold.copyWith(
                           color: theme.textPrimary(context),
                         ),
                       ),
@@ -125,10 +119,7 @@ class HomeMenuDrawer extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12.r),
                         ),
-                        textStyle: TextStyle(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        textStyle: AppTextStyle.lightBodyMediumBold,
                       ),
                     ),
                   ),
@@ -164,9 +155,7 @@ class HomeMenuDrawer extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 4.h),
                     child: Text(
                       LocaleKeys.homeMenuRecent.tr(),
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.lightBodySmallSemiBold.copyWith(
                         color: theme.textSecondary(context),
                       ),
                     ),
@@ -178,8 +167,7 @@ class HomeMenuDrawer extends StatelessWidget {
                         RequestFormatters.headline(request.description),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14.sp,
+                        style: AppTextStyle.lightBodyMediumRegular.copyWith(
                           color: theme.textPrimary(context),
                         ),
                       ),
@@ -208,9 +196,7 @@ class HomeMenuDrawer extends StatelessWidget {
                     state.loggedIn
                         ? (state.name ?? '')
                         : LocaleKeys.authSignIn.tr(),
-                    style: TextStyle(
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
+                    style: AppTextStyle.lightBodyMediumBold.copyWith(
                       color: theme.textPrimary(context),
                     ),
                   ),

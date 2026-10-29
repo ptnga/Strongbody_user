@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../../domain/entities/request_form_values.dart';
 import '../../../domain/entities/request_options.dart';
@@ -33,9 +34,7 @@ class ReviewLabel extends StatelessWidget {
         children: [
           Text(
             required ? '$text *' : text,
-            style: TextStyle(
-              fontSize: 15.sp,
-              fontWeight: FontWeight.w700,
+            style: AppTextStyle.lightBodyMediumBold.copyWith(
               color: theme.textPrimary(context),
             ),
           ),
@@ -59,7 +58,9 @@ InputDecoration reviewInputDecoration(
   );
   return InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(fontSize: 15.sp, color: theme.textTertiary(context)),
+    hintStyle: AppTextStyle.lightBodyMediumRegular.copyWith(
+      color: theme.textTertiary(context),
+    ),
     isDense: true,
     filled: true,
     fillColor: theme.surface(context),
@@ -82,7 +83,7 @@ class ReviewFieldError extends StatelessWidget {
     padding: EdgeInsets.only(top: 6.h),
     child: Text(
       text,
-      style: TextStyle(fontSize: 12.sp, color: Colour.error),
+      style: AppTextStyle.lightBodySmallRegular.copyWith(color: Colour.error),
     ),
   );
 }
@@ -140,16 +141,13 @@ class ReviewVoiceNoteRow extends StatelessWidget {
                       RequestFormatters.duration(duration ?? Duration.zero),
                     ],
                   ),
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
+                  style: AppTextStyle.lightBodyMediumBold.copyWith(
                     color: theme.textPrimary(context),
                   ),
                 ),
                 Text(
                   LocaleKeys.reviewVoiceNoteHint.tr(),
-                  style: TextStyle(
-                    fontSize: 12.sp,
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
                     color: theme.textSecondary(context),
                   ),
                 ),
@@ -171,10 +169,7 @@ class ReviewVoiceNoteRow extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10.r),
                     ),
-                    textStyle: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    textStyle: AppTextStyle.lightBodySmallSemiBold,
                   ),
                   child: Text(
                     LocaleKeys.reviewUndoRemoveVoice.tr(),
@@ -257,9 +252,7 @@ class ReviewDeliveryChips extends StatelessWidget {
                         ],
                         Text(
                           RequestFormatters.delivery(type),
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
+                          style: AppTextStyle.lightBodyMediumMedium.copyWith(
                             color: theme.textPrimary(context),
                           ),
                         ),
@@ -323,8 +316,7 @@ class ReviewWhenField extends StatelessWidget {
           text ?? LocaleKeys.reviewWhenPlaceholder.tr(),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 15.sp,
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
             color: text == null
                 ? theme.textTertiary(context)
                 : theme.textPrimary(context),
@@ -363,9 +355,7 @@ class ReviewBudgetLabel extends StatelessWidget {
           children: [
             Text(
               LocaleKeys.reviewBudgetLabel.tr(args: [currency]),
-              style: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
+              style: AppTextStyle.lightBodyMediumBold.copyWith(
                 color: theme.textPrimary(context),
               ),
             ),
@@ -429,16 +419,13 @@ class ReviewVisibilityOption extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w600,
+                      style: AppTextStyle.lightBodyMediumSemiBold.copyWith(
                         color: theme.textPrimary(context),
                       ),
                     ),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13.sp,
+                      style: AppTextStyle.lightBodySmallRegular.copyWith(
                         color: theme.textSecondary(context),
                       ),
                     ),
@@ -505,8 +492,7 @@ class ReviewTipBox extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
-                fontSize: 13.sp,
+              style: AppTextStyle.lightBodySmallRegular.copyWith(
                 height: 1.4,
                 color: theme.textPrimary(context).withValues(alpha: 0.85),
               ),

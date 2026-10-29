@@ -10,6 +10,7 @@ import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_formatters.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/typing_suggestion.dart';
 
@@ -118,9 +119,7 @@ class HomeSuggestionRows extends StatelessWidget {
             padding: EdgeInsets.only(bottom: 4.h),
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w600,
+              style: AppTextStyle.lightBodySmallSemiBold.copyWith(
                 color: theme.textSecondary(context),
               ),
             ),
@@ -164,7 +163,9 @@ class _Highlighted extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final base = TextStyle(fontSize: 15.sp, color: theme.textPrimary(context));
+    final base = AppTextStyle.lightBodyMediumRegular.copyWith(
+      color: theme.textPrimary(context),
+    );
     final start = text.toLowerCase().indexOf(query.toLowerCase());
     if (query.isEmpty || start < 0) {
       return Text(
@@ -182,7 +183,7 @@ class _Highlighted extends StatelessWidget {
           TextSpan(text: text.substring(0, start)),
           TextSpan(
             text: text.substring(start, end),
-            style: const TextStyle(fontWeight: FontWeight.w800),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           TextSpan(text: text.substring(end)),
         ],

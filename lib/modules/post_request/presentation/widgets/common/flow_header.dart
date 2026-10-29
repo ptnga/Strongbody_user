@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 /// Header "← Tiêu đề" căn trái + vạch dưới (màn Heard / Review / Providers / My requests).
 class FlowHeader extends StatelessWidget {
@@ -43,9 +44,7 @@ class FlowHeader extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyle.lightBodyXLargeBold.copyWith(
                   color: theme.textPrimary(context),
                 ),
               ),

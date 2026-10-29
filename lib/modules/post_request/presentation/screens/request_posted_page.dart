@@ -10,6 +10,7 @@ import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../request_posted_page_args.dart';
 
@@ -65,9 +66,7 @@ class RequestPostedPage extends StatelessWidget {
                   Gap(20.h),
                   Text(
                     LocaleKeys.postedTitle.tr(),
-                    style: TextStyle(
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.w800,
+                    style: AppTextStyle.lightHeadingMedium.copyWith(
                       color: theme.textPrimary(context),
                     ),
                   ),
@@ -75,8 +74,7 @@ class RequestPostedPage extends StatelessWidget {
                   Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14.sp,
+                    style: AppTextStyle.lightBodyMediumRegular.copyWith(
                       height: 1.45,
                       color: theme.textSecondary(context),
                     ),
@@ -95,8 +93,7 @@ class RequestPostedPage extends StatelessWidget {
                       children: [
                         Text(
                           LocaleKeys.postedYourRequest.tr(),
-                          style: TextStyle(
-                            fontSize: 12.sp,
+                          style: AppTextStyle.lightBodySmallRegular.copyWith(
                             color: theme.textSecondary(context),
                           ),
                         ),
@@ -105,9 +102,7 @@ class RequestPostedPage extends StatelessWidget {
                           args.headline,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w700,
+                          style: AppTextStyle.lightBodyLargeBold.copyWith(
                             color: theme.textPrimary(context),
                           ),
                         ),
@@ -115,8 +110,7 @@ class RequestPostedPage extends StatelessWidget {
                           Gap(4.h),
                           Text(
                             summary,
-                            style: TextStyle(
-                              fontSize: 13.sp,
+                            style: AppTextStyle.lightBodySmallRegular.copyWith(
                               color: theme.textSecondary(context),
                             ),
                           ),
@@ -138,10 +132,7 @@ class RequestPostedPage extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12.r),
                         ),
-                        textStyle: TextStyle(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        textStyle: AppTextStyle.lightBodyMediumBold,
                       ),
                       child: Text(LocaleKeys.postedViewMyRequests.tr()),
                     ),
@@ -161,10 +152,7 @@ class RequestPostedPage extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12.r),
                         ),
-                        textStyle: TextStyle(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        textStyle: AppTextStyle.lightBodyMediumSemiBold,
                       ),
                       child: Text(LocaleKeys.postedBackHome.tr()),
                     ),

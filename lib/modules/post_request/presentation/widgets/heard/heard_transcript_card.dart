@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../bloc/post_request_flow/post_request_flow_bloc.dart';
 import '../../request_formatters.dart';
@@ -54,10 +55,8 @@ class HeardTranscriptCard extends StatelessWidget {
                 transcribing
                     ? LocaleKeys.heardTranscribing.tr()
                     : '“${state.transcript}”',
-                style: TextStyle(
-                  fontSize: 16.sp,
+                style: AppTextStyle.lightBodyLargeMedium.copyWith(
                   height: 1.4,
-                  fontWeight: FontWeight.w500,
                   color: transcribing
                       ? theme.textTertiary(context)
                       : theme.textPrimary(context),
@@ -67,8 +66,7 @@ class HeardTranscriptCard extends StatelessWidget {
                 Gap(8.h),
                 Text(
                   detected,
-                  style: TextStyle(
-                    fontSize: 12.sp,
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
                     color: theme.textSecondary(context),
                   ),
                 ),

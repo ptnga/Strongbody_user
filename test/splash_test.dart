@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
@@ -29,7 +30,7 @@ void main() {
     );
     await tester.pump();
     expect(find.byType(StrongBodyLogo), findsOneWidget);
-    expect(find.byType(Image), findsOneWidget);
+    expect(find.byType(SvgPicture), findsOneWidget);
 
     await tester.pump(
       SplashPage.minDuration - const Duration(milliseconds: 100),

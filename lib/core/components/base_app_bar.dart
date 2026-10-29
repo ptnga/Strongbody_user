@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../themes/theme.dart';
+
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 class BaseAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -41,9 +42,7 @@ class BaseAppBarTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 16.sp,
-        fontWeight: FontWeight.w700,
+      style: AppTextStyle.lightBodyLargeBold.copyWith(
         color: Theme.of(context).textPrimary(context),
       ),
     );
