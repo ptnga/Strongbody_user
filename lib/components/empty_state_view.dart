@@ -1,0 +1,98 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
+
+import 'package:strongbody_buyer/core/themes/theme.dart';
+
+/// Trạng thái trống / lỗi giữa màn: vòng tròn hồng + icon đỏ, tiêu đề, mô tả, nút đỏ.
+/// Là ListView cuộn được để vẫn kéo-làm-mới trong `RefreshIndicator`.
+class EmptyStateView extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final IconData? actionIcon;
+  final VoidCallback? onAction;
+
+  const EmptyStateView({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.actionIcon,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(28.w, 88.h, 28.w, 32.h),
+      children: [
+        Center(
+          child: Container(
+            width: 76.r,
+            height: 76.r,
+            decoration: BoxDecoration(
+              color: theme.primaryLight(context),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 32.r, color: theme.primary(context)),
+          ),
+        ),
+        Gap(18.h),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w800,
+            color: theme.textPrimary(context),
+          ),
+        ),
+        Gap(6.h),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14.sp,
+            height: 1.4,
+            color: theme.textSecondary(context),
+          ),
+        ),
+        if (actionLabel != null && onAction != null) ...[
+          Gap(20.h),
+          Center(
+            child: FilledButton(
+              onPressed: onAction,
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.primary(context),
+                padding: EdgeInsets.symmetric(horizontal: 22.w),
+                minimumSize: Size(0, 46.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                textStyle: TextStyle(
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (actionIcon != null) ...[
+                    Icon(actionIcon, size: 19.r),
+                    Gap(8.w),
+                  ],
+                  Text(actionLabel!),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}

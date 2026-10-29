@@ -1,0 +1,93 @@
+name: strongbody_buyer
+description: "StrongBody Buyer app."
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  bloc: ^9.2.1
+  flutter_bloc: ^9.1.1
+  equatable: ^2.1.0
+
+  # Navigation
+  go_router: ^16.3.0
+
+  # DI
+  get_it: ^8.3.0
+
+  # Network
+  dio: ^5.11.0
+  http_parser: ^4.1.2
+  fpdart: ^1.2.0
+
+  # Storage / config
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_dotenv: ^6.0.1
+
+  # UI / i18n
+  flutter_screenutil: ^5.9.3
+  easy_localization: ^3.0.8
+  intl: ^0.20.2
+  gap: ^3.0.1
+
+  # Voice / media (nói yêu cầu có transcript trực tiếp, đính kèm file)
+  speech_to_text: ^7.4.0
+  record: ^6.2.1
+  path_provider: ^2.1.6
+  just_audio: ^0.10.5
+  # Đọc to tin nhắn của provider (Account › Read replies aloud)
+  flutter_tts: ^4.2.3
+  file_picker: ^10.3.10
+  # Kiểm tra quyền micro + mở Cài đặt (màn "Turn on your microphone")
+  permission_handler: ^12.0.1
+
+  # Đăng nhập Google / Apple (native, giống Multime)
+  google_sign_in: ^7.2.0
+  sign_in_with_apple: ^7.0.1
+
+  # Chat (chat-server, SDK vendored từ Multime `packages/strongbody_chat_client`)
+  strongbody_chat_client:
+    path: packages/strongbody_chat_client
+
+  # Thanh toán offer bằng thẻ Stripe (như web checkout / Multime)
+  flutter_stripe: ^11.5.0
+
+  # Logging
+  logger: ^2.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/env/
+    - assets/translations/
+    - assets/images/
+
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/PlusJakartaSans-ExtraBold.ttf
+          weight: 800
