@@ -164,7 +164,7 @@ class _ChatComposerState extends State<ChatComposer> {
                       onTap: widget.enabled ? action : null,
                       child: SizedBox.square(
                         dimension: 54.r,
-                        child: AppIcon(icon, size: 26.r, color: Colors.white),
+                        child: AppIcon(icon, size: 22.r, color: Colors.white),
                       ),
                     ),
                   ),
