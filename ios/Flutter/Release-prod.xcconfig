@@ -3,7 +3,7 @@
 
 // Signing + bundle theo flavor. Ghi đè trên máy riêng bằng Local.xcconfig (gitignore).
 SB_DEVELOPMENT_TEAM = GW6B397VD6
-SB_BUNDLE_ID_BASE = ai.strongbody.request
+SB_BUNDLE_ID_BASE = ai.strongbody.buyer
 SB_BUNDLE_ID_SUFFIX = 
 APP_DISPLAY_NAME = StrongBody.AI
 #include? "Local.xcconfig"
