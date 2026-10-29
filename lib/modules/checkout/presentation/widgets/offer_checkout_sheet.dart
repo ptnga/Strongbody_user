@@ -7,6 +7,8 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -26,14 +28,28 @@ String _money(double value, String currency) =>
     NumberFormat.simpleCurrency(locale: 'en_US', name: currency).format(value);
 
 /// "Accept & Pay" → sheet thanh toán; `true` = đã trả (hoặc đang chờ xác nhận).
+/// [source] = offers|chat (analytics).
 Future<bool> showOfferCheckoutSheet(
   BuildContext context, {
   required RequestOfferEntity offer,
+  required String source,
 }) async {
+  AppAnalytics.capture(AnalyticsEvents.checkoutOpened, {
+    'source': source,
+    'offer_id': offer.id,
+    'request_id': offer.requestId ?? offer.request?.id,
+    'seller_id': offer.sellerId,
+    'price': offer.price,
+    'currency': 'USD',
+  });
   final paid = await showModalBottomSheet<bool>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     showDragHandle: true,
+    // Vuốt xuống gọi pop thẳng, bỏ qua PopScope → khoá kéo để không đóng giữa lúc trả
+    // (Stripe vẫn trừ tiền nhưng kết quả bị bỏ). Chạm nền ngoài vẫn theo PopScope.
+    enableDrag: false,
     useSafeArea: true,
     backgroundColor: Theme.of(context).surface(context),
     builder: (_) => BlocProvider(
@@ -43,6 +59,11 @@ Future<bool> showOfferCheckoutSheet(
       child: _OfferCheckoutSheet(offer: offer),
     ),
   );
+  if (paid != true) {
+    AppAnalytics.capture(AnalyticsEvents.checkoutDismissed, {
+      'offer_id': offer.id,
+    });
+  }
   return paid ?? false;
 }
 
@@ -66,6 +87,7 @@ class _OfferCheckoutSheet extends StatelessWidget {
         avatar: offer.sellerAvatar,
         profession: offer.profession,
         focusOfferId: offer.id,
+        source: 'checkout',
       ),
     );
   }
@@ -124,9 +146,8 @@ class _QuoteView extends StatelessWidget {
     final bloc = context.read<OfferCheckoutBloc>();
     final locale = context.locale.languageCode;
     final quote = bloc.quote;
-    final currency = (offer.currency?.isNotEmpty ?? false)
-        ? offer.currency!
-        : (offer.request?.details.currency ?? 'USD');
+    // BE luôn thu bằng USD (Stripe `usd`); currency của seller chỉ là cài đặt hồ sơ.
+    const currency = 'USD';
     final session = offerSessionLabel(offer, locale);
     final paying = state.status == OfferCheckoutStatus.paying;
     final canPay = quote.isFree || state.selectedCardId != null;

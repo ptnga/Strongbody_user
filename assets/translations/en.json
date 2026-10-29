@@ -328,6 +328,7 @@
   "accountLogoutMessage": "You won't get offer and message alerts on this device until you log in again.",
   "accountLoggedOut": "You're logged out.",
   "accountFirstName": "First name",
+  "accountFirstNameRequired": "Please enter your first name",
   "accountLastName": "Last name",
   "accountCity": "City",
   "accountSave": "Save",

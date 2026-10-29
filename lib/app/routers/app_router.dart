@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/app_navigator_key.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/components/app_bottom_nav.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
 import 'package:strongbody_buyer/modules/account/presentation/bloc/account/account_bloc.dart';
@@ -37,6 +39,7 @@ import 'package:strongbody_buyer/modules/post_request/presentation/screens/voice
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/widgets/providers/provider_formatters.dart';
+import 'package:strongbody_buyer/modules/splash/presentation/screens/splash_page.dart';
 
 /// Điều hướng: `context.push/go(RouteName.x, extra: ...)`.
 /// `Navigator.pop` chỉ dùng cho dialog/bottom sheet.
@@ -45,90 +48,133 @@ class AppRoutes {
 
   static final GoRouter router = GoRouter(
     navigatorKey: appNavigatorKey,
-    initialLocation: RouteName.rootScreen,
+    initialLocation: RouteName.splash,
+    // PostHog screen view; ShellRoute có navigator riêng nên cần observer riêng.
+    observers: [AppAnalytics.observer()],
     routes: [
       GoRoute(
-        path: RouteName.rootScreen,
-        builder: (context, state) => BlocProvider(
-          create: (_) => getIt<HomeBloc>()..add(const HomeStarted()),
-          child: const HomePage(),
-        ),
-        routes: [
-          GoRoute(
-            path: RouteName.voiceRequest.substring(1),
-            builder: (context, state) {
-              final args = VoiceRequestPageArgs.fromExtra(state.extra);
-              return BlocProvider(
-                create: (_) => getIt<VoiceRequestBloc>()
-                  ..add(
-                    VoiceRequestStarted(
-                      recordVoiceNote:
-                          !args.refine &&
-                          getIt<UserPreferences>().attachVoiceToRequests,
-                      initialLanguage:
-                          getIt<UserPreferences>().speakingLanguage,
-                    ),
-                  ),
-                child: VoiceRequestPage(args: args),
-              );
-            },
-          ),
-          GoRoute(
-            path: RouteName.account.substring(1),
-            builder: (context, state) => BlocProvider(
-              create: (_) => getIt<AccountBloc>()..add(const AccountStarted()),
-              child: const AccountPage(),
-            ),
+        path: RouteName.splash,
+        builder: (context, state) => const SplashPage(),
+      ),
+      // 4 tab giữ state riêng (Multime `LazyIndexedStack`); màn phụ bên dưới đè lên trên.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => AppTabShell(shell: shell),
+        branches: [
+          StatefulShellBranch(
             routes: [
               GoRoute(
-                path: 'lionPoints',
+                path: RouteName.rootScreen,
                 builder: (context, state) => BlocProvider(
-                  create: (_) =>
-                      getIt<LionPointsBloc>()..add(const LionPointsStarted()),
-                  child: const LionPointsPage(),
+                  create: (_) => getIt<HomeBloc>()..add(const HomeStarted()),
+                  child: TabActivation(
+                    tab: AppTab.home,
+                    onActivated: (context) =>
+                        context.read<HomeBloc>().add(const HomeStarted()),
+                    child: const HomePage(),
+                  ),
                 ),
               ),
             ],
           ),
-          GoRoute(
-            path: RouteName.messages.substring(1),
-            builder: (context, state) => BlocProvider(
-              create: (_) =>
-                  getIt<ConversationsBloc>()..add(const ConversationsStarted()),
-              child: const MessagesPage(),
-            ),
-          ),
-          GoRoute(
-            path: RouteName.myRequests.substring(1),
-            builder: (context, state) => BlocProvider(
-              create: (_) =>
-                  getIt<MyRequestsBloc>()..add(const MyRequestsStarted()),
-              child: const MyRequestsPage(),
-            ),
+          StatefulShellBranch(
             routes: [
               GoRoute(
-                path: 'offers',
-                redirect: (context, state) =>
-                    state.extra is RequestOffersPageArgs
-                    ? null
-                    : RouteName.myRequests,
-                builder: (context, state) {
-                  final args = state.extra! as RequestOffersPageArgs;
-                  return BlocProvider(
-                    create: (_) => getIt<RequestOffersBloc>()
-                      ..add(
-                        RequestOffersStarted(
-                          args.requestId,
-                          initialOffers: args.offers,
-                        ),
-                      ),
-                    child: RequestOffersPage(args: args),
-                  );
-                },
+                path: RouteName.myRequests,
+                builder: (context, state) => BlocProvider(
+                  create: (_) =>
+                      getIt<MyRequestsBloc>()..add(const MyRequestsStarted()),
+                  child: TabActivation(
+                    tab: AppTab.requests,
+                    onActivated: (context) => context
+                        .read<MyRequestsBloc>()
+                        .add(const MyRequestsStarted()),
+                    child: const MyRequestsPage(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteName.messages,
+                builder: (context, state) => BlocProvider(
+                  create: (_) =>
+                      getIt<ConversationsBloc>()
+                        ..add(const ConversationsStarted()),
+                  child: TabActivation(
+                    tab: AppTab.messages,
+                    onActivated: (context) => context
+                        .read<ConversationsBloc>()
+                        .add(const ConversationsStarted()),
+                    child: const MessagesPage(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RouteName.account,
+                builder: (context, state) => BlocProvider(
+                  create: (_) =>
+                      getIt<AccountBloc>()..add(const AccountStarted()),
+                  child: TabActivation(
+                    tab: AppTab.account,
+                    onActivated: (context) =>
+                        context.read<AccountBloc>().add(const AccountStarted()),
+                    child: const AccountPage(),
+                  ),
+                ),
               ),
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: RouteName.voiceRequest,
+        builder: (context, state) {
+          final args = VoiceRequestPageArgs.fromExtra(state.extra);
+          return BlocProvider(
+            create: (_) => getIt<VoiceRequestBloc>()
+              ..add(
+                VoiceRequestStarted(
+                  recordVoiceNote:
+                      !args.refine &&
+                      getIt<UserPreferences>().attachVoiceToRequests,
+                  initialLanguage: getIt<UserPreferences>().speakingLanguage,
+                ),
+              ),
+            child: VoiceRequestPage(args: args),
+          );
+        },
+      ),
+      GoRoute(
+        path: RouteName.requestOffers,
+        redirect: (context, state) =>
+            state.extra is RequestOffersPageArgs ? null : RouteName.myRequests,
+        builder: (context, state) {
+          final args = state.extra! as RequestOffersPageArgs;
+          return BlocProvider(
+            create: (_) => getIt<RequestOffersBloc>()
+              ..add(
+                RequestOffersStarted(
+                  args.requestId,
+                  initialOffers: args.offers,
+                ),
+              ),
+            child: RequestOffersPage(args: args),
+          );
+        },
+      ),
+      GoRoute(
+        path: RouteName.lionPoints,
+        builder: (context, state) => BlocProvider(
+          create: (_) =>
+              getIt<LionPointsBloc>()..add(const LionPointsStarted()),
+          child: const LionPointsPage(),
+        ),
       ),
       GoRoute(
         path: RouteName.chat,
@@ -145,6 +191,7 @@ class AppRoutes {
       ),
       // Heard → Review → Providers dùng chung một PostRequestFlowBloc (tạo khi vào Heard).
       ShellRoute(
+        observers: [AppAnalytics.observer()],
         builder: (context, state, child) => BlocProvider(
           create: (_) => getIt<PostRequestFlowBloc>()
             ..add(

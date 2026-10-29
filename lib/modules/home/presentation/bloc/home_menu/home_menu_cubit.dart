@@ -9,6 +9,9 @@ import 'package:strongbody_buyer/modules/post_request/domain/usecases/get_my_req
 
 class HomeMenuState extends Equatable {
   final bool loggedIn;
+
+  /// Chủ của [recent] / [points] — đổi tài khoản thì bỏ dữ liệu cũ.
+  final int? userId;
   final String? name;
 
   /// 3 request gần nhất ("Recent" trong menu).
@@ -17,13 +20,14 @@ class HomeMenuState extends Equatable {
 
   const HomeMenuState({
     this.loggedIn = false,
+    this.userId,
     this.name,
     this.recent = const [],
     this.points,
   });
 
   @override
-  List<Object?> get props => [loggedIn, name, recent, points];
+  List<Object?> get props => [loggedIn, userId, name, recent, points];
 }
 
 /// Menu bên ở Home (prototype): tải request gần nhất + Lion Points khi mở.
@@ -47,12 +51,15 @@ class HomeMenuCubit extends Cubit<HomeMenuState> {
       emit(const HomeMenuState());
       return;
     }
+    // Tab Home được giữ sống: chỉ dùng lại dữ liệu cũ nếu cùng tài khoản.
+    final previous = state.userId == userId ? state : const HomeMenuState();
     emit(
       HomeMenuState(
         loggedIn: true,
+        userId: userId,
         name: _storage.userName,
-        recent: state.recent,
-        points: state.points,
+        recent: previous.recent,
+        points: previous.points,
       ),
     );
     final requests = _getMyRequests(
@@ -64,10 +71,11 @@ class HomeMenuCubit extends Cubit<HomeMenuState> {
       (page) => page.items.take(3).toList(),
     );
     final wallet = (await points).fold((_) => null, (r) => r.wallet.points);
-    if (isClosed) return;
+    if (isClosed || _storage.userId != userId) return;
     emit(
       HomeMenuState(
         loggedIn: true,
+        userId: userId,
         name: _storage.userName,
         recent: recent,
         points: wallet ?? state.points,

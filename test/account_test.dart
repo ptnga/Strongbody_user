@@ -53,6 +53,8 @@ class _Prefs implements UserPreferences {
   List<String> get recentSearches => const [];
   @override
   Future<void> addRecentSearch(String text) async {}
+  @override
+  Future<void> clearRecentSearches() async {}
 }
 
 class _Repo implements AccountRepository {

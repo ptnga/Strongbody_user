@@ -15,6 +15,7 @@ import 'package:strongbody_buyer/modules/post_request/presentation/matching_prov
 import 'package:strongbody_buyer/modules/post_request/presentation/post_request_flow_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_offers_page_args.dart';
+import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
 
 import '../bloc/home_menu/home_menu_cubit.dart';
 import '../new_offers_badge_notifier.dart';
@@ -110,8 +111,13 @@ class HomeMenuDrawer extends StatelessWidget {
                   child: SizedBox(
                     height: 48.h,
                     child: FilledButton.icon(
-                      onPressed: () =>
-                          _go(context, (r) => r.push(RouteName.voiceRequest)),
+                      onPressed: () => _go(
+                        context,
+                        (r) => r.push(
+                          RouteName.voiceRequest,
+                          extra: const VoiceRequestPageArgs(source: 'menu'),
+                        ),
+                      ),
                       icon: const Icon(Icons.mic_none_rounded),
                       label: Text(LocaleKeys.homeMenuNewRequest.tr()),
                       style: FilledButton.styleFrom(

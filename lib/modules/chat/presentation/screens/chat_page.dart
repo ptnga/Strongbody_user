@@ -6,6 +6,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -47,6 +49,11 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    AppAnalytics.capture(AnalyticsEvents.chatOpened, {
+      'source': widget.args.source,
+      'partner_id': widget.args.partnerId,
+      'from_offer': widget.args.focusOfferId != null,
+    });
     _scroll.addListener(() {
       final p = _scroll.position;
       // reverse: true → cuối cuộn = tin cũ nhất.
@@ -254,7 +261,10 @@ class _ChatPageState extends State<ChatPage> {
                 FilledButton(
                   onPressed: () async {
                     final bloc = context.read<ChatBloc>();
-                    if (signedOut && !await showAuthSheet(context)) return;
+                    if (signedOut &&
+                        !await showAuthSheet(context, source: 'chat')) {
+                      return;
+                    }
                     bloc.add(const ChatStarted());
                   },
                   style: FilledButton.styleFrom(

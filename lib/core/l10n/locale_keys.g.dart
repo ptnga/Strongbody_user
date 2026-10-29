@@ -333,6 +333,7 @@ abstract class LocaleKeys {
   static const accountLogoutMessage = 'accountLogoutMessage';
   static const accountLoggedOut = 'accountLoggedOut';
   static const accountFirstName = 'accountFirstName';
+  static const accountFirstNameRequired = 'accountFirstNameRequired';
   static const accountLastName = 'accountLastName';
   static const accountCity = 'accountCity';
   static const accountSave = 'accountSave';

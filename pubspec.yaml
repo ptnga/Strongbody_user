@@ -64,6 +64,8 @@ dependencies:
 
   # Logging
   logger: ^2.7.0
+  posthog_flutter: ^5.58.0
+  flutter_svg: ^2.3.2
 
 dev_dependencies:
   flutter_test:

@@ -6,16 +6,20 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
-import 'package:strongbody_buyer/components/app_bottom_nav.dart';
 import 'package:strongbody_buyer/components/empty_state_view.dart';
+import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
+import 'package:strongbody_buyer/modules/home/presentation/new_offers_badge_notifier.dart';
 
 import '../bloc/my_requests/my_requests_bloc.dart';
 import '../request_offers_page_args.dart';
 import '../widgets/my_requests/my_request_card.dart';
+import '../voice_request_page_args.dart';
 
 /// "My requests" — tab Active / Closed (Multime `ManageRequest`, `GET /user/requests`)
 /// + thanh điều hướng dưới (Home về trang đầu).
@@ -54,7 +58,6 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: _listBackground,
-      bottomNavigationBar: const AppBottomNav(current: AppTab.requests),
       body: Column(
         children: [
           Container(
@@ -84,9 +87,15 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                               padding: EdgeInsets.only(top: 12.h),
                               child: _TabSwitch(
                                 selected: state.tab,
-                                onChanged: (tab) => context
-                                    .read<MyRequestsBloc>()
-                                    .add(MyRequestsTabChanged(tab)),
+                                onChanged: (tab) {
+                                  AppAnalytics.capture(
+                                    AnalyticsEvents.myRequestsTabChanged,
+                                    {'tab': tab.name},
+                                  );
+                                  context.read<MyRequestsBloc>().add(
+                                    MyRequestsTabChanged(tab),
+                                  );
+                                },
                               ),
                             )
                           : const SizedBox.shrink(),
@@ -129,13 +138,27 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                               key: ValueKey(request.id),
                               request: request,
                               offers: offers,
-                              onOpen: () => context.push(
-                                RouteName.requestOffers,
-                                extra: RequestOffersPageArgs.fromRequest(
-                                  request,
-                                  offers: offers,
-                                ),
-                              ),
+                              onOpen: () async {
+                                final bloc = context.read<MyRequestsBloc>();
+                                AppAnalytics.capture(
+                                  AnalyticsEvents.requestCardTapped,
+                                  {
+                                    'request_id': request.id,
+                                    'status': request.status,
+                                    'offers_count': request.offersCount,
+                                  },
+                                );
+                                await context.push(
+                                  RouteName.requestOffers,
+                                  extra: RequestOffersPageArgs.fromRequest(
+                                    request,
+                                    offers: offers,
+                                  ),
+                                );
+                                // Có thể đã trả / nhận offer → cập nhật thẻ + badge.
+                                bloc.add(const MyRequestsStarted());
+                                getIt<NewOffersBadgeNotifier>().refresh();
+                              },
                             );
                           },
                         ),
@@ -222,7 +245,10 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<MyRequestsBloc>();
-    void speak() => context.push(RouteName.voiceRequest);
+    void speak() => context.push(
+      RouteName.voiceRequest,
+      extra: const VoiceRequestPageArgs(source: 'my_requests'),
+    );
     return switch (state.status) {
       MyRequestsStatus.signedOut => EmptyStateView(
         icon: Icons.person_outline_rounded,
@@ -231,7 +257,9 @@ class _EmptyState extends StatelessWidget {
         actionLabel: LocaleKeys.authSignIn.tr(),
         actionIcon: Icons.login_rounded,
         onAction: () async {
-          if (await showAuthSheet(context)) bloc.add(const MyRequestsStarted());
+          if (await showAuthSheet(context, source: 'my_requests')) {
+            bloc.add(const MyRequestsStarted());
+          }
         },
       ),
       MyRequestsStatus.failure => EmptyStateView(

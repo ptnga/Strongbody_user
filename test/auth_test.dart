@@ -247,6 +247,35 @@ void main() {
     await bloc.close();
   });
 
+  test('OTP shorter than 4 digits → error, no API call', () async {
+    final repo = _FakeAuthRepository();
+    final bloc = _bloc(repo)
+      ..add(const AuthStarted(screen: AuthScreen.login))
+      ..add(
+        const AuthLoginSubmitted(email: 'new@mail.com', password: 'secret123'),
+      );
+    await _until(bloc, (s) => s.screen == AuthScreen.verifyOtp);
+    bloc.add(const AuthOtpSubmitted(' 12 '));
+    final s = await _until(bloc, (s) => s.otpError != null);
+    expect(s.status, isNot(AuthStatus.submitting));
+    expect(repo.calls.where((c) => c == 'verify'), isEmpty);
+    await bloc.close();
+  });
+
+  test('invalid email / short password → field errors, no API call', () async {
+    final repo = _FakeAuthRepository();
+    final bloc = _bloc(repo)
+      ..add(const AuthStarted(screen: AuthScreen.login))
+      ..add(const AuthLoginSubmitted(email: 'not-an-email', password: '123'));
+    final s = await _until(
+      bloc,
+      (s) => s.emailError != null && s.passwordError != null,
+    );
+    expect(s.status, isNot(AuthStatus.submitting));
+    expect(repo.calls, isEmpty);
+    await bloc.close();
+  });
+
   test('forgot password: email → code → new password → done', () async {
     final repo = _FakeAuthRepository();
     final bloc = _bloc(repo)

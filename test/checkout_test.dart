@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 
@@ -17,16 +19,20 @@ class _Remote implements CheckoutRemoteDataSource {
   Map<String, dynamic> retry = {'client_secret': 'pi_secret', 'offer_id': 9};
   String offerStatus = 'paid';
   Map<String, dynamic>? sentBody;
+  int retryCalls = 0;
+  Completer<void>? retryGate;
+  bool hasCards = true;
 
   @override
   Future<List<Map<String, dynamic>>> getPaymentMethods() async => [
-    {
-      'id': 'pm_1',
-      'brand': 'visa',
-      'last4': '4242',
-      'exp_month': 12,
-      'exp_year': 2030,
-    },
+    if (hasCards)
+      {
+        'id': 'pm_1',
+        'brand': 'visa',
+        'last4': '4242',
+        'exp_month': 12,
+        'exp_year': 2030,
+      },
   ];
 
   @override
@@ -37,7 +43,9 @@ class _Remote implements CheckoutRemoteDataSource {
     int offerId,
     Map<String, dynamic> body,
   ) async {
+    retryCalls++;
     sentBody = body;
+    await retryGate?.future;
     return retry;
   }
 
@@ -52,6 +60,7 @@ class _Remote implements CheckoutRemoteDataSource {
 
 class _Stripe implements StripePaymentService {
   StripeResult result = StripeResult.success;
+  StripeResult addResult = StripeResult.success;
   String? confirmedWith;
 
   @override
@@ -65,7 +74,7 @@ class _Stripe implements StripePaymentService {
 
   @override
   Future<StripeResult> addCard(String setupIntentClientSecret) async =>
-      StripeResult.success;
+      addResult;
 }
 
 class _AccountRepo implements AccountRepository {
@@ -129,8 +138,9 @@ void main() {
     });
 
     test(
-      'points already applied on the offer are kept, voucher subtracted',
+      'discounts already applied: price is net (BE retry-payment) → pay exactly price',
       () {
+        // BE: price = gốc 113 − (điểm 3 + voucher 60) = 50 → Stripe thu $50.
         const applied = RequestOfferEntity(
           id: 1,
           status: 'pending',
@@ -147,8 +157,23 @@ void main() {
         );
         expect(quote.canChoosePoints, isFalse);
         expect(quote.points, 300);
-        expect(quote.total, 0);
-        expect(quote.isFree, isTrue);
+        expect(quote.price, closeTo(113, 0.0001));
+        expect(quote.total, closeTo(50, 0.0001));
+        expect(quote.isFree, isFalse);
+
+        // Đã áp đủ để miễn phí: price 0 → đơn 0$.
+        const free = RequestOfferEntity(
+          id: 2,
+          status: 'pending',
+          sellerName: 'A',
+          price: 0,
+          voucherValue: 70,
+          voucherCode: 'FREE',
+        );
+        expect(
+          OfferCheckoutQuote.of(free, const OfferCheckoutState()).isFree,
+          isTrue,
+        );
       },
     );
   });
@@ -244,4 +269,85 @@ void main() {
       await bloc.close();
     },
   );
+
+  group('OfferCheckoutBloc guards', () {
+    OfferCheckoutBloc bloc0(_Remote remote, _Stripe stripe, {offer = _offer}) =>
+        OfferCheckoutBloc(
+          offer: offer,
+          getCards: GetPaymentCardsUseCase(_repo(remote, stripe)),
+          addCard: AddPaymentCardUseCase(_repo(remote, stripe)),
+          payOffer: PayOfferUseCase(_repo(remote, stripe)),
+          getLionPoints: GetLionPointsUseCase(_AccountRepo()),
+        )..add(const OfferCheckoutStarted());
+
+    test('Pay tapped twice while paying → charged once', () async {
+      final remote = _Remote()..retryGate = Completer<void>();
+      final bloc = bloc0(remote, _Stripe());
+      await bloc.stream.firstWhere(
+        (s) => s.status == OfferCheckoutStatus.ready,
+      );
+      bloc
+        ..add(const OfferCheckoutPayRequested())
+        ..add(const OfferCheckoutPayRequested());
+      await bloc.stream.firstWhere(
+        (s) => s.status == OfferCheckoutStatus.paying,
+      );
+      await Future<void>.delayed(Duration.zero);
+      remote.retryGate!.complete();
+      await bloc.stream.firstWhere((s) => s.status == OfferCheckoutStatus.paid);
+      bloc.add(const OfferCheckoutPayRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(remote.retryCalls, 1);
+      await bloc.close();
+    });
+
+    test('no saved card on a paid order → Pay does nothing', () async {
+      final remote = _Remote()..hasCards = false;
+      final bloc = bloc0(remote, _Stripe());
+      final ready = await bloc.stream.firstWhere(
+        (s) => s.status == OfferCheckoutStatus.ready,
+      );
+      expect(ready.selectedCardId, isNull);
+      expect(bloc.quote.isFree, isFalse);
+      bloc.add(const OfferCheckoutPayRequested());
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(remote.retryCalls, 0);
+      expect(bloc.state.status, OfferCheckoutStatus.ready);
+      await bloc.close();
+    });
+
+    test('add card: cancelled is silent, failure shows notice', () async {
+      final stripe = _Stripe()..addResult = StripeResult.cancelled;
+      final bloc = bloc0(_Remote(), stripe);
+      await bloc.stream.firstWhere(
+        (s) => s.status == OfferCheckoutStatus.ready,
+      );
+      bloc.add(const OfferCheckoutAddCardRequested());
+      await bloc.stream.firstWhere((s) => !s.addingCard);
+      expect(bloc.state.notice, isNull);
+
+      stripe.addResult = StripeResult.failed;
+      bloc.add(const OfferCheckoutAddCardRequested());
+      final s = await bloc.stream.firstWhere(
+        (s) => !s.addingCard && s.notice != null,
+      );
+      expect(s.notice, OfferCheckoutNotice.addCardFailed);
+      await bloc.close();
+    });
+
+    test('points toggled off → full price, no points sent', () async {
+      final remote = _Remote();
+      final bloc = bloc0(remote, _Stripe());
+      await bloc.stream.firstWhere(
+        (s) => s.status == OfferCheckoutStatus.ready,
+      );
+      bloc.add(const OfferCheckoutPointsToggled(false));
+      await bloc.stream.firstWhere((s) => !s.usePoints);
+      expect(bloc.quote.total, closeTo(70, 0.0001));
+      bloc.add(const OfferCheckoutPayRequested());
+      await bloc.stream.firstWhere((s) => s.status == OfferCheckoutStatus.paid);
+      expect(remote.sentBody!['points_used'], 0);
+      await bloc.close();
+    });
+  });
 }

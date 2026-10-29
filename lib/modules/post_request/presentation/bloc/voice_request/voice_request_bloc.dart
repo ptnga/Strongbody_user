@@ -28,6 +28,9 @@ class VoiceRequestBloc extends Bloc<VoiceRequestEvent, VoiceRequestState> {
   /// Voice note đã giao cho màn sau → không xoá khi đóng bloc.
   bool _handedOff = false;
 
+  /// ✓ bấm hai lần (events chạy song song) → chỉ một lượt dừng ghi âm + trả kết quả.
+  bool _submitting = false;
+
   /// Mã ngôn ngữ (app) của locale nhận dạng mặc định — hiển thị "Detected: …" khi Auto-detect.
   String? _systemLanguageCode;
 
@@ -344,6 +347,8 @@ class VoiceRequestBloc extends Bloc<VoiceRequestEvent, VoiceRequestState> {
     VoiceRequestSubmitted event,
     Emitter<VoiceRequestState> emit,
   ) async {
+    if (_submitting) return;
+    _submitting = true;
     final next = _committed().copyWith(
       status: VoiceRequestStatus.paused,
       level: 0,
@@ -355,6 +360,7 @@ class VoiceRequestBloc extends Bloc<VoiceRequestEvent, VoiceRequestState> {
     _recordingStarted = false;
     // Chưa nhận ra chữ nhưng có ghi âm → vẫn đi tiếp, màn sau chuyển giọng nói qua BE.
     if (text.isEmpty && note == null) {
+      _submitting = false;
       emit(state.copyWith(problem: VoiceRequestProblem.noSpeech));
       return;
     }

@@ -7,6 +7,8 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/bloc/auth/auth_bloc.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -50,6 +52,13 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
     FocusScope.of(context).unfocus();
     setState(() => _tried = true);
     if (_descriptionBad || state.values.deliveryTypes.isEmpty || _budgetBad) {
+      AppAnalytics.capture(AnalyticsEvents.requestReviewInvalid, {
+        'missing': [
+          if (_descriptionBad) 'description',
+          if (state.values.deliveryTypes.isEmpty) 'delivery',
+          if (_budgetBad) 'budget',
+        ].join(','),
+      });
       return;
     }
     _bloc.add(const PostRequestFlowSubmitted());
@@ -102,6 +111,7 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
         // đăng nhập xong thì tự đăng request đang chờ.
         final signedIn = await showAuthSheet(
           context,
+          source: 'post_request',
           initial: AuthScreen.signup,
           subtitle: LocaleKeys.authRequestSubtitle.tr(),
         );
@@ -316,7 +326,10 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
         SizedBox(
           height: 52.h,
           child: FilledButton(
-            onPressed: state.isSubmitting ? null : () => _submit(state),
+            // Đang phân tích: bloc sẽ bỏ qua submit → khoá nút + hiện đang chờ.
+            onPressed: state.isSubmitting || state.isAnalyzing
+                ? null
+                : () => _submit(state),
             style: FilledButton.styleFrom(
               backgroundColor: theme.secondary(context),
               disabledBackgroundColor: theme
@@ -331,13 +344,17 @@ class _RequestReviewPageState extends State<RequestReviewPage> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            child: state.isSubmitting
+            child: state.isSubmitting || state.isAnalyzing
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const CupertinoActivityIndicator(color: Colors.white),
                       Gap(8.w),
-                      Text(LocaleKeys.reviewPosting.tr()),
+                      Text(
+                        state.isSubmitting
+                            ? LocaleKeys.reviewPosting.tr()
+                            : LocaleKeys.reviewSubmit.tr(),
+                      ),
                     ],
                   )
                 : Text(LocaleKeys.reviewSubmit.tr()),

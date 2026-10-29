@@ -48,6 +48,8 @@ class ChatServerConnection implements ChatConnection {
         _pubnub.status.listen((e) {
           if (e.category == StatusCategory.accessDenied) {
             _events.add(const ChatAccessDenied());
+          } else if (e.category == StatusCategory.reconnected) {
+            _events.add(const ChatReconnected());
           }
         }),
       );
@@ -154,6 +156,7 @@ class ChatServerUpdatesConnection implements ChatUpdatesConnection {
   final ChatPubNub _pubnub;
   final _updates = StreamController<ConversationUpdate>.broadcast();
   StreamSubscription<MessageEvent>? _subscription;
+  StreamSubscription<StatusEvent>? _statusSubscription;
 
   ChatServerUpdatesConnection({
     required int userId,
@@ -174,6 +177,11 @@ class ChatServerUpdatesConnection implements ChatUpdatesConnection {
           _updates.add(const UnreadChanged());
       }
     });
+    _statusSubscription = _pubnub.status.listen((e) {
+      if (e.category == StatusCategory.accessDenied && !_updates.isClosed) {
+        _updates.add(const UpdatesAccessDenied());
+      }
+    });
     _pubnub.subscribe(
       channels: {channelId ?? ChatApiConfig.updatesChannel(userId)},
     );
@@ -185,6 +193,7 @@ class ChatServerUpdatesConnection implements ChatUpdatesConnection {
   @override
   Future<void> dispose() async {
     await _subscription?.cancel();
+    await _statusSubscription?.cancel();
     await _updates.close();
     try {
       await _pubnub.disconnect();

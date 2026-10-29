@@ -20,6 +20,7 @@ class VoiceLanguageChip extends StatelessWidget {
     // Sheet trả về: '' = Auto-detect, mã ngôn ngữ = chọn, null = đóng không chọn.
     final picked = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => _LanguageSheet(

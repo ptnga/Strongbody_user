@@ -96,8 +96,9 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       }
       final secret = data['client_secret']?.toString();
       final card = request.paymentMethodId;
+      // Chưa paid mà không có client_secret / thẻ → chưa trừ tiền: báo lỗi, không "đang xử lý".
       if (secret == null || secret.isEmpty || card == null) {
-        return const Right(OfferPaymentResult.pending);
+        return const Right(OfferPaymentResult.failed);
       }
       final stripe = await _stripe.confirmWithCard(
         clientSecret: secret,

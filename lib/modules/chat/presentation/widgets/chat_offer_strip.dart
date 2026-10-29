@@ -5,6 +5,9 @@ import 'package:gap/gap.dart';
 
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/modules/checkout/presentation/offer_payment_guard.dart';
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -60,6 +63,10 @@ void openChatOffer(
   ChatPartner? partner,
 }) {
   final requestId = offer.requestId;
+  AppAnalytics.capture(AnalyticsEvents.chatOfferDetailsTapped, {
+    'offer_id': offer.id,
+    'request_id': requestId,
+  });
   if (requestId == null) {
     showChatOfferSheet(context, offer, partner: partner);
     return;
@@ -155,6 +162,7 @@ Future<void> showChatOfferSheet(
   final rootContext = context;
   return showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     showDragHandle: true,
     isScrollControlled: true,
     useSafeArea: true,
@@ -210,7 +218,9 @@ Future<void> showChatOfferSheet(
                 ),
               ),
             ],
-            if (offer.status == 'pending') ...[
+            if (offer.status == 'pending' &&
+                offer.paymentStatus != 'paid' &&
+                !OfferPaymentGuard.isSubmitted(offer.id)) ...[
               Gap(20.h),
               SizedBox(
                 height: 48.h,
@@ -220,6 +230,7 @@ Future<void> showChatOfferSheet(
                     Navigator.of(context).pop();
                     showOfferCheckoutSheet(
                       rootContext,
+                      source: 'chat',
                       offer: RequestOfferEntity(
                         id: offer.id,
                         status: offer.status,

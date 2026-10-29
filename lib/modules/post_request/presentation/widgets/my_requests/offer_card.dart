@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/modules/checkout/presentation/offer_payment_guard.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -283,6 +284,9 @@ class _Actions extends StatelessWidget {
       'completed' => LocaleKeys.myRequestsStatusCompleted.tr(),
       'accepted' || 'delivered' => LocaleKeys.myRequestsStatusBooked.tr(),
       'cancelled' || 'canceled' => LocaleKeys.myRequestsOfferCancelled.tr(),
+      // Đã trả / đang xác nhận (BE chưa kịp đổi status) → không cho trả lần nữa.
+      _ when offer.isPaid || OfferPaymentGuard.isSubmitted(offer.id) =>
+        LocaleKeys.checkoutPendingTitle.tr(),
       _ => null,
     };
     return SizedBox(

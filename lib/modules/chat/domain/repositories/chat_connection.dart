@@ -24,6 +24,11 @@ final class ChatTranslationArrived extends ChatRealtimeEvent {
 }
 
 /// WS đóng vì token hết hạn (4401/4403) → cần JWT mới.
+/// Mất kết nối rồi nối lại → có thể đã lỡ tin, cần tải lại trang history mới nhất.
+final class ChatReconnected extends ChatRealtimeEvent {
+  const ChatReconnected();
+}
+
 final class ChatAccessDenied extends ChatRealtimeEvent {
   const ChatAccessDenied();
 }
@@ -56,6 +61,11 @@ final class ConversationChanged extends ConversationUpdate {
 /// `global_unread_update` → tải lại tổng chưa đọc.
 final class UnreadChanged extends ConversationUpdate {
   const UnreadChanged();
+}
+
+/// Server từ chối (JWT `personal-update-token` hết hạn) → socket ngừng, cần kết nối lại.
+final class UpdatesAccessDenied extends ConversationUpdate {
+  const UpdatesAccessDenied();
 }
 
 abstract class ChatUpdatesConnection {

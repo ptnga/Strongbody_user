@@ -66,4 +66,9 @@ class AppConfig {
   /// Stripe publishable key (public) — thanh toán offer bằng thẻ như web checkout.
   static String get stripePublishableKey =>
       dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
+
+  /// PostHog project API key (public, `phc_…`) + host (US/EU cloud). Key rỗng = tắt analytics.
+  static String get posthogApiKey => dotenv.env['POSTHOG_API_KEY'] ?? '';
+  static String get posthogHost =>
+      dotenv.env['POSTHOG_HOST'] ?? 'https://us.i.posthog.com';
 }

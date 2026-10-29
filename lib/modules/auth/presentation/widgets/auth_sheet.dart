@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -15,14 +17,20 @@ import 'auth_credentials_view.dart';
 /// Mở sheet đăng ký / đăng nhập (mobile của web `AuthDialog`). Trả `true` khi đã đăng nhập.
 ///
 /// [initial] = `signup` cho luồng đăng request (web `PostRequestContext`), `login` cho các
-/// chỗ khác (web `AuthGate`). [subtitle] mặc định theo màn.
+/// chỗ khác (web `AuthGate`). [subtitle] mặc định theo màn. [source] = nơi mở (analytics).
 Future<bool> showAuthSheet(
   BuildContext context, {
   AuthScreen initial = AuthScreen.login,
   String? subtitle,
+  required String source,
 }) async {
+  AppAnalytics.capture(AnalyticsEvents.authSheetOpened, {
+    'source': source,
+    'screen': initial.name,
+  });
   final result = await showModalBottomSheet<bool>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
@@ -32,7 +40,12 @@ Future<bool> showAuthSheet(
       child: _AuthSheet(subtitle: subtitle),
     ),
   );
-  return result ?? false;
+  final signedIn = result ?? false;
+  AppAnalytics.capture(AnalyticsEvents.authSheetClosed, {
+    'source': source,
+    'signed_in': signedIn,
+  });
+  return signedIn;
 }
 
 class _AuthSheet extends StatelessWidget {

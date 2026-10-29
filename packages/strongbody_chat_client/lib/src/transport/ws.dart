@@ -78,6 +78,12 @@ class WsConnection {
   Timer? _hbTimer;
   Timer? _reconnectTimer;
   int _reconnectAttempt = 0;
+
+  /// Đã từng có kết nối chạy được → lần mở sau là reconnect (báo `reconnected`).
+  bool _everConnected = false;
+
+  /// Kết nối hiện tại chưa nhận frame nào (handshake có thể vẫn hỏng).
+  bool _awaitingFirstFrame = false;
   bool _closed = false;
   bool _fatal = false; // 4401/4403 — don't auto-reconnect
   final _SubscriptionState _state = _SubscriptionState();
@@ -126,7 +132,9 @@ class WsConnection {
       cancelOnError: false,
     );
 
-    _reconnectAttempt = 0;
+    // Chỉ reset backoff khi nhận frame đầu tiên (connect() lỗi bất đồng bộ → nếu reset
+    // ở đây mọi lần thử lại đều dùng delay nhỏ nhất).
+    _awaitingFirstFrame = true;
     _startHeartbeat();
 
     if (_state.channels.isNotEmpty) {
@@ -203,6 +211,20 @@ class WsConnection {
   }
 
   void _onFrame(Object? raw) {
+    if (_awaitingFirstFrame) {
+      _awaitingFirstFrame = false;
+      _reconnectAttempt = 0;
+      if (_everConnected && !_status.isClosed) {
+        // Có thể đã lỡ tin trong lúc mất kết nối → bên dùng tự tải lại history.
+        _status.add(
+          const StatusEvent(
+            category: StatusCategory.reconnected,
+            statusCode: 200,
+          ),
+        );
+      }
+      _everConnected = true;
+    }
     if (raw is! String) return;
     Object? decoded;
     try {

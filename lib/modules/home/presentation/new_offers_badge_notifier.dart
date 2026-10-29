@@ -41,7 +41,10 @@ class NewOffersBadgeNotifier extends ValueNotifier<int> {
       value = 0;
       return;
     }
+    final userId = _storage.userId;
     final result = await _getCount(const NoParams());
+    // Đăng xuất / đổi tài khoản trong lúc chờ → không ghi số của người cũ.
+    if (!_storage.isLoggedIn || _storage.userId != userId) return;
     result.fold((_) {}, (count) => value = count);
   }
 

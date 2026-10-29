@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/bloc/abstract_bloc_with_api.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
@@ -45,7 +47,18 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
   StreamSubscription<ChatRealtimeEvent>? _connectionSub;
   Timer? _recordTimer;
   Timer? _markReadTimer;
-  bool _refreshing = false;
+
+  /// Gia hạn phiên đang chạy — history 401, WS 4401, gửi tin lỗi dùng chung một lượt.
+  Future<ChatSession?>? _renewing;
+  ChatSession? _latestSession;
+  int _renewals = 0;
+
+  /// Server từ chối mãi (4403, sai uuid) → dừng thay vì gia hạn + kết nối lại liên tục.
+  static const _maxRenewals = 3;
+
+  /// Bấm mic / gửi voice hai lần (events chạy song song) → chỉ một lượt.
+  bool _recordStarting = false;
+  bool _recordFinishing = false;
 
   static const _firstPage = 20;
   static const _olderPage = 50;
@@ -204,18 +217,27 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
 
   /// Token chat-server hết hạn → JWT mới (refresh / tạo lại) + kết nối lại.
   Future<bool> _renewSession(Emitter<ChatState> emit) async {
-    final session = state.session;
-    if (session == null || _refreshing) return false;
-    _refreshing = true;
-    try {
-      final renewed = (await _refreshSession(session)).toNullable();
-      if (renewed == null || isClosed) return false;
-      await _attach(renewed);
-      if (!emit.isDone) emit(state.copyWith(session: renewed));
-      return true;
-    } finally {
-      _refreshing = false;
-    }
+    final renewed = await _renew();
+    if (renewed == null) return false;
+    if (!emit.isDone && !isClosed) emit(state.copyWith(session: renewed));
+    return true;
+  }
+
+  Future<ChatSession?> _renew() {
+    final session = _latestSession ?? state.session;
+    if (session == null || isClosed) return Future.value();
+    return _renewing ??= _doRenew(session).whenComplete(() => _renewing = null);
+  }
+
+  Future<ChatSession?> _doRenew(ChatSession session) async {
+    if (_renewals >= _maxRenewals) return null;
+    _renewals++;
+    final renewed = (await _refreshSession(session)).toNullable();
+    // Bloc đóng trong lúc chờ → không mở kết nối mới (sự kiện sẽ add vào bloc đã đóng).
+    if (renewed == null || isClosed) return null;
+    _latestSession = renewed;
+    await _attach(renewed);
+    return renewed;
   }
 
   static bool _isAuthError(Object e) {
@@ -241,10 +263,7 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
         return await connection.history(cursor: cursor, count: count);
       } catch (e) {
         AppLogger.w('Chat history failed', e);
-        if (attempt == 0 && _isAuthError(e) && state.session != null) {
-          final renewed = (await _refreshSession(state.session!)).toNullable();
-          if (renewed == null) return null;
-          await _attach(renewed);
+        if (attempt == 0 && _isAuthError(e) && await _renew() != null) {
           continue;
         }
         return null;
@@ -266,11 +285,18 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
     }
     final known = state.messages.map((m) => m.id).toSet();
     final older = page.messages.where((m) => !known.contains(m.id)).toList();
+    // Thẻ offer chèn trên máy (offer không có ở trang đầu) → bỏ khi tin offer thật tới.
+    final realOffers = {
+      for (final m in older)
+        if (m.type == ChatMessageType.offer && m.offer != null) m.offer!.id,
+    };
+    final current = state.messages.where(
+      (m) => !(m.isLocal && realOffers.contains(m.offer?.id)),
+    );
     emit(
       state.copyWith(
         loadingOlder: false,
-        messages: [...state.messages, ...older]
-          ..sort((a, b) => b.id.compareTo(a.id)),
+        messages: [...current, ...older]..sort((a, b) => b.id.compareTo(a.id)),
         historyCursor: page.nextCursor,
         clearCursor: page.nextCursor == null,
       ),
@@ -279,6 +305,16 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
   }
 
   // ------------------------------------------------------------------ gửi
+
+  void _trackSend(
+    String event,
+    String type, [
+    Map<String, Object?> extra = const {},
+  ]) => AppAnalytics.capture(event, {
+    'type': type,
+    'partner_id': state.session?.partner.id,
+    ...extra,
+  });
 
   Future<void> _onTextSent(ChatTextSent event, Emitter<ChatState> emit) async {
     final text = event.text.trim();
@@ -313,10 +349,14 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
     final messages = [...state.messages];
     final index = messages.indexWhere((m) => m.id == localId);
     if (timetoken == null) {
+      _trackSend(AnalyticsEvents.chatMessageFailed, 'text');
       if (index >= 0) messages.removeAt(index);
       emit(state.copyWith(messages: messages, notice: ChatNotice.sendFailed));
       return;
     }
+    _trackSend(AnalyticsEvents.chatMessageSent, 'text', {
+      'length': text.length,
+    });
     // Giữ timetoken server để khớp echo theo id (Multime khớp theo nội dung).
     final echoed = messages.any((m) => m.id == timetoken && !m.isPending);
     if (index >= 0) {
@@ -336,10 +376,15 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
     ChatRecordStarted event,
     Emitter<ChatState> emit,
   ) async {
-    if (state.recording || state.session == null) return;
-    if (!await _recorder.start()) {
-      emit(state.copyWith(notice: ChatNotice.micDenied));
-      return;
+    if (state.recording || _recordStarting || state.session == null) return;
+    _recordStarting = true;
+    try {
+      if (!await _recorder.start()) {
+        emit(state.copyWith(notice: ChatNotice.micDenied));
+        return;
+      }
+    } finally {
+      _recordStarting = false;
     }
     emit(state.copyWith(recording: true, recordElapsed: Duration.zero));
     _recordTimer?.cancel();
@@ -371,10 +416,12 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
     ChatRecordFinished event,
     Emitter<ChatState> emit,
   ) async {
-    if (!state.recording) return;
+    if (!state.recording || _recordFinishing) return;
+    _recordFinishing = true;
     _recordTimer?.cancel();
     final note = await _recorder.stop();
     emit(state.copyWith(recording: false, recordElapsed: Duration.zero));
+    _recordFinishing = false;
     final session = state.session;
     if (note == null || session == null) {
       emit(state.copyWith(notice: ChatNotice.voiceTooShort));
@@ -400,20 +447,29 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
           duration: note.duration,
         ),
         onSuccess: (sent) async {
+          _trackSend(AnalyticsEvents.chatMessageSent, 'voice', {
+            'duration_sec': note.duration.inSeconds,
+          });
           final messages = [...state.messages];
           messages.removeWhere((m) => m.id == localId);
           // Server tự publish tin voice; echo có thể tới trước kết quả upload.
           if (!messages.any((m) => m.id == sent.id)) {
-            messages.insert(0, sent);
+            messages
+              ..insert(0, sent)
+              // Tin đối phương tới trong lúc upload có thể mới hơn → giữ đúng thứ tự.
+              ..sort((a, b) => b.id.compareTo(a.id));
           }
           emit(state.copyWith(messages: messages));
         },
-        onFailure: (_) => emit(
-          state.copyWith(
-            messages: state.messages.where((m) => m.id != localId).toList(),
-            notice: ChatNotice.voiceFailed,
-          ),
-        ),
+        onFailure: (_) {
+          _trackSend(AnalyticsEvents.chatMessageFailed, 'voice');
+          emit(
+            state.copyWith(
+              messages: state.messages.where((m) => m.id != localId).toList(),
+              notice: ChatNotice.voiceFailed,
+            ),
+          );
+        },
       );
     } finally {
       try {
@@ -443,6 +499,9 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
         ),
       ),
       onSuccess: (settings) async {
+        AppAnalytics.capture(AnalyticsEvents.chatAutoTranslateToggled, {
+          'enabled': settings.autoTranslate,
+        });
         _connection?.subscribe(withTranslations: settings.autoTranslate);
         emit(
           state.copyWith(
@@ -568,6 +627,8 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
   ) async {
     switch (event.event) {
       case ChatMessageArrived(:final message):
+        // Kết nối đang chạy tốt → cho phép gia hạn lại khi token hết hạn lần sau.
+        _renewals = 0;
         _upsertArrived(emit, message);
         if (message.senderId != _me) {
           _scheduleMarkRead();
@@ -595,7 +656,20 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
       case ChatTranslationArrived(:final translation):
         emit(state.copyWith(translations: _merged([translation])));
       case ChatAccessDenied():
-        await _renewSession(emit);
+        if (await _renewSession(emit)) await _catchUp(emit);
+      case ChatReconnected():
+        await _catchUp(emit);
+    }
+  }
+
+  /// Tin tới trong lúc mất kết nối / đổi token không qua WS → lấy trang mới nhất,
+  /// chèn tin còn thiếu.
+  Future<void> _catchUp(Emitter<ChatState> emit) async {
+    final page = await _historyPage(null, _firstPage);
+    if (page == null || emit.isDone) return;
+    final known = {for (final m in state.messages) m.id};
+    for (final message in page.messages) {
+      if (!known.contains(message.id)) _upsertArrived(emit, message);
     }
   }
 

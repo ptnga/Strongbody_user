@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/bloc/abstract_bloc_with_api.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
@@ -45,9 +47,11 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
     on<AccountToggleChanged>(_onToggle);
     on<AccountProfileSaved>(_onProfileSaved);
     on<AccountLogoutRequested>(_onLogout);
-    // Đăng nhập từ popup ở chỗ khác → tải lại.
+    // Đăng nhập / đăng xuất ở chỗ khác (tab được giữ sống) → tải lại / về khách.
     _auth = AuthEventBus.stream.listen((event) {
-      if (event is UserLoggedIn && !isClosed) add(const AccountStarted());
+      if (event is! UserProfileUpdated && !isClosed) {
+        add(const AccountStarted());
+      }
     });
   }
 
@@ -55,10 +59,14 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
     AccountStarted event,
     Emitter<AccountState> emit,
   ) async {
+    // Khách / đổi tài khoản → bỏ hồ sơ + ví của người trước.
+    final sameUser =
+        _storage.isLoggedIn && state.profile?.id == _storage.userId;
+    final base = sameUser ? state : const AccountState();
     emit(
-      state.copyWith(
+      base.copyWith(
         status: _storage.isLoggedIn
-            ? (state.profile == null ? AccountStatus.loading : null)
+            ? (base.profile == null ? AccountStatus.loading : null)
             : AccountStatus.signedOut,
         sessionName: _storage.userName,
         speakingLanguage: _preferences.speakingLanguage,
@@ -94,6 +102,10 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
     Emitter<AccountState> emit,
   ) async {
     await _preferences.setSpeakingLanguage(event.code);
+    AppAnalytics.capture(AnalyticsEvents.accountSettingChanged, {
+      'setting': 'speaking_language',
+      'value': event.code ?? 'auto',
+    });
     emit(
       state.copyWith(
         speakingLanguage: event.code,
@@ -106,6 +118,14 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
     AccountToggleChanged event,
     Emitter<AccountState> emit,
   ) async {
+    AppAnalytics.capture(AnalyticsEvents.accountSettingChanged, {
+      'setting': switch (event.toggle) {
+        AccountToggle.autoTranslate => 'auto_translate',
+        AccountToggle.readAloud => 'read_aloud',
+        AccountToggle.attachVoice => 'attach_voice',
+      },
+      'value': event.value,
+    });
     switch (event.toggle) {
       case AccountToggle.autoTranslate:
         await _preferences.setAutoTranslateChats(event.value);
@@ -131,14 +151,17 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
         lastName: event.lastName,
         city: event.city,
       ),
-      onSuccess: (profile) async => emit(
-        state.copyWith(
-          profile: profile,
-          sessionName: _storage.userName,
-          savingProfile: false,
-          notice: AccountNotice.profileSaved,
-        ),
-      ),
+      onSuccess: (profile) async {
+        AppAnalytics.capture(AnalyticsEvents.profileUpdated);
+        emit(
+          state.copyWith(
+            profile: profile,
+            sessionName: _storage.userName,
+            savingProfile: false,
+            notice: AccountNotice.profileSaved,
+          ),
+        );
+      },
       onFailure: (_) => emit(
         state.copyWith(
           savingProfile: false,

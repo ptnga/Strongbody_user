@@ -23,7 +23,12 @@ class ApiClient {
   final GlobalStorage _storage;
 
   /// Dio riêng cho refresh — không qua interceptor (tránh vòng lặp 401).
-  final Dio _refreshDio = Dio();
+  final Dio _refreshDio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+    ),
+  );
   Future<String?>? _refreshing;
 
   static const _refreshPath = '/auth/refresh-token';
@@ -86,6 +91,10 @@ class ApiClient {
             options
               ..extra['auth_retried'] = true
               ..headers['Authorization'] = 'Bearer $token';
+            // FormData chỉ gửi được một lần (Dio: "already been finalized").
+            if (options.data case final FormData form) {
+              options.data = form.clone();
+            }
             handler.resolve(await _dio.fetch(options));
           } on DioException catch (e) {
             handler.next(e);
@@ -125,12 +134,24 @@ class ApiClient {
         refreshToken: data is Map ? data['refreshToken']?.toString() : null,
       );
       return token;
-    } catch (e) {
-      AppLogger.w('Refresh token failed — signing out', e);
-      await _storage.clearUser();
-      AuthEventBus.emit(const UserLoggedOut());
+    } on DioException catch (e) {
+      // Mạng yếu / timeout / 5xx: giữ phiên, chỉ request này lỗi. Chỉ đăng xuất khi BE
+      // từ chối chính refresh token.
+      final status = e.response?.statusCode;
+      if (status == 401 || status == 403) return _signOut(e);
+      AppLogger.w('Refresh token failed (kept session)', e);
       return null;
+    } catch (e) {
+      return _signOut(e);
     }
+  }
+
+  Future<String?> _signOut(Object reason) async {
+    AppLogger.w('Refresh token rejected — signing out', reason);
+    if (!_storage.isLoggedIn) return null;
+    await _storage.clearUser();
+    AuthEventBus.emit(const UserLoggedOut());
+    return null;
   }
 
   Future<dynamic> request({

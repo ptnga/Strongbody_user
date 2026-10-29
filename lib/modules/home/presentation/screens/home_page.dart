@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/matching_providers_page_args.dart';
@@ -57,6 +59,7 @@ class _HomePageState extends State<HomePage> {
 
   /// Thẻ gợi ý → thẳng "Here's what I heard" (prototype: prompt → Understood).
   void _openHeard(String text) {
+    AppAnalytics.capture(AnalyticsEvents.homePromptTapped, {'prompt': text});
     context.push(
       RouteName.requestHeard,
       extra: PostRequestFlowArgs(text: text),
@@ -65,7 +68,16 @@ class _HomePageState extends State<HomePage> {
 
   /// Gõ / chọn gợi ý / tìm gần đây → danh sách provider cho câu đó (prototype "Voice
   /// search results"); AI vẫn phân tích nền, back về "Here's what I heard".
-  void _search(String text, List<String> attachments) {
+  void _search(
+    String text,
+    List<String> attachments, {
+    String source = 'composer',
+  }) {
+    AppAnalytics.capture(AnalyticsEvents.homeSearchSubmitted, {
+      'source': source,
+      'query_length': text.trim().length,
+      'attachments_count': attachments.length,
+    });
     context.read<HomeBloc>().add(HomeSearchRecorded(text));
     context.push(
       RouteName.matchingProviders,
@@ -101,7 +113,13 @@ class _HomePageState extends State<HomePage> {
                     selector: (state) => state.newOffersCount,
                     builder: (context, count) => HomeNewOffersPill(
                       count: count,
-                      onTap: () => context.go(RouteName.myRequests),
+                      onTap: () {
+                        AppAnalytics.capture(
+                          AnalyticsEvents.homeNewOffersTapped,
+                          {'count': count},
+                        );
+                        context.go(RouteName.myRequests);
+                      },
                     ),
                   ),
                   // Đang gõ → "Suggestions"; focus mà chưa gõ → "Recent searches";
@@ -117,16 +135,22 @@ class _HomePageState extends State<HomePage> {
                         final Widget? list = typing != null
                             ? HomeTypingSuggestions(
                                 seed: typing,
-                                onSend: (text) =>
-                                    _search(text, _takeAttachments()),
+                                onSend: (text) => _search(
+                                  text,
+                                  _takeAttachments(),
+                                  source: 'typing_suggestion',
+                                ),
                                 onFill: (text) =>
                                     _composerKey.currentState?.setText(text),
                               )
                             : state.showRecent
                             ? HomeRecentSearches(
                                 items: state.recentSearches,
-                                onSend: (text) =>
-                                    _search(text, _takeAttachments()),
+                                onSend: (text) => _search(
+                                  text,
+                                  _takeAttachments(),
+                                  source: 'recent_search',
+                                ),
                                 onFill: (text) =>
                                     _composerKey.currentState?.setText(text),
                               )

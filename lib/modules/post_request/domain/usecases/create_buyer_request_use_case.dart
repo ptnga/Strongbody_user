@@ -16,11 +16,15 @@ class CreateBuyerRequestParams extends Equatable {
   /// Rỗng = mọi provider phù hợp; có id = chỉ gửi cho các provider đã chọn.
   final List<int> sellerUserIds;
 
+  /// Báo từng seller đã nhận (gửi lần lượt) — xem [PostRequestRepository.createBuyerRequest].
+  final void Function(int sellerUserId)? onSellerPosted;
+
   const CreateBuyerRequestParams({
     required this.userId,
     required this.values,
     this.assistant,
     this.sellerUserIds = const [],
+    this.onSellerPosted,
   });
 
   @override
@@ -40,5 +44,6 @@ class CreateBuyerRequestUseCase
         values: params.values,
         assistant: params.assistant,
         sellerUserIds: params.sellerUserIds,
+        onSellerPosted: params.onSellerPosted,
       );
 }

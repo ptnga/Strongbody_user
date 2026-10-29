@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/base/failure.dart';
 import 'package:strongbody_buyer/core/bloc/abstract_bloc_with_api.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -26,6 +28,9 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
   final ResetPasswordUseCase _resetPassword;
 
   Timer? _resendTimer;
+
+  /// Đăng ký xong nhưng phải xác minh email → đăng nhập sau OTP tính là sign up.
+  bool _signUpAwaitingVerify = false;
 
   /// Web: "Resend (m:ss)" sau 60 giây.
   static const resendSeconds = 60;
@@ -112,6 +117,24 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
       ? const AuthMessage.key(LocaleKeys.authSomethingWrong)
       : AuthMessage.text(failure.message);
 
+  static String _reason(Failure failure) => failure is AuthFailure
+      ? failure.reason.name
+      : failure.runtimeType.toString();
+
+  void _trackFailure(String step, Failure failure, {String? method}) =>
+      AppAnalytics.capture(AnalyticsEvents.authFailed, {
+        'step': step,
+        'reason': _reason(failure),
+        'method': method,
+      });
+
+  void _trackVerifyRequired(String step) {
+    _signUpAwaitingVerify = step == 'sign_up';
+    AppAnalytics.capture(AnalyticsEvents.emailVerificationRequired, {
+      'step': step,
+    });
+  }
+
   Future<void> _onSignUp(
     AuthSignUpSubmitted event,
     Emitter<AuthState> emit,
@@ -134,8 +157,12 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     await callApi(
       useCase: _signUp,
       param: CredentialsParams(email: email, password: event.password),
-      onSuccess: (session) async =>
-          emit(state.copyWith(status: AuthStatus.success, session: session)),
+      onSuccess: (session) async {
+        AppAnalytics.capture(AnalyticsEvents.signUpCompleted, {
+          'method': 'email',
+        });
+        emit(state.copyWith(status: AuthStatus.success, session: session));
+      },
       onFailure: (_) {},
       onFailureTyped: (failure) {
         final reason = failure is AuthFailure
@@ -143,11 +170,14 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
             : AuthFailureReason.other;
         switch (reason) {
           case AuthFailureReason.emailExists:
+            _trackFailure('sign_up', failure);
             emit(state.copyWith(status: AuthStatus.idle, emailExists: true));
           case AuthFailureReason.notVerified:
             // Đăng ký xong nhưng BE yêu cầu xác minh email trước khi đăng nhập.
+            _trackVerifyRequired('sign_up');
             _enterOtp(emit, AuthScreen.verifyOtp);
           case _:
+            _trackFailure('sign_up', failure);
             emit(
               state.copyWith(
                 status: AuthStatus.idle,
@@ -181,13 +211,22 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     await callApi(
       useCase: _login,
       param: CredentialsParams(email: email, password: event.password),
-      onSuccess: (session) async =>
-          emit(state.copyWith(status: AuthStatus.success, session: session)),
+      onSuccess: (session) async {
+        AppAnalytics.capture(AnalyticsEvents.loginCompleted, {
+          'method': 'email',
+        });
+        emit(state.copyWith(status: AuthStatus.success, session: session));
+      },
       onFailure: (_) {},
       onFailureTyped: (failure) {
         final reason = failure is AuthFailure
             ? failure.reason
             : AuthFailureReason.other;
+        if (reason == AuthFailureReason.notVerified) {
+          _trackVerifyRequired('login');
+        } else {
+          _trackFailure('login', failure);
+        }
         switch (reason) {
           case AuthFailureReason.notVerified:
             _enterOtp(emit, AuthScreen.verifyOtp);
@@ -221,10 +260,15 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     await callApi(
       useCase: _socialLogin,
       param: event.provider,
-      onSuccess: (session) async =>
-          emit(state.copyWith(status: AuthStatus.success, session: session)),
+      onSuccess: (session) async {
+        AppAnalytics.capture(AnalyticsEvents.loginCompleted, {
+          'method': event.provider.name,
+        });
+        emit(state.copyWith(status: AuthStatus.success, session: session));
+      },
       onFailure: (_) {},
       onFailureTyped: (failure) {
+        _trackFailure('social', failure, method: event.provider.name);
         final reason = failure is AuthFailure
             ? failure.reason
             : AuthFailureReason.other;
@@ -245,6 +289,8 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
   }
 
   Future<void> _onOtp(AuthOtpSubmitted event, Emitter<AuthState> emit) async {
+    // Ô mã tự gửi khi đủ 4 số — sửa số lúc đang kiểm tra không gửi chồng lượt thứ hai.
+    if (state.isSubmitting) return;
     final otp = event.otp.trim();
     if (otp.length != 4) {
       emit(
@@ -268,9 +314,15 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
           ),
         ),
         onFailure: (_) {},
-        onFailureTyped: (failure) => emit(
-          state.copyWith(status: AuthStatus.idle, otpError: _message(failure)),
-        ),
+        onFailureTyped: (failure) {
+          _trackFailure('forgot_otp', failure);
+          emit(
+            state.copyWith(
+              status: AuthStatus.idle,
+              otpError: _message(failure),
+            ),
+          );
+        },
       );
       return;
     }
@@ -281,9 +333,12 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
       param: EmailOtpParams(email: state.email, otp: otp),
       onSuccess: (_) async => verified = true,
       onFailure: (_) {},
-      onFailureTyped: (failure) => emit(
-        state.copyWith(status: AuthStatus.idle, otpError: _message(failure)),
-      ),
+      onFailureTyped: (failure) {
+        _trackFailure('otp', failure);
+        emit(
+          state.copyWith(status: AuthStatus.idle, otpError: _message(failure)),
+        );
+      },
     );
     if (!verified) return;
     _stopTimer();
@@ -295,16 +350,26 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     await callApi(
       useCase: _login,
       param: CredentialsParams(email: state.email, password: state.password),
-      onSuccess: (session) async =>
-          emit(state.copyWith(status: AuthStatus.success, session: session)),
+      onSuccess: (session) async {
+        AppAnalytics.capture(
+          _signUpAwaitingVerify
+              ? AnalyticsEvents.signUpCompleted
+              : AnalyticsEvents.loginCompleted,
+          {'method': 'email', 'after_verify': true},
+        );
+        emit(state.copyWith(status: AuthStatus.success, session: session));
+      },
       onFailure: (_) {},
-      onFailureTyped: (failure) => emit(
-        state.copyWith(
-          status: AuthStatus.idle,
-          screen: AuthScreen.login,
-          emailError: _message(failure),
-        ),
-      ),
+      onFailureTyped: (failure) {
+        _trackFailure('login', failure);
+        emit(
+          state.copyWith(
+            status: AuthStatus.idle,
+            screen: AuthScreen.login,
+            emailError: _message(failure),
+          ),
+        );
+      },
     );
   }
 
@@ -370,17 +435,23 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
         secretToken: state.secretToken ?? '',
         newPassword: event.password,
       ),
-      onSuccess: (_) async => emit(
-        state.copyWith(
-          status: AuthStatus.idle,
-          screen: AuthScreen.forgotDone,
-          password: '',
-        ),
-      ),
+      onSuccess: (_) async {
+        AppAnalytics.capture(AnalyticsEvents.passwordResetCompleted);
+        emit(
+          state.copyWith(
+            status: AuthStatus.idle,
+            screen: AuthScreen.forgotDone,
+            password: '',
+          ),
+        );
+      },
       onFailure: (_) {},
-      onFailureTyped: (failure) => emit(
-        state.copyWith(status: AuthStatus.idle, formError: _message(failure)),
-      ),
+      onFailureTyped: (failure) {
+        _trackFailure('reset_password', failure);
+        emit(
+          state.copyWith(status: AuthStatus.idle, formError: _message(failure)),
+        );
+      },
     );
   }
 

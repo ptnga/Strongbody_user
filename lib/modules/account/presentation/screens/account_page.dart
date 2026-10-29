@@ -7,12 +7,13 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
-import 'package:strongbody_buyer/components/app_bottom_nav.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/toast_util.dart';
+import 'package:strongbody_buyer/modules/auth/presentation/bloc/auth/auth_bloc.dart'
+    show AuthMessage;
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_fields.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_formatters.dart';
@@ -38,6 +39,7 @@ class AccountPage extends StatelessWidget {
     // Bọc `code` để phân biệt "chọn Auto-detect" (null) với đóng sheet.
     final picked = await showModalBottomSheet<({String? code})>(
       context: context,
+      useRootNavigator: true,
       showDragHandle: true,
       isScrollControlled: true,
       useSafeArea: true,
@@ -136,7 +138,6 @@ class AccountPage extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: _background,
-      bottomNavigationBar: const AppBottomNav(current: AppTab.account),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -207,7 +208,10 @@ class AccountPage extends StatelessWidget {
                         _GuestCard(
                           onSignIn: () async {
                             final bloc = context.read<AccountBloc>();
-                            if (await showAuthSheet(context)) {
+                            if (await showAuthSheet(
+                              context,
+                              source: 'account',
+                            )) {
                               bloc.add(const AccountStarted());
                             }
                           },
@@ -339,6 +343,7 @@ class AccountPage extends StatelessWidget {
     final bloc = context.read<AccountBloc>();
     return showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       showDragHandle: true,
       useSafeArea: true,
@@ -584,6 +589,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   );
   late final _city = TextEditingController(text: widget.state.profile?.city);
 
+  /// Tên trống → Account hiện "—" và Home vẫn chào tên cũ → bắt nhập.
+  bool _firstMissing = false;
+
   @override
   void dispose() {
     _first.dispose();
@@ -620,6 +628,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               AuthTextField(
                 label: LocaleKeys.accountFirstName.tr(),
                 controller: _first,
+                error: _firstMissing
+                    ? const AuthMessage.key(LocaleKeys.accountFirstNameRequired)
+                    : null,
                 autofillHints: const [AutofillHints.givenName],
               ),
               Gap(12.h),
@@ -639,13 +650,19 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               AuthPrimaryButton(
                 label: LocaleKeys.accountSave.tr(),
                 loading: state.savingProfile,
-                onPressed: () => context.read<AccountBloc>().add(
-                  AccountProfileSaved(
-                    firstName: _first.text,
-                    lastName: _last.text,
-                    city: _city.text,
-                  ),
-                ),
+                onPressed: () {
+                  if (_first.text.trim().isEmpty) {
+                    setState(() => _firstMissing = true);
+                    return;
+                  }
+                  context.read<AccountBloc>().add(
+                    AccountProfileSaved(
+                      firstName: _first.text.trim(),
+                      lastName: _last.text.trim(),
+                      city: _city.text.trim(),
+                    ),
+                  );
+                },
               ),
             ],
           ),

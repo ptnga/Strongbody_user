@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/bloc/abstract_bloc_with_api.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 
@@ -32,6 +36,13 @@ class PostRequestFlowBloc
   final CreateBuyerRequestUseCase _createBuyerRequest;
   final GlobalStorage _storage;
 
+  /// Người dùng sửa form (Review mở từ Providers) trong lúc AI còn phân tích → không để
+  /// bản nháp AI ghi đè.
+  bool _editedDuringAnalysis = false;
+
+  /// Seller đã nhận request (gửi lần lượt) → bấm Post lại sau lỗi không gửi trùng.
+  final _postedSellerIds = <int>{};
+
   PostRequestFlowBloc({
     required TranscribeAudioUseCase transcribeAudio,
     required DraftRequestUseCase draftRequest,
@@ -45,9 +56,10 @@ class PostRequestFlowBloc
        _storage = storage,
        super(const PostRequestFlowState()) {
     on<PostRequestFlowStarted>(_onStarted);
-    on<PostRequestFlowValuesChanged>(
-      (event, emit) => emit(state.copyWith(values: event.values)),
-    );
+    on<PostRequestFlowValuesChanged>((event, emit) {
+      if (state.isAnalyzing) _editedDuringAnalysis = true;
+      emit(state.copyWith(values: event.values));
+    });
     on<PostRequestFlowVisibilityChanged>(
       (event, emit) => emit(state.copyWith(visibility: event.visibility)),
     );
@@ -76,6 +88,7 @@ class PostRequestFlowBloc
     on<PostRequestFlowVoiceRemoved>((event, emit) {
       final values = state.values;
       if (!values.hasVoice) return;
+      AppAnalytics.capture(AnalyticsEvents.requestVoiceNoteRemoved);
       emit(
         state.copyWith(
           values: values.copyWith(clearVoice: true),
@@ -87,6 +100,7 @@ class PostRequestFlowBloc
     on<PostRequestFlowVoiceRestored>((event, emit) {
       final path = state.removedVoicePath;
       if (path == null) return;
+      AppAnalytics.capture(AnalyticsEvents.requestVoiceNoteRestored);
       emit(
         state.copyWith(
           values: state.values.copyWith(
@@ -158,6 +172,7 @@ class PostRequestFlowBloc
             notice: notice,
           ),
         );
+        _trackAnalysis(transcribed: false);
         return;
       }
       emit(
@@ -189,11 +204,13 @@ class PostRequestFlowBloc
       emit(
         state.copyWith(
           analysisStatus: PostRequestAnalysisStatus.ready,
-          values: result.values.copyWith(
-            attachmentPaths: state.values.attachmentPaths,
-            voicePath: state.values.voicePath,
-            voiceDuration: state.values.voiceDuration,
-          ),
+          values: _editedDuringAnalysis
+              ? state.values
+              : result.values.copyWith(
+                  attachmentPaths: state.values.attachmentPaths,
+                  voicePath: state.values.voicePath,
+                  voiceDuration: state.values.voiceDuration,
+                ),
           outcome: result.isEmpty
               ? PostRequestDraftOutcome.empty
               : PostRequestDraftOutcome.filled,
@@ -203,7 +220,33 @@ class PostRequestFlowBloc
     }
 
     await _countMatchingProviders(emit, text);
+    _trackAnalysis(transcribed: voicePath != null && args.text.trim().isEmpty);
   }
+
+  void _trackAnalysis({required bool transcribed}) {
+    AppAnalytics.capture(AnalyticsEvents.requestAnalysisCompleted, {
+      'outcome': state.outcome?.name,
+      'notice': state.notice?.name,
+      'has_voice': state.values.hasVoice,
+      'transcribed': transcribed,
+      'match_count': state.matchCount,
+      'category_id': state.assistant?.categoryIds.firstOrNull,
+      'quality_score': state.assistant?.qualityScore,
+    });
+  }
+
+  Map<String, Object?> _requestProperties(RequestFormValues values) => {
+    'visibility': state.visibility.name,
+    'providers_selected': state.visibility == RequestVisibility.chosenProviders
+        ? state.selectedProviders.length
+        : 0,
+    'has_voice': values.hasVoice,
+    'attachments_count': values.attachmentPaths.length,
+    'delivery_types': values.deliveryTypes.map((t) => t.apiValue).join(','),
+    'has_budget': values.budget.trim().isNotEmpty,
+    'has_schedule': values.deadline != null || !values.isScheduleEmpty,
+    'category_id': state.assistant?.categoryIds.firstOrNull,
+  };
 
   /// "12 providers match" — tổng kết quả của `/public/profiles?keyword=<tên nghề>`.
   Future<void> _countMatchingProviders(
@@ -260,6 +303,10 @@ class PostRequestFlowBloc
             'suggestion': state.assistant!.suggestion,
           },
       });
+      // Lần trước đã đóng popup đăng ký → về idle trước để màn Review mở lại popup.
+      if (state.submitStatus == PostRequestSubmitStatus.pendingAuth) {
+        emit(state.copyWith(submitStatus: PostRequestSubmitStatus.idle));
+      }
       emit(
         state.copyWith(
           values: values,
@@ -269,6 +316,24 @@ class PostRequestFlowBloc
       return;
     }
 
+    final chosen = state.visibility == RequestVisibility.chosenProviders;
+    final sellerIds = [
+      if (chosen)
+        for (final p in state.selectedProviders)
+          if (!_postedSellerIds.contains(p.userId)) p.userId,
+    ];
+    // Mọi provider đã chọn đều đã nhận ở lần trước → xong; KHÔNG gửi danh sách rỗng
+    // (rỗng = đăng công khai cho mọi provider).
+    if (chosen && sellerIds.isEmpty) {
+      await _storage.clearPendingRequest();
+      emit(
+        state.copyWith(
+          values: values,
+          submitStatus: PostRequestSubmitStatus.success,
+        ),
+      );
+      return;
+    }
     emit(
       state.copyWith(
         values: values,
@@ -281,21 +346,43 @@ class PostRequestFlowBloc
         userId: userId,
         values: values,
         assistant: state.assistant,
-        sellerUserIds: state.visibility == RequestVisibility.chosenProviders
-            ? state.selectedProviders.map((p) => p.userId).toList()
-            : const [],
+        sellerUserIds: sellerIds,
+        onSellerPosted: _postedSellerIds.add,
       ),
-      onSuccess: (_) async {
+      onSuccess: (status) async {
+        AppAnalytics.capture(AnalyticsEvents.requestPosted, {
+          'status': status,
+          ..._requestProperties(values),
+        });
         await _storage.clearPendingRequest();
         emit(state.copyWith(submitStatus: PostRequestSubmitStatus.success));
       },
-      onFailure: (message) => emit(
-        state.copyWith(
-          submitStatus: PostRequestSubmitStatus.failure,
-          notice: PostRequestNotice.requestFailed,
-          noticeMessage: message,
-        ),
-      ),
+      onFailure: (message) {
+        AppAnalytics.capture(AnalyticsEvents.requestPostFailed, {
+          'error': message,
+          ..._requestProperties(values),
+        });
+        emit(
+          state.copyWith(
+            submitStatus: PostRequestSubmitStatus.failure,
+            notice: PostRequestNotice.requestFailed,
+            noticeMessage: message,
+          ),
+        );
+      },
     );
+  }
+
+  /// Bỏ file ghi âm của luồng (đã gửi lên BE hoặc người dùng bỏ dở / nói lại).
+  @override
+  Future<void> close() async {
+    for (final path in {state.values.voicePath, state.removedVoicePath}) {
+      if (path == null) continue;
+      try {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+    }
+    return super.close();
   }
 }

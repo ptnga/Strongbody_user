@@ -6,6 +6,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/empty_state_view.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -146,9 +148,14 @@ class _RequestOffersPageState extends State<RequestOffersPage> {
               children: [
                 _SortChips(
                   selected: state.sort,
-                  onChanged: (sort) => context.read<RequestOffersBloc>().add(
-                    RequestOffersSortChanged(sort),
-                  ),
+                  onChanged: (sort) {
+                    AppAnalytics.capture(AnalyticsEvents.offersSortChanged, {
+                      'sort': sort.name,
+                    });
+                    context.read<RequestOffersBloc>().add(
+                      RequestOffersSortChanged(sort),
+                    );
+                  },
                 ),
                 for (var i = 0; i < offers.length; i++) ...[
                   Gap(i == 0 ? 12.h : 14.h),
@@ -162,7 +169,11 @@ class _RequestOffersPageState extends State<RequestOffersPage> {
                     deliveryTypes: request?.details.deliveryTypes ?? const [],
                     fallbackCurrency: request?.details.currency ?? 'USD',
                     onReply: () => _reply(context, offers[i]),
-                    onAccept: () => _acceptAndPay(context, offers[i]),
+                    onAccept: () => _acceptAndPay(
+                      context,
+                      offers[i],
+                      widget.args.requestId,
+                    ),
                   ),
                 ],
               ],
@@ -175,11 +186,11 @@ class _RequestOffersPageState extends State<RequestOffersPage> {
 Future<void> _acceptAndPay(
   BuildContext context,
   RequestOfferEntity offer,
+  int pageRequestId,
 ) async {
   final bloc = context.read<RequestOffersBloc>();
-  final requestId = offer.requestId ?? offer.request?.id;
-  if (await showOfferCheckoutSheet(context, offer: offer) &&
-      requestId != null) {
+  final requestId = offer.requestId ?? offer.request?.id ?? pageRequestId;
+  if (await showOfferCheckoutSheet(context, offer: offer, source: 'offers')) {
     bloc.add(RequestOffersStarted(requestId));
   }
 }
@@ -187,6 +198,11 @@ Future<void> _acceptAndPay(
 /// "Reply" → chat 1:1 với provider của offer.
 void _reply(BuildContext context, RequestOfferEntity offer) {
   final sellerId = offer.sellerId;
+  AppAnalytics.capture(AnalyticsEvents.offerReplyTapped, {
+    'offer_id': offer.id,
+    'request_id': offer.requestId ?? offer.request?.id,
+    'seller_id': sellerId,
+  });
   if (sellerId == null) {
     ToastUtil.showError(LocaleKeys.chatConnectError.tr());
     return;
@@ -199,6 +215,7 @@ void _reply(BuildContext context, RequestOfferEntity offer) {
       avatar: offer.sellerAvatar,
       profession: offer.profession,
       focusOfferId: offer.id,
+      source: 'offer_reply',
     ),
   );
 }

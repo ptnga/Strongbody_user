@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:strongbody_buyer/core/bloc/abstract_bloc_with_api.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
+import 'package:strongbody_buyer/core/streams/auth_event_bus.dart';
 import 'package:strongbody_buyer/core/usecases/usecase.dart';
 
 import '../../../domain/entities/conversation_entity.dart';
@@ -27,7 +28,12 @@ class ConversationsBloc
 
   ChatUpdatesConnection? _updates;
   StreamSubscription<ConversationUpdate>? _updatesSub;
+
+  /// Đang mở socket — `Started` chạy chồng (tab mở lại, kéo làm mới) dùng chung.
+  Future<void>? _connecting;
+  Timer? _reconnectTimer;
   Timer? _searchDebounce;
+  late final StreamSubscription<AuthEvent> _auth;
 
   ConversationsBloc({
     required GetConversationsUseCase getConversations,
@@ -46,6 +52,12 @@ class ConversationsBloc
     on<ConversationsQueryChanged>(_onQueryChanged);
     on<_ConversationsSearchRequested>(_onSearch);
     on<_ConversationsUpdated>(_onUpdated);
+    // Tab Messages được giữ sống: đổi tài khoản → bỏ dữ liệu + socket của người cũ.
+    _auth = AuthEventBus.stream.listen((event) {
+      if (event is UserProfileUpdated || isClosed) return;
+      unawaited(_disconnect());
+      add(const ConversationsStarted());
+    });
   }
 
   Future<void> _onStarted(
@@ -53,7 +65,8 @@ class ConversationsBloc
     Emitter<ConversationsState> emit,
   ) async {
     if (!_storage.isLoggedIn) {
-      emit(state.copyWith(status: ConversationsStatus.signedOut));
+      await _disconnect();
+      emit(const ConversationsState(status: ConversationsStatus.signedOut));
       return;
     }
     if (state.items.isEmpty) {
@@ -101,11 +114,15 @@ class ConversationsBloc
     ),
   );
 
-  Future<void> _listenUpdates() async {
-    if (_updates != null) return;
+  Future<void> _listenUpdates() {
+    if (_updates != null) return Future.value();
+    return _connecting ??= _connect().whenComplete(() => _connecting = null);
+  }
+
+  Future<void> _connect() async {
     final result = await _connectUpdates(const NoParams());
     result.fold((_) {}, (connection) {
-      if (isClosed) {
+      if (isClosed || !_storage.isLoggedIn) {
         connection.dispose();
         return;
       }
@@ -116,11 +133,27 @@ class ConversationsBloc
     });
   }
 
+  Future<void> _disconnect() async {
+    _reconnectTimer?.cancel();
+    final sub = _updatesSub;
+    final connection = _updates;
+    _updatesSub = null;
+    _updates = null;
+    await sub?.cancel();
+    await connection?.dispose();
+  }
+
   void _onUpdated(
     _ConversationsUpdated event,
     Emitter<ConversationsState> emit,
   ) {
     switch (event.update) {
+      case UpdatesAccessDenied():
+        // Token socket hết hạn: lấy token mới, thử lại sau một lúc (không lặp dồn).
+        unawaited(_disconnect());
+        _reconnectTimer = Timer(const Duration(seconds: 10), () {
+          if (!isClosed && _storage.isLoggedIn) unawaited(_listenUpdates());
+        });
       case UnreadChanged():
         _badge.refresh();
       case ConversationChanged(:final conversation):
@@ -129,10 +162,13 @@ class ConversationsBloc
           (c) => c.channelId == conversation.channelId,
         );
         if (index >= 0) {
-          // Giữ ảnh cũ nếu bản cập nhật thiếu.
+          // Giữ ảnh / tên cũ nếu bản cập nhật thiếu.
           items[index] = conversation.copyWith(
             partnerAvatar:
                 conversation.partnerAvatar ?? items[index].partnerAvatar,
+            partnerName: conversation.partnerName.isEmpty
+                ? items[index].partnerName
+                : null,
           );
         } else {
           items.add(conversation);
@@ -179,8 +215,8 @@ class ConversationsBloc
   @override
   Future<void> close() async {
     _searchDebounce?.cancel();
-    await _updatesSub?.cancel();
-    await _updates?.dispose();
+    await _auth.cancel();
+    await _disconnect();
     return super.close();
   }
 }

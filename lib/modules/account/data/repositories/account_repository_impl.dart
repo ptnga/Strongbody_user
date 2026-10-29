@@ -113,8 +113,11 @@ class AccountRepositoryImpl implements AccountRepository {
     } catch (_) {
       // Như web: server lỗi vẫn đăng xuất trên máy.
     }
-    await _storage.clearUser();
-    AuthEventBus.emit(const UserLoggedOut());
+    // Gọi logout có thể đã làm hỏng refresh → ApiClient tự xoá phiên + báo rồi.
+    if (_storage.isLoggedIn) {
+      await _storage.clearUser();
+      AuthEventBus.emit(const UserLoggedOut());
+    }
     return const Right(unit);
   }
 }

@@ -11,11 +11,15 @@ class ChatPageArgs {
   /// Mở từ "Reply" / "Message" của một offer → dải trên đầu chat hiện offer này.
   final int? focusOfferId;
 
+  /// Nơi mở chat (analytics `chat_opened.source`).
+  final String source;
+
   const ChatPageArgs({
     required this.partnerId,
     this.name,
     this.avatar,
     this.profession,
     this.focusOfferId,
+    this.source = 'unknown',
   });
 }

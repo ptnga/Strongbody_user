@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 
+import 'package:strongbody_buyer/core/streams/auth_event_bus.dart';
 import 'package:strongbody_buyer/core/base/failure.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
@@ -25,10 +26,12 @@ const _me = 7;
 const _partner = 42;
 
 class _Storage implements GlobalStorage {
+  bool loggedIn = true;
+
   @override
-  bool get isLoggedIn => true;
+  bool get isLoggedIn => loggedIn;
   @override
-  int? get userId => _me;
+  int? get userId => loggedIn ? _me : null;
   @override
   String get locale => 'en';
   @override
@@ -63,27 +66,38 @@ class _Connection implements ChatConnection {
 
   @override
   Future<String> sendText(String text, {String? senderName}) async {
+    if (failSend) throw Exception('network');
     sent.add(text);
     return '17300000000000099';
   }
+
+  bool failSend = false;
 
   @override
   Future<void> dispose() async => events$.close();
 }
 
 class _Updates implements ChatUpdatesConnection {
+  _Updates() {
+    latest = this;
+  }
+
+  static _Updates? latest;
+  bool disposed = false;
   final controller = StreamController<ConversationUpdate>.broadcast();
 
   @override
   Stream<ConversationUpdate> get updates => controller.stream;
 
   @override
-  Future<void> dispose() async => controller.close();
+  Future<void> dispose() async {
+    disposed = true;
+    await controller.close();
+  }
 }
 
 class _Repo implements ChatRepository {
   final connection = _Connection();
-  final updates = _Updates();
   ChatTranslationSettings? saved;
   final readCalls = <String>[];
 
@@ -186,8 +200,13 @@ class _Repo implements ChatRepository {
   ));
 
   @override
-  Future<Either<Failure, ChatUpdatesConnection>> connectUpdates() async =>
-      Right(updates);
+  Future<Either<Failure, ChatUpdatesConnection>> connectUpdates() async {
+    connectCalls++;
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    return Right(_Updates());
+  }
+
+  int connectCalls = 0;
 
   @override
   Future<Either<Failure, int>> getUnreadTotal() async => const Right(2);
@@ -473,6 +492,31 @@ void main() {
       badge.dispose();
     });
 
+    test('send failure: pending bubble removed + sendFailed notice', () async {
+      final repo = _Repo();
+      repo.connection.failSend = true;
+      final badge = ChatBadgeNotifier(
+        getUnreadTotal: GetChatUnreadTotalUseCase(repo),
+        storage: _Storage(),
+      );
+      final bloc = _chatBloc(repo, badge)..add(const ChatStarted());
+      await bloc.stream.firstWhere((s) => s.status == ChatStatus.ready);
+      bloc.add(const ChatTextSent('Hello?'));
+      final failed = await bloc.stream.firstWhere(
+        (s) => s.notice == ChatNotice.sendFailed,
+      );
+      expect(failed.messages.where((m) => m.isPending), isEmpty);
+      expect(failed.messages.where((m) => m.text == 'Hello?'), isEmpty);
+
+      // Tin rỗng / chỉ khoảng trắng không gửi.
+      repo.connection.failSend = false;
+      bloc.add(const ChatTextSent('   '));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(repo.connection.sent, isEmpty);
+      await bloc.close();
+      badge.dispose();
+    });
+
     test(
       'text send is optimistic, takes server timetoken, echo deduped',
       () async {
@@ -558,7 +602,7 @@ void main() {
     await bloc.stream.firstWhere((s) => s.items.length == 2);
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
-    repo.updates.controller.add(
+    _Updates.latest!.controller.add(
       const ConversationChanged(
         ConversationEntity(
           channelId: 'b',
@@ -582,4 +626,49 @@ void main() {
     await bloc.close();
     badge.dispose();
   });
+
+  test(
+    'ConversationsBloc: overlapping Started opens one socket; logout wipes the list',
+    () async {
+      final repo = _Repo();
+      final storage = _Storage();
+      final badge = ChatBadgeNotifier(
+        getUnreadTotal: GetChatUnreadTotalUseCase(repo),
+        storage: storage,
+      );
+      final bloc =
+          ConversationsBloc(
+              getConversations: GetConversationsUseCase(repo),
+              searchUsers: SearchChatUsersUseCase(repo),
+              connectUpdates: ConnectChatUpdatesUseCase(repo),
+              badge: badge,
+              storage: storage,
+            )
+            ..add(const ConversationsStarted())
+            ..add(const ConversationsStarted());
+      await bloc.stream.firstWhere((s) => s.items.length == 2);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(repo.connectCalls, 1);
+      final socket = _Updates.latest!;
+
+      // Đăng xuất ở tab khác (tab Messages vẫn sống).
+      storage.loggedIn = false;
+      AuthEventBus.emit(const UserLoggedOut());
+      final out = await bloc.stream.firstWhere(
+        (s) => s.status == ConversationsStatus.signedOut,
+      );
+      expect(out.items, isEmpty);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(socket.disposed, isTrue);
+
+      // Người khác đăng nhập → kênh realtime mới.
+      storage.loggedIn = true;
+      AuthEventBus.emit(const UserLoggedIn());
+      await bloc.stream.firstWhere((s) => s.items.length == 2);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(repo.connectCalls, 2);
+      await bloc.close();
+      badge.dispose();
+    },
+  );
 }

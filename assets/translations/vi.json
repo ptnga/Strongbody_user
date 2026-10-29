@@ -328,6 +328,7 @@
   "accountLogoutMessage": "Bạn sẽ không nhận thông báo báo giá và tin nhắn trên máy này cho tới khi đăng nhập lại.",
   "accountLoggedOut": "Bạn đã đăng xuất.",
   "accountFirstName": "Tên",
+  "accountFirstNameRequired": "Vui lòng nhập tên",
   "accountLastName": "Họ",
   "accountCity": "Thành phố",
   "accountSave": "Lưu",

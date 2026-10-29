@@ -35,6 +35,7 @@ class ConversationEntity extends Equatable {
   });
 
   ConversationEntity copyWith({
+    String? partnerName,
     String? partnerAvatar,
     int? unreadCount,
     ChatMessageType? lastType,
@@ -46,7 +47,7 @@ class ConversationEntity extends Equatable {
     return ConversationEntity(
       channelId: channelId,
       partnerId: partnerId,
-      partnerName: partnerName,
+      partnerName: partnerName ?? this.partnerName,
       partnerAvatar: partnerAvatar ?? this.partnerAvatar,
       lastType: lastType ?? this.lastType,
       lastText: lastText ?? this.lastText,

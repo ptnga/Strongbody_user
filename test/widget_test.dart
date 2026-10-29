@@ -127,6 +127,7 @@ class _FakePostRequestRepository implements PostRequestRepository {
     required RequestFormValues values,
     RequestAssistantMeta? assistant,
     List<int> sellerUserIds = const [],
+    void Function(int sellerUserId)? onSellerPosted,
   }) async {
     createdDescription = values.description;
     createdSellerIds = sellerUserIds;

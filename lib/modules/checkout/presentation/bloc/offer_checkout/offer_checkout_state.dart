@@ -100,7 +100,9 @@ class OfferCheckoutQuote extends Equatable {
     RequestOfferEntity offer,
     OfferCheckoutState s,
   ) {
-    final price = offer.price ?? 0;
+    // BE (`retry-payment`) lưu `price` = giá gốc + phí − (điểm + voucher) đã áp → giá gốc
+    // = price + phần đã giảm; tổng phải trả khi đã áp = đúng `price` BE sẽ thu.
+    final price = (offer.price ?? 0) + offer.pointsValue + offer.voucherValue;
     final canChoose = offer.pointsUsed == 0 && offer.pointsValue == 0;
     final usable = usablePoints(
       wallet: s.walletPoints,

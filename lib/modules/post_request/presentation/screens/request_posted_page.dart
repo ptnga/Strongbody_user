@@ -5,6 +5,8 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -16,6 +18,11 @@ class RequestPostedPage extends StatelessWidget {
   final RequestPostedPageArgs args;
 
   const RequestPostedPage({super.key, required this.args});
+
+  static void _track(String action) => AppAnalytics.capture(
+    AnalyticsEvents.requestPostedCtaTapped,
+    {'action': action},
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +129,10 @@ class RequestPostedPage extends StatelessWidget {
                     width: double.infinity,
                     height: 50.h,
                     child: FilledButton(
-                      onPressed: () => context.go(RouteName.myRequests),
+                      onPressed: () {
+                        _track('my_requests');
+                        context.go(RouteName.myRequests);
+                      },
                       style: FilledButton.styleFrom(
                         backgroundColor: theme.secondary(context),
                         shape: RoundedRectangleBorder(
@@ -141,7 +151,10 @@ class RequestPostedPage extends StatelessWidget {
                     width: double.infinity,
                     height: 50.h,
                     child: OutlinedButton(
-                      onPressed: () => context.go(RouteName.rootScreen),
+                      onPressed: () {
+                        _track('home');
+                        context.go(RouteName.rootScreen);
+                      },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: theme.textPrimary(context),
                         side: BorderSide(color: theme.border(context)),

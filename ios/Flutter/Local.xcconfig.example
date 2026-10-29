@@ -1,0 +1,5 @@
+// Copy thành Local.xcconfig (đã gitignore) để build máy thật bằng tài khoản Apple riêng.
+// Team ID: Xcode → Settings → Accounts → chọn team → Team ID (hoặc developer.apple.com).
+// Personal Team cần bundle id duy nhất toàn cầu → đổi SB_BUNDLE_ID_BASE.
+SB_DEVELOPMENT_TEAM = YOUR_TEAM_ID
+SB_BUNDLE_ID_BASE = ai.strongbody.request.yourname

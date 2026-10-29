@@ -119,7 +119,7 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
     // Huỷ ghi âm (X) → màn voice trả lại file đính kèm; gửi xong thì null.
     final returned = await context.push<List<String>>(
       RouteName.voiceRequest,
-      extra: VoiceRequestPageArgs(attachmentPaths: attachments),
+      extra: VoiceRequestPageArgs(attachmentPaths: attachments, source: 'home'),
     );
     if (!mounted || returned == null || returned.isEmpty) return;
     setState(() => _attachments = returned);

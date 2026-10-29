@@ -24,6 +24,9 @@ abstract class PostRequestRepository {
     required RequestFormValues values,
     RequestAssistantMeta? assistant,
     List<int> sellerUserIds = const [],
+
+    /// Gửi riêng từng provider: báo seller đã nhận để lần thử lại không gửi trùng.
+    void Function(int sellerUserId)? onSellerPosted,
   });
 
   /// Giá "from", cách cung cấp, lịch rảnh của một provider (service + profile chi tiết).

@@ -32,3 +32,6 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# Ghi đè signing trên máy riêng (xem Flutter/Local.xcconfig.example)
+Flutter/Local.xcconfig

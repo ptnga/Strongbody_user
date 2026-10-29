@@ -6,6 +6,8 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
@@ -41,6 +43,10 @@ class _VoiceRequestPageState extends State<VoiceRequestPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppAnalytics.capture(AnalyticsEvents.voiceRequestOpened, {
+      'source': args.source,
+      'refine': args.refine,
+    });
   }
 
   @override
@@ -61,6 +67,10 @@ class _VoiceRequestPageState extends State<VoiceRequestPage>
 
   /// "Type instead": refine → về màn trước; còn lại → Home, mở bàn phím ô nhập.
   void _typeInstead(BuildContext context) {
+    AppAnalytics.capture(AnalyticsEvents.voiceTypeInsteadTapped, {
+      'source': args.source,
+      'problem': context.read<VoiceRequestBloc>().state.problem?.name,
+    });
     if (args.refine) {
       context.pop();
       return;
@@ -70,6 +80,9 @@ class _VoiceRequestPageState extends State<VoiceRequestPage>
   }
 
   void _close(BuildContext context) {
+    AppAnalytics.capture(AnalyticsEvents.voiceRequestClosed, {
+      'source': args.source,
+    });
     // Trả file đính kèm về ô nhập ở Home (người dùng huỷ, chưa gửi).
     context.pop(args.refine ? null : args.attachmentPaths);
   }
@@ -79,6 +92,14 @@ class _VoiceRequestPageState extends State<VoiceRequestPage>
     final result = state.result;
     if (result != null) {
       bloc.add(const VoiceRequestOneShotConsumed());
+      AppAnalytics.capture(AnalyticsEvents.voiceRequestSubmitted, {
+        'source': args.source,
+        'refine': args.refine,
+        'has_voice_note': result.voicePath != null,
+        'voice_duration_sec': result.voiceDuration?.inSeconds,
+        'language': result.languageCode,
+        'transcript_words': RegExp(r'\S+').allMatches(result.text).length,
+      });
       if (args.refine) {
         context.pop(result.text);
         return;
@@ -99,10 +120,22 @@ class _VoiceRequestPageState extends State<VoiceRequestPage>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return BlocListener<VoiceRequestBloc, VoiceRequestState>(
-      listenWhen: (previous, current) =>
-          current.result != null && previous.result != current.result,
-      listener: _onStateChanged,
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<VoiceRequestBloc, VoiceRequestState>(
+          listenWhen: (previous, current) =>
+              current.result != null && previous.result != current.result,
+          listener: _onStateChanged,
+        ),
+        BlocListener<VoiceRequestBloc, VoiceRequestState>(
+          listenWhen: (previous, current) =>
+              current.problem != null && previous.problem != current.problem,
+          listener: (context, state) => AppAnalytics.capture(
+            AnalyticsEvents.voiceProblemShown,
+            {'problem': state.problem!.name, 'source': args.source},
+          ),
+        ),
+      ],
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {

@@ -47,8 +47,13 @@ class HomeBloc extends BlocWithApi<HomeEvent, HomeState> {
     });
     on<_HomeSuggestionsRequested>(_onSuggestionsRequested);
     // Đăng nhập / đăng xuất ở bất kỳ đâu → làm mới lời chào, avatar, pill offer.
-    _authSubscription = AuthEventBus.stream.listen((_) {
-      if (!isClosed) add(const HomeStarted());
+    _authSubscription = AuthEventBus.stream.listen((event) async {
+      if (isClosed) return;
+      if (event is UserLoggedOut) {
+        await _preferences.clearRecentSearches();
+        if (isClosed) return;
+      }
+      add(const HomeStarted());
     });
   }
 
@@ -113,6 +118,7 @@ class HomeBloc extends BlocWithApi<HomeEvent, HomeState> {
       state.copyWith(
         status: HomeStatus.success,
         isLoggedIn: isLoggedIn,
+        recentSearches: _preferences.recentSearches,
         userName: _storage.userName,
         clearUserName: !isLoggedIn,
         newOffersCount: isLoggedIn ? null : 0,

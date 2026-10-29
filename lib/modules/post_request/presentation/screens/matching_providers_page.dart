@@ -6,6 +6,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/domain/global_dependencies.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -64,7 +66,10 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
     final bloc = context.read<MatchingProvidersBloc>();
     final text = await context.push<String>(
       RouteName.voiceRequest,
-      extra: const VoiceRequestPageArgs(refine: true),
+      extra: const VoiceRequestPageArgs(
+        refine: true,
+        source: 'providers_refine',
+      ),
     );
     if (text == null || text.trim().isEmpty) return;
     if (ProviderRefineQuery.parse(text).isEmpty) {
@@ -76,7 +81,12 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
 
   /// Như web AuthGate: chat cần tài khoản → popup Sign in trước, rồi mở chat với provider.
   Future<void> _voiceMessage(ProviderEntity provider) async {
-    if (!gs.isLoggedIn && !await showAuthSheet(context)) return;
+    AppAnalytics.capture(AnalyticsEvents.providerMessageTapped, {
+      'provider_id': provider.userId,
+    });
+    if (!gs.isLoggedIn && !await showAuthSheet(context, source: 'providers')) {
+      return;
+    }
     if (!mounted) return;
     context.push(
       RouteName.chat,
@@ -85,11 +95,15 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
         name: provider.name,
         avatar: provider.avatarUrl,
         profession: provider.profession,
+        source: 'providers',
       ),
     );
   }
 
   void _requestOffer(ProviderEntity provider) {
+    AppAnalytics.capture(AnalyticsEvents.providerRequestOfferTapped, {
+      'provider_id': provider.userId,
+    });
     context.read<PostRequestFlowBloc>().add(
       PostRequestFlowProvidersSelected([provider]),
     );
@@ -100,6 +114,9 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
   /// provider phù hợp — như nút "Post request & get offers" ở màn Heard (bỏ provider
   /// đã chọn bằng "Request offer" trước đó).
   void _postToAll() {
+    AppAnalytics.capture(AnalyticsEvents.providersPostToAllTapped, {
+      'match_count': context.read<MatchingProvidersBloc>().state.matchCount,
+    });
     context.read<PostRequestFlowBloc>()
       ..add(const PostRequestFlowProvidersSelected([]))
       ..add(
@@ -109,6 +126,9 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
   }
 
   void _done(List<ProviderEntity> providers) {
+    AppAnalytics.capture(AnalyticsEvents.providersSelectionDone, {
+      'count': providers.length,
+    });
     context.read<PostRequestFlowBloc>().add(
       PostRequestFlowProvidersSelected(providers),
     );
@@ -118,30 +138,47 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.background(context),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _SearchHeader(
-              // Mở từ ô tìm ở Home → back về "Here's what I heard" của câu đó (prototype).
-              onBack: () => widget.args.backToHeard
-                  ? context.pushReplacement(RouteName.requestHeard)
-                  : context.pop(),
-              // Mic đỏ = nói yêu cầu mới như Home (nút Speak). `go` để bỏ luồng hiện tại
-              // (ShellRoute) — request mới dựng PostRequestFlowBloc mới. Lọc bằng giọng
-              // nói vẫn ở thẻ "Refine by voice".
-              onMic: () => context.go(RouteName.voiceRequest),
-            ),
-            const _FilterChips(),
-            Divider(height: 1, color: theme.border(context)),
-            Expanded(
-              child: BlocBuilder<MatchingProvidersBloc, MatchingProvidersState>(
-                builder: (context, state) => _buildList(context, state),
+    // Back hệ thống (Android) đi cùng đường với nút back ở header.
+    return PopScope(
+      canPop: !widget.args.backToHeard,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.pushReplacement(RouteName.requestHeard);
+      },
+      child: Scaffold(
+        backgroundColor: theme.background(context),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _SearchHeader(
+                // Mở từ ô tìm ở Home → back về "Here's what I heard" của câu đó (prototype).
+                onBack: () => widget.args.backToHeard
+                    ? context.pushReplacement(RouteName.requestHeard)
+                    : context.pop(),
+                // Mic đỏ = nói yêu cầu mới như Home (nút Speak). `go` để bỏ luồng hiện tại
+                // (ShellRoute) — request mới dựng PostRequestFlowBloc mới. Lọc bằng giọng
+                // nói vẫn ở thẻ "Refine by voice". Về Home rồi mở màn nói (Home nằm dưới).
+                onMic: () {
+                  final router = GoRouter.of(context);
+                  router.go(RouteName.rootScreen);
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => router.push(
+                      RouteName.voiceRequest,
+                      extra: const VoiceRequestPageArgs(source: 'providers'),
+                    ),
+                  );
+                },
               ),
-            ),
-            _choosing ? _buildDoneBar(context) : _buildPostBar(context),
-          ],
+              const _FilterChips(),
+              Divider(height: 1, color: theme.border(context)),
+              Expanded(
+                child:
+                    BlocBuilder<MatchingProvidersBloc, MatchingProvidersState>(
+                      builder: (context, state) => _buildList(context, state),
+                    ),
+              ),
+              _choosing ? _buildDoneBar(context) : _buildPostBar(context),
+            ],
+          ),
         ),
       ),
     );

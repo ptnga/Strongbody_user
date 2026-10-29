@@ -7,12 +7,12 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
-import 'package:strongbody_buyer/components/app_bottom_nav.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/domain/global_dependencies.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
+import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
 
 import '../bloc/conversations/conversations_bloc.dart';
 import '../chat_page_args.dart';
@@ -62,7 +62,6 @@ class _MessagesPageState extends State<MessagesPage> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: theme.surface(context),
-        bottomNavigationBar: const AppBottomNav(current: AppTab.messages),
         body: SafeArea(
           bottom: false,
           child: Column(
@@ -88,7 +87,10 @@ class _MessagesPageState extends State<MessagesPage> {
                         ConversationsQueryChanged(q),
                       ),
                       // Mic đỏ = màn nói yêu cầu như Home (nút Speak).
-                      onMic: () => context.push(RouteName.voiceRequest),
+                      onMic: () => context.push(
+                        RouteName.voiceRequest,
+                        extra: const VoiceRequestPageArgs(source: 'messages'),
+                      ),
                     ),
                   ],
                 ),
@@ -127,6 +129,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                         partnerId: c.partnerId,
                                         name: c.partnerName,
                                         avatar: c.partnerAvatar,
+                                        source: 'messages',
                                       ),
                                     ),
                                   ),
@@ -183,6 +186,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                           partnerId: p.id,
                                           name: p.name,
                                           avatar: p.avatar,
+                                          source: 'messages_search',
                                         ),
                                       ),
                                     ),
@@ -316,7 +320,7 @@ class _EmptyState extends StatelessWidget {
             child: FilledButton(
               onPressed: () async {
                 final bloc = context.read<ConversationsBloc>();
-                if (await showAuthSheet(context)) {
+                if (await showAuthSheet(context, source: 'messages')) {
                   bloc.add(const ConversationsStarted());
                 }
               },

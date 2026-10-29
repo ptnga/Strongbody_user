@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/bloc/abstract_bloc_with_api.dart';
 import 'package:strongbody_buyer/core/usecases/usecase.dart';
 import 'package:strongbody_buyer/modules/account/domain/usecases/account_use_cases.dart';
@@ -8,6 +10,7 @@ import 'package:strongbody_buyer/modules/post_request/domain/entities/my_request
 
 import '../../../domain/entities/checkout_entities.dart';
 import '../../../domain/usecases/checkout_use_cases.dart';
+import '../../offer_payment_guard.dart';
 
 part 'offer_checkout_event.dart';
 part 'offer_checkout_state.dart';
@@ -37,9 +40,12 @@ class OfferCheckoutBloc
     on<OfferCheckoutCardSelected>(
       (event, emit) => emit(state.copyWith(selectedCardId: event.cardId)),
     );
-    on<OfferCheckoutPointsToggled>(
-      (event, emit) => emit(state.copyWith(usePoints: event.usePoints)),
-    );
+    on<OfferCheckoutPointsToggled>((event, emit) {
+      AppAnalytics.capture(AnalyticsEvents.checkoutPointsToggled, {
+        'use_points': event.usePoints,
+      });
+      emit(state.copyWith(usePoints: event.usePoints));
+    });
     on<OfferCheckoutAddCardRequested>(_onAddCard);
     on<OfferCheckoutPayRequested>(_onPay);
   }
@@ -100,6 +106,9 @@ class OfferCheckoutBloc
         }
         // Thẻ vừa thêm được chọn luôn (như web `refetchAndSelectNew`).
         final added = cards.where((c) => !known.contains(c.id)).firstOrNull;
+        AppAnalytics.capture(AnalyticsEvents.checkoutCardAdded, {
+          'success': added != null,
+        });
         emit(
           state.copyWith(
             cards: cards,
@@ -108,12 +117,17 @@ class OfferCheckoutBloc
           ),
         );
       },
-      onFailure: (_) => emit(
-        state.copyWith(
-          addingCard: false,
-          notice: OfferCheckoutNotice.addCardFailed,
-        ),
-      ),
+      onFailure: (_) {
+        AppAnalytics.capture(AnalyticsEvents.checkoutCardAdded, {
+          'success': false,
+        });
+        emit(
+          state.copyWith(
+            addingCard: false,
+            notice: OfferCheckoutNotice.addCardFailed,
+          ),
+        );
+      },
     );
   }
 
@@ -124,6 +138,19 @@ class OfferCheckoutBloc
     final q = quote;
     if (state.status != OfferCheckoutStatus.ready) return;
     if (!q.isFree && state.selectedCardId == null) return;
+    final payment = <String, Object?>{
+      'offer_id': offer.id,
+      'request_id': offer.requestId ?? offer.request?.id,
+      'seller_id': offer.sellerId,
+      'price': q.price,
+      'total': q.total,
+      'points_used': q.points,
+      'points_value': q.pointsDiscount,
+      'currency': 'USD',
+      'voucher': offer.voucherCode,
+      'method': q.isFree ? 'free' : 'card',
+    };
+    AppAnalytics.capture(AnalyticsEvents.checkoutPayTapped, payment);
     emit(state.copyWith(status: OfferCheckoutStatus.paying));
     await callApi(
       useCase: _payOffer,
@@ -134,27 +161,45 @@ class OfferCheckoutBloc
         voucherCode: offer.voucherCode,
         paymentMethodId: q.isFree ? null : state.selectedCardId,
       ),
-      onSuccess: (result) async => emit(switch (result) {
-        OfferPaymentResult.paid => state.copyWith(
-          status: OfferCheckoutStatus.paid,
-        ),
-        OfferPaymentResult.pending => state.copyWith(
-          status: OfferCheckoutStatus.pending,
-        ),
-        OfferPaymentResult.cancelled => state.copyWith(
-          status: OfferCheckoutStatus.ready,
-        ),
-        OfferPaymentResult.failed => state.copyWith(
-          status: OfferCheckoutStatus.ready,
-          notice: OfferCheckoutNotice.payFailed,
-        ),
-      }),
-      onFailure: (_) => emit(
-        state.copyWith(
-          status: OfferCheckoutStatus.ready,
-          notice: OfferCheckoutNotice.payFailed,
-        ),
-      ),
+      onSuccess: (result) async {
+        if (result == OfferPaymentResult.paid ||
+            result == OfferPaymentResult.pending) {
+          OfferPaymentGuard.markSubmitted(offer.id);
+        }
+        AppAnalytics.capture(switch (result) {
+          OfferPaymentResult.paid => AnalyticsEvents.paymentSucceeded,
+          OfferPaymentResult.pending => AnalyticsEvents.paymentPending,
+          OfferPaymentResult.cancelled => AnalyticsEvents.paymentCancelled,
+          OfferPaymentResult.failed => AnalyticsEvents.paymentFailed,
+        }, payment);
+        emit(switch (result) {
+          OfferPaymentResult.paid => state.copyWith(
+            status: OfferCheckoutStatus.paid,
+          ),
+          OfferPaymentResult.pending => state.copyWith(
+            status: OfferCheckoutStatus.pending,
+          ),
+          OfferPaymentResult.cancelled => state.copyWith(
+            status: OfferCheckoutStatus.ready,
+          ),
+          OfferPaymentResult.failed => state.copyWith(
+            status: OfferCheckoutStatus.ready,
+            notice: OfferCheckoutNotice.payFailed,
+          ),
+        });
+      },
+      onFailure: (message) {
+        AppAnalytics.capture(AnalyticsEvents.paymentFailed, {
+          ...payment,
+          'error': message,
+        });
+        emit(
+          state.copyWith(
+            status: OfferCheckoutStatus.ready,
+            notice: OfferCheckoutNotice.payFailed,
+          ),
+        );
+      },
     );
   }
 }

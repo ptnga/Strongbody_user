@@ -6,6 +6,8 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/toast_util.dart';
@@ -92,6 +94,11 @@ class RequestHeardPage extends StatelessWidget {
 class _HeardActions extends StatelessWidget {
   const _HeardActions();
 
+  static void _track(String action, int? matchCount) => AppAnalytics.capture(
+    AnalyticsEvents.heardActionTapped,
+    {'action': action, 'match_count': matchCount},
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -122,7 +129,19 @@ class _HeardActions extends StatelessWidget {
                 title: LocaleKeys.heardPostTitle.tr(),
                 subtitle: LocaleKeys.heardPostSubtitle.tr(),
                 loading: state.isAnalyzing,
-                onTap: () => context.push(RouteName.requestReview),
+                onTap: () {
+                  _track('post_request', count);
+                  // "Get offers" = gửi mọi provider phù hợp; bỏ provider đã chọn bằng
+                  // "Request offer" ở Browse trước đó (như nút Post request ở Providers).
+                  context.read<PostRequestFlowBloc>()
+                    ..add(const PostRequestFlowProvidersSelected([]))
+                    ..add(
+                      const PostRequestFlowVisibilityChanged(
+                        RequestVisibility.allMatching,
+                      ),
+                    );
+                  context.push(RouteName.requestReview);
+                },
               ),
               Gap(10.h),
               HeardActionCard(
@@ -132,19 +151,26 @@ class _HeardActions extends StatelessWidget {
                     ? LocaleKeys.heardBrowseSubtitle.tr(args: ['$count'])
                     : LocaleKeys.heardBrowseSubtitleGeneric.tr(),
                 loading: state.isAnalyzing,
-                onTap: () => context.push(
-                  RouteName.matchingProviders,
-                  extra: const MatchingProvidersPageArgs(),
-                ),
+                onTap: () {
+                  _track('browse_providers', count);
+                  context.push(
+                    RouteName.matchingProviders,
+                    extra: const MatchingProvidersPageArgs(),
+                  );
+                },
               ),
               Center(
                 child: TextButton.icon(
-                  onPressed: () => context.pushReplacement(
-                    RouteName.voiceRequest,
-                    extra: VoiceRequestPageArgs(
-                      attachmentPaths: state.values.attachmentPaths,
-                    ),
-                  ),
+                  onPressed: () {
+                    _track('say_again', count);
+                    context.pushReplacement(
+                      RouteName.voiceRequest,
+                      extra: VoiceRequestPageArgs(
+                        attachmentPaths: state.values.attachmentPaths,
+                        source: 'heard',
+                      ),
+                    );
+                  },
                   icon: Icon(Icons.mic_none_rounded, size: 20.r),
                   label: Text(LocaleKeys.heardSayAgain.tr()),
                   style: TextButton.styleFrom(

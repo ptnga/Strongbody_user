@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
+import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/bloc/abstract_bloc_with_api.dart';
 
 import '../../../domain/entities/provider_entity.dart';
@@ -65,6 +67,9 @@ class MatchingProvidersBloc
   ) async {
     final keyword = event.keyword.trim();
     if (keyword.isEmpty || keyword == state.keyword) return;
+    AppAnalytics.capture(AnalyticsEvents.providersKeywordEdited, {
+      'keyword': keyword,
+    });
     emit(state.copyWith(keyword: keyword, items: const [], page: 1));
     await _load(emit, page: 1);
   }
@@ -112,6 +117,14 @@ class MatchingProvidersBloc
             isLoadingMore: false,
           ),
         );
+        if (page == 1) {
+          AppAnalytics.capture(AnalyticsEvents.providersResultsLoaded, {
+            'keyword': keyword,
+            'total': result.total,
+            'active_filters': state.activeFilters.map((f) => f.name).join(','),
+          });
+        }
+        _fillFilteredPage();
         for (final provider in result.items) {
           if (!state.extras.containsKey(provider.id)) {
             add(_MatchingProvidersExtrasRequested(provider));
@@ -127,6 +140,18 @@ class MatchingProvidersBloc
       ),
     );
   }
+
+  /// Bộ lọc ẩn gần hết trang đã tải → danh sách không cuộn được nên scroll không gọi
+  /// load-more; tự tải trang sau để không báo "không có provider" oan.
+  void _fillFilteredPage() {
+    if (state.hasMore &&
+        !state.isLoadingMore &&
+        state.visibleItems.length < _minVisible) {
+      add(const MatchingProvidersLoadMore());
+    }
+  }
+
+  static const _minVisible = 6;
 
   Future<void> _onExtrasRequested(
     _MatchingProvidersExtrasRequested event,
@@ -147,6 +172,10 @@ class MatchingProvidersBloc
     Emitter<MatchingProvidersState> emit,
   ) {
     final exists = state.isSelected(event.provider);
+    AppAnalytics.capture(AnalyticsEvents.providerSelectionToggled, {
+      'provider_id': event.provider.userId,
+      'selected': !exists,
+    });
     emit(
       state.copyWith(
         selected: exists
@@ -163,8 +192,14 @@ class MatchingProvidersBloc
     Emitter<MatchingProvidersState> emit,
   ) {
     final active = {...state.activeFilters};
-    if (!active.remove(event.filter)) active.add(event.filter);
+    final on = !active.remove(event.filter);
+    if (on) active.add(event.filter);
+    AppAnalytics.capture(AnalyticsEvents.providersFilterToggled, {
+      'filter': event.filter.name,
+      'active': on,
+    });
     emit(state.copyWith(activeFilters: active));
+    _fillFilteredPage();
   }
 
   Future<void> _onRefined(
@@ -184,6 +219,12 @@ class MatchingProvidersBloc
       active.add(ProviderFilter.budget);
     }
     if (query.topRated) active.add(ProviderFilter.topRated);
+    AppAnalytics.capture(AnalyticsEvents.providersRefinedByVoice, {
+      'language': query.languageCode,
+      'max_budget': query.maxBudget,
+      'top_rated': query.topRated,
+      'keyword': query.keyword,
+    });
     emit(state.copyWith(context: context, activeFilters: active));
 
     final keyword = query.keyword;

@@ -7,9 +7,13 @@ class VoiceRequestPageArgs {
   /// (`context.pop(text)`) thay vì sang "Here's what I heard"; không ghi voice note.
   final bool refine;
 
+  /// Nơi mở màn nói (analytics `voice_request_opened.source`).
+  final String source;
+
   const VoiceRequestPageArgs({
     this.attachmentPaths = const [],
     this.refine = false,
+    this.source = 'unknown',
   });
 
   static VoiceRequestPageArgs fromExtra(Object? extra) =>

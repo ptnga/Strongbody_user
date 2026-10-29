@@ -23,6 +23,9 @@ abstract class UserPreferences {
 
   Future<void> addRecentSearch(String text);
 
+  /// Đăng xuất → không để người dùng sau trên máy thấy từ khoá của người trước.
+  Future<void> clearRecentSearches();
+
   Future<void> setSpeakingLanguage(String? code);
   Future<void> setAutoTranslateChats(bool value);
   Future<void> setReadRepliesAloud(bool value);
@@ -74,6 +77,9 @@ class UserPreferencesImpl implements UserPreferences {
     ].take(UserPreferences.maxRecentSearches).toList();
     return _box.put(_recentSearches, list);
   }
+
+  @override
+  Future<void> clearRecentSearches() => _box.delete(_recentSearches);
 
   @override
   Future<void> setSpeakingLanguage(String? code) => code == null

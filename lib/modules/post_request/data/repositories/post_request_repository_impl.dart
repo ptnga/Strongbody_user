@@ -60,6 +60,7 @@ class PostRequestRepositoryImpl implements PostRequestRepository {
     required RequestFormValues values,
     RequestAssistantMeta? assistant,
     List<int> sellerUserIds = const [],
+    void Function(int sellerUserId)? onSellerPosted,
   }) async {
     try {
       if (sellerUserIds.isEmpty) {
@@ -84,6 +85,7 @@ class PostRequestRepositoryImpl implements PostRequestRepository {
           await _remote.createBuyerRequestToSeller(formData),
         );
         status ??= PostRequestMapper.createdStatus(body);
+        onSellerPosted?.call(sellerUserId);
       }
       return Right(status);
     } catch (e) {
