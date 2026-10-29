@@ -98,11 +98,6 @@ class HomeMenuDrawer extends StatelessWidget {
                           color: theme.textPrimary(context),
                         ),
                       ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: AppIcon(AppSvg.close, size: 24.r),
-                      ),
                     ],
                   ),
                 ),
