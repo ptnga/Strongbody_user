@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -50,7 +52,7 @@ class AccountPage extends StatelessWidget {
           title: Text(label, style: AppTextStyle.lightBodyMediumRegular),
           subtitle: hint == null ? null : Text(hint),
           trailing: current == code
-              ? Icon(Icons.check_rounded, color: theme.textPrimary(context))
+              ? AppIcon(AppSvg.check, size: 24.r, color: theme.textPrimary(context))
               : null,
           onTap: () => Navigator.of(context).pop((code: code)),
         );
@@ -219,7 +221,7 @@ class AccountPage extends StatelessWidget {
                       AccountGroup(
                         children: [
                           AccountNavRow(
-                            icon: Icons.mic_none_rounded,
+                            iconAsset: AppSvg.microphone,
                             label: LocaleKeys.accountSpeakingLanguage.tr(),
                             value: language,
                             onTap: () =>
@@ -256,7 +258,7 @@ class AccountPage extends StatelessWidget {
                       AccountGroup(
                         children: [
                           AccountNavRow(
-                            icon: Icons.shopping_bag_outlined,
+                            iconAsset: AppSvg.bag,
                             label: LocaleKeys.accountMyOrders.tr(),
                             // Như prototype: đơn đã đặt nằm ở My requests (tab Closed / Booked).
                             onTap: () => context.go(RouteName.myRequests),
@@ -273,12 +275,12 @@ class AccountPage extends StatelessWidget {
                             ),
                           ),
                           AccountNavRow(
-                            icon: Icons.star_border_rounded,
+                            iconAsset: AppSvg.starOutline,
                             label: LocaleKeys.accountMyReviews.tr(),
                             onTap: _comingSoon,
                           ),
                           AccountNavRow(
-                            icon: Icons.credit_card_outlined,
+                            iconAsset: AppSvg.card,
                             label: LocaleKeys.accountPaymentMethods.tr(),
                             onTap: _comingSoon,
                           ),
@@ -290,12 +292,12 @@ class AccountPage extends StatelessWidget {
                       AccountGroup(
                         children: [
                           AccountNavRow(
-                            icon: Icons.notifications_none_rounded,
+                            iconAsset: AppSvg.notification,
                             label: LocaleKeys.accountNotifications.tr(),
                             onTap: _comingSoon,
                           ),
                           AccountNavRow(
-                            icon: Icons.help_outline_rounded,
+                            iconAsset: AppSvg.help,
                             label: LocaleKeys.accountHelp.tr(),
                             onTap: _comingSoon,
                           ),
@@ -430,10 +432,9 @@ class _ProfileCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10.r),
                 ),
               ),
-              child: Icon(
-                Icons.edit_outlined,
-                size: 19.r,
-                semanticLabel: LocaleKeys.accountEdit.tr(),
+              child: Semantics(
+                label: LocaleKeys.accountEdit.tr(),
+                child: AppIcon(AppSvg.edit, size: 19.r),
               ),
             ),
           ),
@@ -476,7 +477,7 @@ class _LionPointsCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.star_rounded, size: 28.r, color: _star),
+          AppIcon(AppSvg.starFilled, size: 28.r, color: _star),
           Gap(12.w),
           Expanded(
             child: Column(

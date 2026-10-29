@@ -10,6 +10,8 @@ import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
 import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/empty_state_view.dart';
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/toast_util.dart';
@@ -74,8 +76,9 @@ class _RequestOffersPageState extends State<RequestOffersPage> {
                       children: [
                         IconButton(
                           onPressed: () => context.pop(),
-                          icon: Icon(
-                            Icons.arrow_back_rounded,
+                          icon: AppIcon(
+                            AppSvg.arrowBack,
+                            size: 24.r,
                             color: theme.textPrimary(context),
                           ),
                         ),
@@ -280,19 +283,19 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) => failed
       ? EmptyStateView(
-          icon: Icons.cloud_off_rounded,
+          iconAsset: AppSvg.cloud,
           title: LocaleKeys.offersLoadErrorTitle.tr(),
           message: LocaleKeys.commonConnectionMessage.tr(),
           actionLabel: LocaleKeys.commonTryAgain.tr(),
-          actionIcon: Icons.refresh_rounded,
+          actionIconAsset: AppSvg.refresh,
           onAction: onRefresh,
         )
       : EmptyStateView(
-          icon: Icons.local_offer_outlined,
+          iconAsset: AppSvg.offer,
           title: LocaleKeys.offersEmptyTitle.tr(),
           message: LocaleKeys.offersEmptyMessage.tr(),
           actionLabel: LocaleKeys.offersRefresh.tr(),
-          actionIcon: Icons.refresh_rounded,
+          actionIconAsset: AppSvg.refresh,
           onAction: onRefresh,
         );
 }

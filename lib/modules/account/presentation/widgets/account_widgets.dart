@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
@@ -53,18 +55,20 @@ class AccountGroup extends StatelessWidget {
 
 /// Dòng điều hướng: icon · nhãn · giá trị · ›
 class AccountNavRow extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final String? iconAsset;
   final String label;
   final String? value;
   final VoidCallback onTap;
 
   const AccountNavRow({
     super.key,
-    required this.icon,
+    this.icon,
+    this.iconAsset,
     required this.label,
     required this.onTap,
     this.value,
-  });
+  }) : assert(icon != null || iconAsset != null);
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +79,13 @@ class AccountNavRow extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 15.h),
         child: Row(
           children: [
-            Icon(icon, size: 21.r, color: theme.textPrimary(context)),
+            iconAsset != null
+                ? AppIcon(
+                    iconAsset!,
+                    size: 21.r,
+                    color: theme.textPrimary(context),
+                  )
+                : Icon(icon, size: 21.r, color: theme.textPrimary(context)),
             Gap(14.w),
             Expanded(
               child: Text(
@@ -93,8 +103,8 @@ class AccountNavRow extends StatelessWidget {
                 ),
               ),
             Gap(6.w),
-            Icon(
-              Icons.chevron_right_rounded,
+            AppIcon(
+              AppSvg.chevronRight,
               size: 22.r,
               color: theme.textTertiary(context),
             ),

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
@@ -66,11 +68,11 @@ class _ChatComposerState extends State<ChatComposer> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (IconData icon, VoidCallback action) = widget.recording
-        ? (Icons.arrow_upward_rounded, widget.onRecordSend)
+    final (String icon, VoidCallback action) = widget.recording
+        ? (AppSvg.arrowUp, widget.onRecordSend)
         : _hasText
-        ? (Icons.arrow_upward_rounded, _send)
-        : (Icons.mic_none_rounded, widget.onRecordStart);
+        ? (AppSvg.arrowUp, _send)
+        : (AppSvg.microphone, widget.onRecordStart);
 
     return Container(
       color: theme.surface(context),
@@ -162,7 +164,7 @@ class _ChatComposerState extends State<ChatComposer> {
                       onTap: widget.enabled ? action : null,
                       child: SizedBox.square(
                         dimension: 54.r,
-                        child: Icon(icon, size: 26.r, color: Colors.white),
+                        child: AppIcon(icon, size: 22.r, color: Colors.white),
                       ),
                     ),
                   ),

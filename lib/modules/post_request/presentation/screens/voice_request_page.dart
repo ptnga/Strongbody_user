@@ -5,6 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
 import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
@@ -244,11 +246,13 @@ class _CloseButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         child: SizedBox.square(
           dimension: 44.r,
-          child: Icon(
-            Icons.close_rounded,
-            size: 22.r,
-            color: theme.textPrimary(context),
-            semanticLabel: LocaleKeys.voiceRequestClose.tr(),
+          child: Semantics(
+            label: LocaleKeys.voiceRequestClose.tr(),
+            child: AppIcon(
+              AppSvg.close,
+              size: 22.r,
+              color: theme.textPrimary(context),
+            ),
           ),
         ),
       ),

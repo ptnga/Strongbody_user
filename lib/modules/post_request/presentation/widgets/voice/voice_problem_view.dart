@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -64,7 +66,7 @@ class VoiceProblemView extends StatelessWidget {
     final primary = switch (problem) {
       VoiceRequestProblem.noSpeech => (
         LocaleKeys.voiceProblemTryAgain.tr(),
-        Icons.mic_none_rounded,
+        AppSvg.microphone,
         onTryAgain,
       ),
       VoiceRequestProblem.micOff => (
@@ -124,7 +126,7 @@ class VoiceProblemView extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (primary.$2 != null) ...[
-                        Icon(primary.$2, size: 20.r),
+                        AppIcon(primary.$2!, size: 20.r),
                         Gap(6.w),
                       ],
                       Text(primary.$1),

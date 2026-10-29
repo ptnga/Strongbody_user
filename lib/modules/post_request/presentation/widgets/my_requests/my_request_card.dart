@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -61,7 +63,7 @@ class MyRequestCard extends StatelessWidget {
     final chips = <Widget>[
       if (!closed && request.hasVoice)
         _Chip(
-          icon: Icons.mic_none_rounded,
+          iconAsset: AppSvg.microphone,
           label: LocaleKeys.myRequestsVoiceNote.tr(),
         ),
       for (final type in details.deliveryTypes)
@@ -228,9 +230,9 @@ class _StatusBadge extends StatelessWidget {
 
 class _Chip extends StatelessWidget {
   final String label;
-  final IconData? icon;
+  final String? iconAsset;
 
-  const _Chip({required this.label, this.icon});
+  const _Chip({required this.label, this.iconAsset});
 
   @override
   Widget build(BuildContext context) {
@@ -244,8 +246,8 @@ class _Chip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 13.r, color: theme.textPrimary(context)),
+          if (iconAsset != null) ...[
+            AppIcon(iconAsset!, size: 13.r, color: theme.textPrimary(context)),
             Gap(3.w),
           ],
           Text(

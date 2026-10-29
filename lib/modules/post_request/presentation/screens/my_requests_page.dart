@@ -10,6 +10,7 @@ import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
 import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/empty_state_view.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -248,7 +249,7 @@ class _EmptyState extends StatelessWidget {
     );
     return switch (state.status) {
       MyRequestsStatus.signedOut => EmptyStateView(
-        icon: Icons.person_outline_rounded,
+        iconAsset: AppSvg.user,
         title: LocaleKeys.myRequestsSignedOutTitle.tr(),
         message: LocaleKeys.myRequestsSignedOutMessage.tr(),
         actionLabel: LocaleKeys.authSignIn.tr(),
@@ -260,29 +261,29 @@ class _EmptyState extends StatelessWidget {
         },
       ),
       MyRequestsStatus.failure => EmptyStateView(
-        icon: Icons.cloud_off_rounded,
+        iconAsset: AppSvg.cloud,
         title: LocaleKeys.myRequestsLoadErrorTitle.tr(),
         message: LocaleKeys.commonConnectionMessage.tr(),
         actionLabel: LocaleKeys.commonTryAgain.tr(),
-        actionIcon: Icons.refresh_rounded,
+        actionIconAsset: AppSvg.refresh,
         onAction: () => bloc.add(const MyRequestsStarted()),
       ),
       _ when state.tab == MyRequestsTab.closed => EmptyStateView(
-        icon: Icons.inventory_2_outlined,
+        iconAsset: AppSvg.box,
         title: LocaleKeys.myRequestsNoClosedTitle.tr(),
         message: LocaleKeys.myRequestsNoClosedMessage.tr(),
         actionLabel: LocaleKeys.myRequestsSpeakRequest.tr(),
-        actionIcon: Icons.mic_none_rounded,
+        actionIconAsset: AppSvg.microphone,
         onAction: speak,
       ),
       _ => EmptyStateView(
-        icon: Icons.mic_none_rounded,
+        iconAsset: AppSvg.microphone,
         title: state.hasAnyRequest
             ? LocaleKeys.myRequestsNoOpenTitle.tr()
             : LocaleKeys.myRequestsNoneTitle.tr(),
         message: LocaleKeys.myRequestsNoneMessage.tr(),
         actionLabel: LocaleKeys.myRequestsSpeakRequest.tr(),
-        actionIcon: Icons.mic_none_rounded,
+        actionIconAsset: AppSvg.microphone,
         onAction: speak,
       ),
     };

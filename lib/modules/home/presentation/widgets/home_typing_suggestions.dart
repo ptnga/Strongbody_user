@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -55,7 +57,7 @@ class HomeTypingSuggestions extends StatelessWidget {
   @override
   Widget build(BuildContext context) => HomeSuggestionRows(
     title: LocaleKeys.homeSuggestionsLabel.tr(),
-    icon: Icons.search_rounded,
+    icon: AppSvg.search,
     items: _suggestions(context.locale.languageCode),
     query: seed.query,
     onSend: onSend,
@@ -79,7 +81,7 @@ class HomeRecentSearches extends StatelessWidget {
   @override
   Widget build(BuildContext context) => HomeSuggestionRows(
     title: LocaleKeys.homeRecentSearches.tr(),
-    icon: Icons.schedule_rounded,
+    icon: AppSvg.clock,
     items: items,
     query: '',
     onSend: onSend,
@@ -90,7 +92,7 @@ class HomeRecentSearches extends StatelessWidget {
 /// Danh sách dòng gợi ý: icon · chữ (in đậm phần khớp) · ↖ điền vào ô.
 class HomeSuggestionRows extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final String icon;
   final List<String> items;
   final String query;
   final ValueChanged<String> onSend;
@@ -130,7 +132,7 @@ class HomeSuggestionRows extends StatelessWidget {
               borderRadius: BorderRadius.circular(8.r),
               child: Row(
                 children: [
-                  Icon(icon, size: 19.r, color: theme.textSecondary(context)),
+                  AppIcon(icon, size: 19.r, color: theme.textSecondary(context)),
                   Gap(10.w),
                   Expanded(
                     child: _Highlighted(text: text, query: query),

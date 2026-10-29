@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/modules/checkout/presentation/offer_payment_guard.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -119,11 +121,13 @@ class OfferCard extends StatelessWidget {
                           ),
                           if (offer.sellerVerified) ...[
                             Gap(4.w),
-                            Icon(
-                              Icons.verified_rounded,
-                              size: 15.r,
-                              color: Colour.success,
-                              semanticLabel: LocaleKeys.offersVerified.tr(),
+                            Semantics(
+                              label: LocaleKeys.offersVerified.tr(),
+                              child: AppIcon(
+                                AppSvg.verified,
+                                size: 15.r,
+                                color: Colour.success,
+                              ),
                             ),
                           ],
                         ],
@@ -138,8 +142,8 @@ class OfferCard extends StatelessWidget {
                                   alignment: PlaceholderAlignment.middle,
                                   child: Padding(
                                     padding: EdgeInsets.only(right: 2.w),
-                                    child: Icon(
-                                      Icons.star_rounded,
+                                    child: AppIcon(
+                                      AppSvg.starFilled,
                                       size: 14.r,
                                       color: theme.textPrimary(context),
                                     ),
@@ -188,11 +192,11 @@ class OfferCard extends StatelessWidget {
             ),
             if (session != null) ...[
               Gap(10.h),
-              _InfoRow(icon: Icons.calendar_today_outlined, text: session),
+              _InfoRow(icon: AppSvg.calendar, text: session),
             ],
             if (where != null && where.isNotEmpty) ...[
               Gap(session == null ? 10.h : 6.h),
-              _InfoRow(icon: Icons.location_on_outlined, text: where),
+              _InfoRow(icon: AppSvg.location, text: where),
             ],
             if (voice != null || message.isNotEmpty) ...[
               Gap(10.h),
@@ -229,7 +233,7 @@ class OfferCard extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final String text;
 
   const _InfoRow({required this.icon, required this.text});
@@ -239,7 +243,7 @@ class _InfoRow extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(icon, size: 16.r, color: theme.textSecondary(context)),
+        AppIcon(icon, size: 16.r, color: theme.textSecondary(context)),
         Gap(6.w),
         Expanded(
           child: Text(

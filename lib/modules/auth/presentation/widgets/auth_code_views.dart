@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -305,7 +307,7 @@ class AuthResetDoneView extends StatelessWidget {
             color: Colour.success.withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.check_rounded, size: 36.r, color: Colour.success),
+          child: AppIcon(AppSvg.check, size: 36.r, color: Colour.success),
         ),
         Gap(16.h),
         Text(LocaleKeys.authResetDoneTitle.tr(), style: _title(context)),
