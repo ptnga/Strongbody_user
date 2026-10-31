@@ -32,4 +32,9 @@ class RouteName {
   static const String matchingProviders = '/request/providers';
 
   static const String requestPosted = '/requestPosted';
+
+  //-----------------SOCIAL MARKET---------------
+  /// `/socialMarket/:category` (`longevity`, `health-pro-advisory`, `personal-helper`)
+  /// + con `services` / `providers` — đè lên tab.
+  static const String socialMarket = '/socialMarket';
 }

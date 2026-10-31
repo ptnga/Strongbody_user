@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:equatable/equatable.dart';
@@ -42,6 +43,8 @@ class PostRequestFlowBloc
 
   /// Seller đã nhận request (gửi lần lượt) → bấm Post lại sau lỗi không gửi trùng.
   final _postedSellerIds = <int>{};
+
+  Future<void> Function(String description)? _onPosted;
 
   PostRequestFlowBloc({
     required TranscribeAudioUseCase transcribeAudio,
@@ -122,6 +125,7 @@ class PostRequestFlowBloc
     Emitter<PostRequestFlowState> emit,
   ) async {
     final args = event.args;
+    _onPosted = args.onPosted;
     var text = args.text.trim();
     emit(
       state.copyWith(
@@ -356,6 +360,9 @@ class PostRequestFlowBloc
         });
         await _storage.clearPendingRequest();
         emit(state.copyWith(submitStatus: PostRequestSubmitStatus.success));
+        final onPosted = _onPosted;
+        _onPosted = null;
+        if (onPosted != null) unawaited(onPosted(values.description));
       },
       onFailure: (message) {
         AppAnalytics.capture(AnalyticsEvents.requestPostFailed, {
