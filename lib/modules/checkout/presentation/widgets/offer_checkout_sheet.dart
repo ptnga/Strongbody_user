@@ -6,6 +6,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
 import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
@@ -273,8 +275,8 @@ class _QuoteView extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.verified_user_outlined,
+              AppIcon(
+                AppSvg.verified,
                 size: 18.r,
                 color: Colour.success,
               ),
@@ -385,8 +387,8 @@ class _PaymentMethods extends StatelessWidget {
                         : theme.textTertiary(context),
                   ),
                   Gap(10.w),
-                  Icon(
-                    Icons.credit_card_rounded,
+                  AppIcon(
+                    AppSvg.card,
                     size: 20.r,
                     color: theme.textSecondary(context),
                   ),
@@ -425,7 +427,7 @@ class _PaymentMethods extends StatelessWidget {
                     dimension: 16,
                     child: CupertinoActivityIndicator(radius: 8),
                   )
-                : Icon(Icons.add_rounded, size: 18.r),
+                : AppIcon(AppSvg.add, size: 18.r),
             label: Text(LocaleKeys.checkoutAddCard.tr()),
             style: TextButton.styleFrom(
               foregroundColor: theme.textPrimary(context),

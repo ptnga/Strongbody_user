@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 
@@ -31,8 +33,8 @@ class HomeTopBar extends StatelessWidget {
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(
-                    Icons.notes_rounded,
+                  AppIcon(
+                    AppSvg.note,
                     size: 26.r,
                     color: theme.textPrimary(context),
                   ),
@@ -101,8 +103,8 @@ class _Avatar extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: initials.isEmpty
-          ? Icon(
-              Icons.person_outline_rounded,
+          ? AppIcon(
+              AppSvg.user,
               size: 20.r,
               color: theme.textSecondary(context),
             )

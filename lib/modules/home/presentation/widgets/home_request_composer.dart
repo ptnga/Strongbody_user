@@ -6,6 +6,8 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/app_logger.dart';
@@ -176,8 +178,8 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
               children: [
                 IconButton(
                   onPressed: _pickAttachments,
-                  icon: Icon(
-                    Icons.add,
+                  icon: AppIcon(
+                    AppSvg.add,
                     size: 26.r,
                     color: theme.textPrimary(context),
                   ),
@@ -253,8 +255,8 @@ class _MicSendButton extends StatelessWidget {
               turns: Tween(begin: 0.75, end: 1.0).animate(animation),
               child: child,
             ),
-            child: Icon(
-              hasText ? Icons.arrow_upward_rounded : Icons.mic_none_rounded,
+            child: AppIcon(
+              hasText ? AppSvg.arrowUp : AppSvg.microphone,
               key: ValueKey(hasText),
               size: 24.r,
               color: Colors.white,

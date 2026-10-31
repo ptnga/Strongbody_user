@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -41,8 +43,9 @@ class ChatHeader extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onBack,
-            icon: Icon(
-              Icons.arrow_back_rounded,
+            icon: AppIcon(
+              AppSvg.arrowBack,
+              size: 24.r,
               color: theme.textPrimary(context),
             ),
           ),
@@ -102,7 +105,7 @@ class ChatHeader extends StatelessWidget {
                         dimension: 14.r,
                         child: const CupertinoActivityIndicator(radius: 7),
                       )
-                    : Icon(Icons.translate_rounded, size: 16.r),
+                    : AppIcon(AppSvg.translate, size: 16.r),
                 Gap(5.w),
                 Text(
                   translateOn

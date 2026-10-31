@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
 import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/toast_util.dart';
@@ -144,7 +146,7 @@ class _HeardActions extends StatelessWidget {
               ),
               Gap(10.h),
               HeardActionCard(
-                icon: Icons.search_rounded,
+                iconAsset: AppSvg.search,
                 title: LocaleKeys.heardBrowseTitle.tr(),
                 subtitle: count != null && count > 0
                     ? LocaleKeys.heardBrowseSubtitle.tr(args: ['$count'])
@@ -170,7 +172,7 @@ class _HeardActions extends StatelessWidget {
                       ),
                     );
                   },
-                  icon: Icon(Icons.mic_none_rounded, size: 20.r),
+                  icon: AppIcon(AppSvg.microphone, size: 20.r),
                   label: Text(LocaleKeys.heardSayAgain.tr()),
                   style: TextButton.styleFrom(
                     foregroundColor: theme.textPrimary(context),

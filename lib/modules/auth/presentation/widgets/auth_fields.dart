@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -255,10 +257,9 @@ class AuthSocialButtons extends StatelessWidget {
                   shape: shape,
                   padding: EdgeInsets.zero,
                 ),
-                child: Icon(
-                  Icons.apple,
-                  size: 24.r,
-                  semanticLabel: LocaleKeys.authContinueApple.tr(),
+                child: Semantics(
+                  label: LocaleKeys.authContinueApple.tr(),
+                  child: AppIcon(AppSvg.apple, size: 24.r, tint: false),
                 ),
               ),
             ),

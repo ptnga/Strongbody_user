@@ -90,6 +90,7 @@ flutter:
     - assets/translations/
     - assets/images/
     - assets/svg/
+    - assets/svg/icons/
 
   fonts:
     - family: PlusJakartaSans
