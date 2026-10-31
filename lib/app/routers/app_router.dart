@@ -38,6 +38,20 @@ import 'package:strongbody_buyer/modules/post_request/presentation/screens/reque
 import 'package:strongbody_buyer/modules/post_request/presentation/screens/voice_request_page.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
+import 'package:strongbody_buyer/modules/social_market/domain/entities/market_category.dart';
+import 'package:strongbody_buyer/modules/social_market/domain/entities/market_feed_entities.dart';
+import 'package:strongbody_buyer/modules/social_market/domain/entities/market_listing_entities.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/bloc/category_market/category_market_bloc.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/bloc/engagement/engagement_cubit.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/bloc/market_listing/market_listing_bloc.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/screens/category_market_page.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/screens/market_listing_page.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/bloc/medical_travel/destination_cubit.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/bloc/medical_travel/medical_travel_cubit.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/bloc/medical_travel/service_detail_cubit.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/screens/destination_page.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/screens/market_service_detail_page.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/screens/medical_travel_page.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/widgets/providers/provider_formatters.dart';
 import 'package:strongbody_buyer/modules/splash/presentation/screens/splash_page.dart';
 
@@ -188,6 +202,109 @@ class AppRoutes {
             child: ChatPage(args: args),
           );
         },
+      ),
+      // Medical Travel (Social Market): landing riêng + chi tiết service + destination.
+      // Khai TRƯỚC `/socialMarket/:category` để không bị bắt nhầm làm category.
+      GoRoute(
+        path: '${RouteName.socialMarket}/medical-travel',
+        builder: (context, state) => BlocProvider(
+          create: (_) => getIt<MedicalTravelCubit>()..load(),
+          child: const MedicalTravelPage(),
+        ),
+        routes: [
+          GoRoute(
+            path: 'service/:id',
+            redirect: (context, state) =>
+                int.tryParse(state.pathParameters['id'] ?? '') == null
+                ? RouteName.rootScreen
+                : null,
+            builder: (context, state) {
+              final id = int.parse(state.pathParameters['id']!);
+              return BlocProvider(
+                create: (_) => getIt<ServiceDetailCubit>()..load(id),
+                child: MarketServiceDetailPage(serviceId: id),
+              );
+            },
+          ),
+          GoRoute(
+            path: 'destination/:code',
+            builder: (context, state) {
+              final code = state.pathParameters['code']!;
+              return BlocProvider(
+                create: (_) => getIt<DestinationCubit>()..load(code),
+                child: DestinationPage(code: code),
+              );
+            },
+          ),
+        ],
+      ),
+      // Social Market (menu ☰): trang category + listing "View all" — web `(HOME_CATEGORY)`.
+      GoRoute(
+        path: '${RouteName.socialMarket}/:category',
+        redirect: (context, state) =>
+            MarketCategory.fromRoute(state.pathParameters['category']) == null
+            ? RouteName.rootScreen
+            : null,
+        builder: (context, state) {
+          final category = MarketCategory.fromRoute(
+            state.pathParameters['category'],
+          )!;
+          return BlocProvider(
+            create: (_) =>
+                getIt<CategoryMarketBloc>()
+                  ..add(CategoryMarketStarted(category)),
+            child: CategoryMarketPage(category: category),
+          );
+        },
+        routes: [
+          GoRoute(
+            path: 'services',
+            builder: (context, state) {
+              final category = MarketCategory.fromRoute(
+                state.pathParameters['category'],
+              )!;
+              return MultiBlocProvider(
+                providers: [
+                  BlocProvider(
+                    create: (_) =>
+                        getIt<MarketListingBloc<MarketServiceEntity>>(
+                          param1: category,
+                        )..add(const MarketListingStarted()),
+                  ),
+                  BlocProvider(
+                    create: (_) => getIt<EngagementCubit>(
+                      param1: EngagementTarget.service,
+                    ),
+                  ),
+                ],
+                child: MarketServicesListingPage(category: category),
+              );
+            },
+          ),
+          GoRoute(
+            path: 'providers',
+            builder: (context, state) {
+              final category = MarketCategory.fromRoute(
+                state.pathParameters['category'],
+              )!;
+              return MultiBlocProvider(
+                providers: [
+                  BlocProvider(
+                    create: (_) => getIt<MarketListingBloc<MarketExpertEntity>>(
+                      param1: category,
+                    )..add(const MarketListingStarted()),
+                  ),
+                  BlocProvider(
+                    create: (_) => getIt<EngagementCubit>(
+                      param1: EngagementTarget.sellerProfile,
+                    ),
+                  ),
+                ],
+                child: MarketProvidersListingPage(category: category),
+              );
+            },
+          ),
+        ],
       ),
       // Heard → Review → Providers dùng chung một PostRequestFlowBloc (tạo khi vào Heard).
       ShellRoute(

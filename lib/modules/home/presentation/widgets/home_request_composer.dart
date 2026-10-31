@@ -27,11 +27,23 @@ class HomeRequestComposer extends StatefulWidget {
   /// Ô được / mất focus (focus mà chưa gõ → "Recent searches").
   final ValueChanged<bool>? onFocusChanged;
 
+  /// Chữ gợi ý trong ô (mặc định "Ask StrongBody" của Home).
+  final String? hintText;
+
+  /// Nơi mở màn nói (analytics `VoiceRequestPageArgs.source`).
+  final String source;
+
+  /// Nền ô nhập (mặc định xám nhạt); đặt trên khối xám thì dùng trắng.
+  final Color? background;
+
   const HomeRequestComposer({
     super.key,
     required this.onSend,
     this.onTextChanged,
     this.onFocusChanged,
+    this.hintText,
+    this.source = 'home',
+    this.background,
   });
 
   @override
@@ -120,7 +132,10 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
     // Huỷ ghi âm (X) → màn voice trả lại file đính kèm; gửi xong thì null.
     final returned = await context.push<List<String>>(
       RouteName.voiceRequest,
-      extra: VoiceRequestPageArgs(attachmentPaths: attachments, source: 'home'),
+      extra: VoiceRequestPageArgs(
+        attachmentPaths: attachments,
+        source: widget.source,
+      ),
     );
     if (!mounted || returned == null || returned.isEmpty) return;
     setState(() => _attachments = returned);
@@ -153,7 +168,7 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
           Container(
             padding: EdgeInsets.fromLTRB(4.w, 6.h, 6.w, 6.h),
             decoration: BoxDecoration(
-              color: theme.muted(context),
+              color: widget.background ?? theme.muted(context),
               borderRadius: BorderRadius.circular(28.r),
             ),
             child: Row(
@@ -184,7 +199,9 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
                         color: theme.textPrimary(context),
                       ),
                       decoration: InputDecoration(
-                        hintText: LocaleKeys.homeAskPlaceholder.tr(),
+                        hintText:
+                            widget.hintText ??
+                            LocaleKeys.homeAskPlaceholder.tr(),
                         hintStyle: AppTextStyle.lightBodyLargeRegular.copyWith(
                           color: theme.textTertiary(context),
                         ),

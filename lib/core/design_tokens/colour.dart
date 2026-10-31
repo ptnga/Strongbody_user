@@ -26,4 +26,20 @@ class Colour {
   // Semantic
   static const Color success = Color(0xFF1C906C);
   static const Color error = Color(0xFFE03137);
+
+  // Marketplace — token web `src/styles/tokens.css` (Social Market dùng y nguyên).
+  static const Color brand50 = Color(0xFFFFEAEE);
+  static const Color seller = Color(0xFF1C906C);
+  static const Color seller25 = Color(0xFFF0F9F6);
+  static const Color seller50 = Color(0xFFE0F1EC);
+  static const Color seller800 = Color(0xFF0C6445);
+  static const Color subtle = Color(0xFFF3F4F6);
+  static const Color mutedWeb = Color(0xFFF9FAFB);
+  static const Color lineStrong = Color(0xFFD1D5DB);
+  static const Color lineSubtle = Color(0xFFF1F2F4);
+  static const Color amber = Color(0xFFF59E0B);
+  static const Color amber50 = Color(0xFFFFFBEB);
+  static const Color amber700 = Color(0xFFB45309);
+  static const Color info50 = Color(0xFFEAF4FE);
+  static const Color blue700 = Color(0xFF1D4ED8);
 }

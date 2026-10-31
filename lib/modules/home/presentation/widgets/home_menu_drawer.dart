@@ -16,6 +16,9 @@ import 'package:strongbody_buyer/modules/post_request/presentation/post_request_
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_offers_page_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
+import 'package:strongbody_buyer/modules/social_market/domain/entities/market_category.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/market_formatters.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/market_navigation.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/home_menu/home_menu_cubit.dart';
@@ -125,62 +128,121 @@ class HomeMenuDrawer extends StatelessWidget {
                   ),
                 ),
                 Gap(8.h),
-                link(
-                  Icons.move_to_inbox_outlined,
-                  LocaleKeys.myRequestsTitle.tr(),
-                  () => _go(context, (r) => r.go(RouteName.myRequests)),
-                  badge: getIt<NewOffersBadgeNotifier>(),
-                ),
-                link(
-                  Icons.chat_bubble_outline_rounded,
-                  LocaleKeys.messagesTitle.tr(),
-                  () => _go(context, (r) => r.go(RouteName.messages)),
-                  badge: getIt<ChatBadgeNotifier>(),
-                ),
-                link(
-                  Icons.search_rounded,
-                  LocaleKeys.homeMenuBrowseProviders.tr(),
-                  () => _go(
-                    context,
-                    (r) => r.push(
-                      RouteName.matchingProviders,
-                      extra: const MatchingProvidersPageArgs(
-                        start: PostRequestFlowArgs(browseOnly: true),
+                // Phần giữa cuộn được: Social Market mở rộng + Recent không tràn màn nhỏ.
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      link(
+                        Icons.move_to_inbox_outlined,
+                        LocaleKeys.myRequestsTitle.tr(),
+                        () => _go(context, (r) => r.go(RouteName.myRequests)),
+                        badge: getIt<NewOffersBadgeNotifier>(),
                       ),
-                    ),
-                  ),
-                ),
-                if (state.recent.isNotEmpty) ...[
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 4.h),
-                    child: Text(
-                      LocaleKeys.homeMenuRecent.tr(),
-                      style: AppTextStyle.lightBodySmallSemiBold.copyWith(
-                        color: theme.textSecondary(context),
+                      link(
+                        Icons.chat_bubble_outline_rounded,
+                        LocaleKeys.messagesTitle.tr(),
+                        () => _go(context, (r) => r.go(RouteName.messages)),
+                        badge: getIt<ChatBadgeNotifier>(),
                       ),
-                    ),
-                  ),
-                  for (final request in state.recent)
-                    ListTile(
-                      dense: true,
-                      title: Text(
-                        RequestFormatters.headline(request.description),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyle.lightBodyMediumRegular.copyWith(
-                          color: theme.textPrimary(context),
+                      // Social Market (web sidebar): mở ra 4 trang con theo `SOCIAL_MARKET_NAV`.
+                      Theme(
+                        data: theme.copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          leading: Icon(
+                            Icons.shopping_bag_outlined,
+                            color: theme.textPrimary(context),
+                          ),
+                          title: Text(
+                            LocaleKeys.marketSocialMarket.tr(),
+                            style: AppTextStyle.lightBodyMediumSemiBold
+                                .copyWith(color: theme.textPrimary(context)),
+                          ),
+                          iconColor: theme.textPrimary(context),
+                          collapsedIconColor: theme.textPrimary(context),
+                          childrenPadding: EdgeInsets.only(left: 40.w),
+                          children: [
+                            for (final category in MarketCategory.values)
+                              ListTile(
+                                dense: true,
+                                title: Text(
+                                  MarketFormatters.categoryLabel(category),
+                                  style: AppTextStyle.lightBodyMediumRegular
+                                      .copyWith(
+                                        color: theme.textPrimary(context),
+                                      ),
+                                ),
+                                onTap: () => _go(
+                                  context,
+                                  (r) =>
+                                      r.push(MarketRoutes.category(category)),
+                                ),
+                              ),
+                            // Medical Travel: landing riêng (web `CategoryLandingPage`).
+                            ListTile(
+                              dense: true,
+                              title: Text(
+                                LocaleKeys.marketMedicalTravel.tr(),
+                                style: AppTextStyle.lightBodyMediumRegular
+                                    .copyWith(
+                                      color: theme.textPrimary(context),
+                                    ),
+                              ),
+                              onTap: () => _go(
+                                context,
+                                (r) => r.push(MarketRoutes.medicalTravel),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      onTap: () => _go(
-                        context,
-                        (r) => r.push(
-                          RouteName.requestOffers,
-                          extra: RequestOffersPageArgs.fromRequest(request),
+                      link(
+                        Icons.search_rounded,
+                        LocaleKeys.homeMenuBrowseProviders.tr(),
+                        () => _go(
+                          context,
+                          (r) => r.push(
+                            RouteName.matchingProviders,
+                            extra: const MatchingProvidersPageArgs(
+                              start: PostRequestFlowArgs(browseOnly: true),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                ],
-                const Spacer(),
+                      if (state.recent.isNotEmpty) ...[
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 4.h),
+                          child: Text(
+                            LocaleKeys.homeMenuRecent.tr(),
+                            style: AppTextStyle.lightBodySmallSemiBold.copyWith(
+                              color: theme.textSecondary(context),
+                            ),
+                          ),
+                        ),
+                        for (final request in state.recent)
+                          ListTile(
+                            dense: true,
+                            title: Text(
+                              RequestFormatters.headline(request.description),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyle.lightBodyMediumRegular
+                                  .copyWith(color: theme.textPrimary(context)),
+                            ),
+                            onTap: () => _go(
+                              context,
+                              (r) => r.push(
+                                RouteName.requestOffers,
+                                extra: RequestOffersPageArgs.fromRequest(
+                                  request,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
                 Divider(height: 1, color: theme.border(context)),
                 ListTile(
                   contentPadding: EdgeInsets.symmetric(
