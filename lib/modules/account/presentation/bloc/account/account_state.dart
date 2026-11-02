@@ -6,6 +6,8 @@ enum AccountNotice {
   profileSaved,
   profileFailed,
   loggedOut,
+  deletionCodeSent,
+  deletionCodeResent,
   accountDeleted,
   accountDeleteFailed,
 }
@@ -26,7 +28,15 @@ class AccountState extends Equatable {
   final bool attachVoice;
   final bool savingProfile;
   final bool loggingOut;
+
+  /// Bước 1 (gửi mã) đang chạy.
   final bool deleting;
+
+  /// Bước 2 (xác nhận mã) đang chạy.
+  final bool verifyingDeletion;
+
+  /// Thông báo lỗi từ server (vd "Password is incorrect" / "Otp is invalid").
+  final String? deletionError;
   final AccountNotice? notice;
   final int noticeId;
 
@@ -43,6 +53,8 @@ class AccountState extends Equatable {
     this.savingProfile = false,
     this.loggingOut = false,
     this.deleting = false,
+    this.verifyingDeletion = false,
+    this.deletionError,
     this.notice,
     this.noticeId = 0,
   });
@@ -75,6 +87,9 @@ class AccountState extends Equatable {
     bool? savingProfile,
     bool? loggingOut,
     bool? deleting,
+    bool? verifyingDeletion,
+    String? deletionError,
+    bool clearDeletionError = false,
     AccountNotice? notice,
   }) {
     return AccountState(
@@ -92,6 +107,10 @@ class AccountState extends Equatable {
       savingProfile: savingProfile ?? this.savingProfile,
       loggingOut: loggingOut ?? this.loggingOut,
       deleting: deleting ?? this.deleting,
+      verifyingDeletion: verifyingDeletion ?? this.verifyingDeletion,
+      deletionError: clearDeletionError
+          ? null
+          : (deletionError ?? this.deletionError),
       notice: notice ?? this.notice,
       noticeId: notice != null ? noticeId + 1 : noticeId,
     );
@@ -111,6 +130,8 @@ class AccountState extends Equatable {
     savingProfile,
     loggingOut,
     deleting,
+    verifyingDeletion,
+    deletionError,
     notice,
     noticeId,
   ];

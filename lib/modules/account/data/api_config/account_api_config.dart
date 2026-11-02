@@ -8,8 +8,11 @@ class AccountApiConfig {
   static const String profile = '/buyer/auth/profile';
   static const String logout = '/public/auth/logout';
 
-  /// Xoá tài khoản (App Store Guideline 5.1.1(v)); user lấy từ JWT.
+  /// Xoá tài khoản 2 bước (App Store Guideline 5.1.1(v)). Bước 1 `DELETE
+  /// /buyer/auth/user/{userId}` (xác minh email+mật khẩu, server gửi mã OTP);
+  /// bước 2 `POST /verify-account-deletion` (email+otp) mới xoá thật.
   static const String deleteAccount = '/buyer/auth/user';
+  static const String verifyAccountDeletion = '/verify-account-deletion';
 
   /// Giá trị 1 điểm — web `getValueOfPoint` (header `scope: admin-dashboard` + `x-api-key`).
   static const String appSettings = '/admin/app-settings';

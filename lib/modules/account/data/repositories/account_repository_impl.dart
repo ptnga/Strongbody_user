@@ -121,11 +121,31 @@ class AccountRepositoryImpl implements AccountRepository {
     return const Right(unit);
   }
 
-  /// Khác logout: chỉ xoá phiên khi server xác nhận đã xoá tài khoản.
+  /// Bước 1: BE gửi mã OTP. Giữ nguyên phiên (chưa xoá gì cả).
   @override
-  Future<Either<Failure, Unit>> deleteAccount({String? reason}) =>
+  Future<Either<Failure, Unit>> requestAccountDeletion({
+    required String password,
+  }) => _guard(() async {
+    final userId = _storage.userId;
+    final email = _storage.userEmail;
+    if (userId == null || email == null || email.isEmpty) {
+      throw Exception('Signed out');
+    }
+    await _remote.requestAccountDeletion(
+      userId: userId,
+      email: email,
+      password: password,
+    );
+    return unit;
+  }, 'Cannot delete your account');
+
+  /// Bước 2: chỉ xoá phiên khi server xác nhận đã xoá tài khoản.
+  @override
+  Future<Either<Failure, Unit>> verifyAccountDeletion({required String otp}) =>
       _guard(() async {
-        await _remote.deleteAccount(reason: reason);
+        final email = _storage.userEmail;
+        if (email == null || email.isEmpty) throw Exception('Signed out');
+        await _remote.verifyAccountDeletion(email: email, otp: otp);
         if (_storage.isLoggedIn) {
           await _storage.clearUser();
           AuthEventBus.emit(const UserLoggedOut());

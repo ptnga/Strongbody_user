@@ -413,6 +413,13 @@ abstract class  LocaleKeys {
   static const accountDeleting = 'accountDeleting';
   static const accountDeleted = 'accountDeleted';
   static const accountDeleteFailed = 'accountDeleteFailed';
+  static const accountDeletePassword = 'accountDeletePassword';
+  static const accountDeletePasswordHint = 'accountDeletePasswordHint';
+  static const accountDeletePasswordRequired = 'accountDeletePasswordRequired';
+  static const accountDeleteContinue = 'accountDeleteContinue';
+  static const accountDeleteCodeTitle = 'accountDeleteCodeTitle';
+  static const accountDeleteCodeSubtitle = 'accountDeleteCodeSubtitle';
+  static const accountDeleteCodeResent = 'accountDeleteCodeResent';
   static const accountBlockedUsers = 'accountBlockedUsers';
   static const blockedUsersTitle = 'blockedUsersTitle';
   static const blockedUsersEmpty = 'blockedUsersEmpty';

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart' show CupertinoActivityIndicator;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -136,10 +139,10 @@ class AccountPage extends StatelessWidget {
     if (confirmed == true) bloc.add(const AccountLogoutRequested());
   }
 
-  /// Sheet cảnh báo hậu quả + lý do (không bắt buộc) → gọi xoá tài khoản.
+  /// Bước 1: sheet cảnh báo + nhập mật khẩu xác minh → yêu cầu gửi mã OTP.
   Future<void> _confirmDelete(BuildContext context) async {
     final bloc = context.read<AccountBloc>();
-    final result = await showModalBottomSheet<({String reason})>(
+    final result = await showModalBottomSheet<({String password})>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
@@ -149,8 +152,25 @@ class AccountPage extends StatelessWidget {
       builder: (_) => const _DeleteAccountSheet(),
     );
     if (result != null) {
-      bloc.add(AccountDeleteRequested(reason: result.reason));
+      bloc.add(AccountDeletionRequested(result.password));
     }
+  }
+
+  /// Bước 2: sheet nhập mã OTP (có Resend) → xác nhận xoá.
+  Future<void> _openVerifyDeletionSheet(BuildContext context) {
+    final bloc = context.read<AccountBloc>();
+    return showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).surface(context),
+      builder: (_) => BlocProvider.value(
+        value: bloc,
+        child: const _VerifyDeletionSheet(),
+      ),
+    );
   }
 
   @override
@@ -189,11 +209,20 @@ class AccountPage extends StatelessWidget {
                   case AccountNotice.loggedOut:
                     ToastUtil.showInfo(LocaleKeys.accountLoggedOut.tr());
                     context.go(RouteName.rootScreen);
+                  case AccountNotice.deletionCodeSent:
+                    _openVerifyDeletionSheet(context);
+                  case AccountNotice.deletionCodeResent:
+                    ToastUtil.showInfo(
+                      LocaleKeys.accountDeleteCodeResent.tr(),
+                    );
                   case AccountNotice.accountDeleted:
                     ToastUtil.showInfo(LocaleKeys.accountDeleted.tr());
                     context.go(RouteName.rootScreen);
                   case AccountNotice.accountDeleteFailed:
-                    ToastUtil.showError(LocaleKeys.accountDeleteFailed.tr());
+                    ToastUtil.showError(
+                      state.deletionError ??
+                          LocaleKeys.accountDeleteFailed.tr(),
+                    );
                   case null:
                     break;
                 }
@@ -702,8 +731,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   }
 }
 
-/// Cảnh báo xoá tài khoản (không hoàn tác) + lý do tuỳ chọn. Pop với lý do khi
-/// người dùng xác nhận.
+/// Bước 1: cảnh báo xoá tài khoản (không hoàn tác) + xác minh mật khẩu. Pop với
+/// mật khẩu khi người dùng xác nhận → bloc gọi gửi mã OTP.
 class _DeleteAccountSheet extends StatefulWidget {
   const _DeleteAccountSheet();
 
@@ -712,12 +741,21 @@ class _DeleteAccountSheet extends StatefulWidget {
 }
 
 class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
-  final _reason = TextEditingController();
+  final _password = TextEditingController();
+  bool _missing = false;
 
   @override
   void dispose() {
-    _reason.dispose();
+    _password.dispose();
     super.dispose();
+  }
+
+  void _submit() {
+    if (_password.text.trim().isEmpty) {
+      setState(() => _missing = true);
+      return;
+    }
+    Navigator.of(context).pop((password: _password.text));
   }
 
   @override
@@ -745,40 +783,32 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
               ),
             ),
             Gap(16.h),
-            TextField(
-              controller: _reason,
-              minLines: 2,
-              maxLines: 4,
-              textCapitalization: TextCapitalization.sentences,
-              style: AppTextStyle.lightBodyMediumRegular.copyWith(
-                color: theme.textPrimary(context),
-              ),
-              decoration: InputDecoration(
-                hintText: LocaleKeys.accountDeleteReasonHint.tr(),
-                hintStyle: AppTextStyle.lightBodyMediumRegular.copyWith(
-                  color: theme.textSecondary(context),
-                ),
-                filled: true,
-                fillColor: theme.muted(context),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: BorderSide.none,
-                ),
-              ),
+            AuthTextField(
+              label: LocaleKeys.accountDeletePassword.tr(),
+              controller: _password,
+              hint: LocaleKeys.accountDeletePasswordHint.tr(),
+              error: _missing
+                  ? const AuthMessage.key(
+                      LocaleKeys.accountDeletePasswordRequired,
+                    )
+                  : null,
+              password: true,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
+              onSubmitted: (_) => _submit(),
             ),
             Gap(20.h),
             SizedBox(
               height: 50.h,
               child: FilledButton(
-                onPressed: () =>
-                    Navigator.of(context).pop((reason: _reason.text.trim())),
+                onPressed: _submit,
                 style: FilledButton.styleFrom(
                   backgroundColor: Colour.error,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14.r),
                   ),
                 ),
-                child: Text(LocaleKeys.accountDeleteConfirm.tr()),
+                child: Text(LocaleKeys.accountDeleteContinue.tr()),
               ),
             ),
             Gap(8.h),
@@ -797,6 +827,193 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bước 2: nhập mã OTP (4 số) gửi về email, có nút Resend đếm ngược. Xác nhận
+/// thành công thì sheet tự đóng (AccountPage lo toast + điều hướng về root).
+class _VerifyDeletionSheet extends StatefulWidget {
+  const _VerifyDeletionSheet();
+
+  @override
+  State<_VerifyDeletionSheet> createState() => _VerifyDeletionSheetState();
+}
+
+class _VerifyDeletionSheetState extends State<_VerifyDeletionSheet> {
+  final _otp = TextEditingController();
+  Timer? _timer;
+  int _seconds = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    _timer?.cancel();
+    setState(() => _seconds = 60);
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_seconds <= 1) {
+        timer.cancel();
+        setState(() => _seconds = 0);
+      } else {
+        setState(() => _seconds--);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _otp.dispose();
+    super.dispose();
+  }
+
+  void _verify() {
+    final code = _otp.text.trim();
+    if (code.length < 4) return;
+    FocusScope.of(context).unfocus();
+    context.read<AccountBloc>().add(AccountDeletionVerified(code));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final countdown =
+        '${_seconds ~/ 60}:${(_seconds % 60).toString().padLeft(2, '0')}';
+    return BlocConsumer<AccountBloc, AccountState>(
+      listenWhen: (a, b) => a.noticeId != b.noticeId,
+      listener: (context, state) {
+        switch (state.notice) {
+          case AccountNotice.accountDeleted:
+            Navigator.of(context).pop();
+          case AccountNotice.deletionCodeResent:
+            _startCountdown();
+          default:
+            break;
+        }
+      },
+      builder: (context, state) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                LocaleKeys.accountDeleteCodeTitle.tr(),
+                style: AppTextStyle.lightHeadingSmall.copyWith(
+                  color: theme.textPrimary(context),
+                ),
+              ),
+              Gap(10.h),
+              Text(
+                LocaleKeys.accountDeleteCodeSubtitle.tr(),
+                style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                  height: 1.4,
+                  color: theme.textSecondary(context),
+                ),
+              ),
+              Gap(18.h),
+              TextField(
+                controller: _otp,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                maxLength: 4,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                autofillHints: const [AutofillHints.oneTimeCode],
+                onChanged: (code) {
+                  if (code.length == 4) _verify();
+                },
+                style: AppTextStyle.lightHeadingMedium.copyWith(
+                  letterSpacing: 18.w,
+                  color: theme.textPrimary(context),
+                ),
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: '••••',
+                  hintStyle: TextStyle(
+                    color: theme.textTertiary(context),
+                    letterSpacing: 18.w,
+                  ),
+                  filled: true,
+                  fillColor: theme.muted(context),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              Gap(14.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${LocaleKeys.authOtpNoCode.tr()} ',
+                    style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                      color: theme.textSecondary(context),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _seconds > 0
+                        ? null
+                        : () => context.read<AccountBloc>().add(
+                            const AccountDeletionCodeResent(),
+                          ),
+                    child: Text(
+                      _seconds > 0
+                          ? LocaleKeys.authResendIn.tr(args: [countdown])
+                          : LocaleKeys.authResend.tr(),
+                      style: AppTextStyle.lightBodyMediumBold.copyWith(
+                        color: _seconds > 0
+                            ? theme.textTertiary(context)
+                            : theme.primary(context),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Gap(20.h),
+              SizedBox(
+                height: 50.h,
+                child: FilledButton(
+                  onPressed: state.verifyingDeletion ? null : _verify,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colour.error,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14.r),
+                    ),
+                  ),
+                  child: state.verifyingDeletion
+                      ? const CupertinoActivityIndicator(color: Colors.white)
+                      : Text(LocaleKeys.accountDeleteConfirm.tr()),
+                ),
+              ),
+              Gap(8.h),
+              SizedBox(
+                height: 50.h,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.textPrimary(context),
+                    side: BorderSide(color: theme.border(context)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14.r),
+                    ),
+                  ),
+                  child: Text(LocaleKeys.commonCancel.tr()),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

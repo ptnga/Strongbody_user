@@ -53,12 +53,27 @@ final class AccountLogoutRequested extends AccountEvent {
   const AccountLogoutRequested();
 }
 
-final class AccountDeleteRequested extends AccountEvent {
-  /// Lý do (không bắt buộc).
-  final String reason;
+/// Bước 1: xác minh mật khẩu → BE gửi mã OTP tới email.
+final class AccountDeletionRequested extends AccountEvent {
+  final String password;
 
-  const AccountDeleteRequested({this.reason = ''});
+  const AccountDeletionRequested(this.password);
 
   @override
-  List<Object?> get props => [reason];
+  List<Object?> get props => [password];
+}
+
+/// Bước 2: gửi mã OTP để xác nhận và xoá tài khoản.
+final class AccountDeletionVerified extends AccountEvent {
+  final String otp;
+
+  const AccountDeletionVerified(this.otp);
+
+  @override
+  List<Object?> get props => [otp];
+}
+
+/// Gửi lại mã OTP (dùng lại mật khẩu đã nhập ở bước 1).
+final class AccountDeletionCodeResent extends AccountEvent {
+  const AccountDeletionCodeResent();
 }
