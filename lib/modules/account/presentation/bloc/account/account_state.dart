@@ -2,7 +2,13 @@ part of 'account_bloc.dart';
 
 enum AccountStatus { loading, ready, signedOut }
 
-enum AccountNotice { profileSaved, profileFailed, loggedOut }
+enum AccountNotice {
+  profileSaved,
+  profileFailed,
+  loggedOut,
+  accountDeleted,
+  accountDeleteFailed,
+}
 
 class AccountState extends Equatable {
   final AccountStatus status;
@@ -20,6 +26,7 @@ class AccountState extends Equatable {
   final bool attachVoice;
   final bool savingProfile;
   final bool loggingOut;
+  final bool deleting;
   final AccountNotice? notice;
   final int noticeId;
 
@@ -35,6 +42,7 @@ class AccountState extends Equatable {
     this.attachVoice = true,
     this.savingProfile = false,
     this.loggingOut = false,
+    this.deleting = false,
     this.notice,
     this.noticeId = 0,
   });
@@ -66,6 +74,7 @@ class AccountState extends Equatable {
     bool? attachVoice,
     bool? savingProfile,
     bool? loggingOut,
+    bool? deleting,
     AccountNotice? notice,
   }) {
     return AccountState(
@@ -82,6 +91,7 @@ class AccountState extends Equatable {
       attachVoice: attachVoice ?? this.attachVoice,
       savingProfile: savingProfile ?? this.savingProfile,
       loggingOut: loggingOut ?? this.loggingOut,
+      deleting: deleting ?? this.deleting,
       notice: notice ?? this.notice,
       noticeId: notice != null ? noticeId + 1 : noticeId,
     );
@@ -100,6 +110,7 @@ class AccountState extends Equatable {
     attachVoice,
     savingProfile,
     loggingOut,
+    deleting,
     notice,
     noticeId,
   ];

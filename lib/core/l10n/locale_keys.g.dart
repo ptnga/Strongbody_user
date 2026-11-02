@@ -2,7 +2,7 @@
 
 // ignore_for_file: constant_identifier_names
 
-abstract class LocaleKeys {
+abstract class  LocaleKeys {
   static const appName = 'appName';
   static const commonRetry = 'commonRetry';
   static const commonSomethingWentWrong = 'commonSomethingWentWrong';
@@ -51,8 +51,7 @@ abstract class LocaleKeys {
   static const voiceProblemMicMessage = 'voiceProblemMicMessage';
   static const voiceProblemOpenSettings = 'voiceProblemOpenSettings';
   static const voiceProblemUnavailableTitle = 'voiceProblemUnavailableTitle';
-  static const voiceProblemUnavailableMessage =
-      'voiceProblemUnavailableMessage';
+  static const voiceProblemUnavailableMessage = 'voiceProblemUnavailableMessage';
   static const heardTitle = 'heardTitle';
   static const heardDetected = 'heardDetected';
   static const heardDetectedVoiceKept = 'heardDetectedVoiceKept';
@@ -406,4 +405,45 @@ abstract class LocaleKeys {
   static const homeMenuBrowseProviders = 'homeMenuBrowseProviders';
   static const homeMenuRecent = 'homeMenuRecent';
   static const homeMenuPoints = 'homeMenuPoints';
+  static const accountDeleteAccount = 'accountDeleteAccount';
+  static const accountDeleteTitle = 'accountDeleteTitle';
+  static const accountDeleteWarning = 'accountDeleteWarning';
+  static const accountDeleteReasonHint = 'accountDeleteReasonHint';
+  static const accountDeleteConfirm = 'accountDeleteConfirm';
+  static const accountDeleting = 'accountDeleting';
+  static const accountDeleted = 'accountDeleted';
+  static const accountDeleteFailed = 'accountDeleteFailed';
+  static const accountBlockedUsers = 'accountBlockedUsers';
+  static const blockedUsersTitle = 'blockedUsersTitle';
+  static const blockedUsersEmpty = 'blockedUsersEmpty';
+  static const blockedUsersError = 'blockedUsersError';
+  static const blockedUsersUnblock = 'blockedUsersUnblock';
+  static const reportTitle = 'reportTitle';
+  static const reportSubtitle = 'reportSubtitle';
+  static const reportNoteHint = 'reportNoteHint';
+  static const reportSubmit = 'reportSubmit';
+  static const reportSuccess = 'reportSuccess';
+  static const reportFailed = 'reportFailed';
+  static const reportReasonSpam = 'reportReasonSpam';
+  static const reportReasonFraud = 'reportReasonFraud';
+  static const reportReasonHate = 'reportReasonHate';
+  static const reportReasonViolence = 'reportReasonViolence';
+  static const reportReasonNudity = 'reportReasonNudity';
+  static const reportReasonSelfHarm = 'reportReasonSelfHarm';
+  static const reportReasonUnder18 = 'reportReasonUnder18';
+  static const reportReasonOther = 'reportReasonOther';
+  static const chatReport = 'chatReport';
+  static const chatBlock = 'chatBlock';
+  static const chatUnblock = 'chatUnblock';
+  static const chatBlockedBanner = 'chatBlockedBanner';
+  static const chatBlockFailed = 'chatBlockFailed';
+  static const chatUnblockFailed = 'chatUnblockFailed';
+  static const chatBlockedToast = 'chatBlockedToast';
+  static const chatUnblockedToast = 'chatUnblockedToast';
+  static const blockUserQuestion = 'blockUserQuestion';
+  static const blockUserBullet1 = 'blockUserBullet1';
+  static const blockUserBullet2 = 'blockUserBullet2';
+  static const blockUserBullet3 = 'blockUserBullet3';
+  static const blockConfirm = 'blockConfirm';
+
 }

@@ -120,4 +120,16 @@ class AccountRepositoryImpl implements AccountRepository {
     }
     return const Right(unit);
   }
+
+  /// Khác logout: chỉ xoá phiên khi server xác nhận đã xoá tài khoản.
+  @override
+  Future<Either<Failure, Unit>> deleteAccount({String? reason}) =>
+      _guard(() async {
+        await _remote.deleteAccount(reason: reason);
+        if (_storage.isLoggedIn) {
+          await _storage.clearUser();
+          AuthEventBus.emit(const UserLoggedOut());
+        }
+        return unit;
+      }, 'Cannot delete your account');
 }

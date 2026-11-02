@@ -52,3 +52,13 @@ final class AccountProfileSaved extends AccountEvent {
 final class AccountLogoutRequested extends AccountEvent {
   const AccountLogoutRequested();
 }
+
+final class AccountDeleteRequested extends AccountEvent {
+  /// Lý do (không bắt buộc).
+  final String reason;
+
+  const AccountDeleteRequested({this.reason = ''});
+
+  @override
+  List<Object?> get props => [reason];
+}

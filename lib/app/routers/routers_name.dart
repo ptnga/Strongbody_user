@@ -15,6 +15,7 @@ class RouteName {
   //-----------------ACCOUNT---------------
   static const String account = '/account';
   static const String lionPoints = '/lionPoints';
+  static const String blockedUsers = '/blockedUsers';
 
   //-----------------CHAT---------------
   static const String messages = '/messages';

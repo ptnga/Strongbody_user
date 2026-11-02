@@ -67,3 +67,13 @@ class LogoutUseCase implements UseCase<Unit, NoParams> {
   @override
   Future<Either<Failure, Unit>> call(NoParams params) => _repository.logout();
 }
+
+/// Xoá tài khoản; [params] = lý do (không bắt buộc), '' nếu bỏ qua.
+class DeleteAccountUseCase implements UseCase<Unit, String> {
+  final AccountRepository _repository;
+  DeleteAccountUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, Unit>> call(String params) =>
+      _repository.deleteAccount(reason: params);
+}

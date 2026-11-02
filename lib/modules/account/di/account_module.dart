@@ -32,12 +32,14 @@ void registerAccountModule(GetIt getIt) {
     ..registerFactory(() => GetLionPointsUseCase(repo()))
     ..registerFactory(() => GetLionLedgerUseCase(repo()))
     ..registerFactory(() => LogoutUseCase(repo()))
+    ..registerFactory(() => DeleteAccountUseCase(repo()))
     ..registerFactory(
       () => AccountBloc(
         getProfile: getIt<GetAccountProfileUseCase>(),
         updateProfile: getIt<UpdateAccountProfileUseCase>(),
         getLionPoints: getIt<GetLionPointsUseCase>(),
         logout: getIt<LogoutUseCase>(),
+        deleteAccount: getIt<DeleteAccountUseCase>(),
         storage: getIt<GlobalStorage>(),
         preferences: getIt<UserPreferences>(),
       ),

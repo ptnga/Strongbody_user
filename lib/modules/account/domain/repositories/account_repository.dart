@@ -24,4 +24,7 @@ abstract class AccountRepository {
 
   /// Đăng xuất server (lỗi vẫn xoá phiên trên máy, như web/Multime).
   Future<Either<Failure, Unit>> logout();
+
+  /// Xoá tài khoản (`DELETE /buyer/auth/user`); thành công thì xoá phiên trên máy.
+  Future<Either<Failure, Unit>> deleteAccount({String? reason});
 }

@@ -24,6 +24,7 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
   final UpdateAccountProfileUseCase _updateProfile;
   final GetLionPointsUseCase _getLionPoints;
   final LogoutUseCase _logout;
+  final DeleteAccountUseCase _deleteAccount;
   final GlobalStorage _storage;
   final UserPreferences _preferences;
   late final StreamSubscription<AuthEvent> _auth;
@@ -33,12 +34,14 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
     required UpdateAccountProfileUseCase updateProfile,
     required GetLionPointsUseCase getLionPoints,
     required LogoutUseCase logout,
+    required DeleteAccountUseCase deleteAccount,
     required GlobalStorage storage,
     required UserPreferences preferences,
   }) : _getProfile = getProfile,
        _updateProfile = updateProfile,
        _getLionPoints = getLionPoints,
        _logout = logout,
+       _deleteAccount = deleteAccount,
        _storage = storage,
        _preferences = preferences,
        super(const AccountState()) {
@@ -47,6 +50,7 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
     on<AccountToggleChanged>(_onToggle);
     on<AccountProfileSaved>(_onProfileSaved);
     on<AccountLogoutRequested>(_onLogout);
+    on<AccountDeleteRequested>(_onDelete);
     // Đăng nhập / đăng xuất ở chỗ khác (tab được giữ sống) → tải lại / về khách.
     _auth = AuthEventBus.stream.listen((event) {
       if (event is! UserProfileUpdated && !isClosed) {
@@ -192,6 +196,35 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
         ),
       ),
       onFailure: (_) => emit(state.copyWith(loggingOut: false)),
+    );
+  }
+
+  Future<void> _onDelete(
+    AccountDeleteRequested event,
+    Emitter<AccountState> emit,
+  ) async {
+    if (state.deleting) return;
+    emit(state.copyWith(deleting: true));
+    await callApi(
+      useCase: _deleteAccount,
+      param: event.reason,
+      onSuccess: (_) async => emit(
+        AccountState(
+          status: AccountStatus.signedOut,
+          speakingLanguage: state.speakingLanguage,
+          autoTranslate: state.autoTranslate,
+          readAloud: state.readAloud,
+          attachVoice: state.attachVoice,
+          notice: AccountNotice.accountDeleted,
+          noticeId: state.noticeId + 1,
+        ),
+      ),
+      onFailure: (_) => emit(
+        state.copyWith(
+          deleting: false,
+          notice: AccountNotice.accountDeleteFailed,
+        ),
+      ),
     );
   }
 

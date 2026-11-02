@@ -19,6 +19,7 @@ abstract class AccountRemoteDataSource {
   Future<Map<String, dynamic>> getMe();
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body);
   Future<void> logout();
+  Future<void> deleteAccount({String? reason});
   Future<Map<String, dynamic>> getWallet(int userId);
   Future<Map<String, dynamic>> getAppSettings();
   Future<List<Map<String, dynamic>>> getLedger(
@@ -80,6 +81,19 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
   Future<void> logout() async {
     _unwrap(
       await _api.request(path: AccountApiConfig.logout, method: ApiType.post),
+    );
+  }
+
+  /// Xoá tài khoản (`DELETE /buyer/auth/user`). `blocker_id`/user lấy từ JWT.
+  @override
+  Future<void> deleteAccount({String? reason}) async {
+    final trimmed = reason?.trim() ?? '';
+    _unwrap(
+      await _api.request(
+        path: AccountApiConfig.deleteAccount,
+        method: ApiType.delete,
+        data: trimmed.isEmpty ? null : {'reason': trimmed},
+      ),
     );
   }
 

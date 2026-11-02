@@ -40,6 +40,8 @@ import 'package:strongbody_buyer/modules/post_request/presentation/request_forma
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/widgets/providers/provider_formatters.dart';
 import 'package:strongbody_buyer/modules/splash/presentation/screens/splash_page.dart';
+import 'package:strongbody_buyer/modules/user_block/presentation/bloc/blocked_users_bloc.dart';
+import 'package:strongbody_buyer/modules/user_block/presentation/screens/blocked_users_page.dart';
 
 /// Điều hướng: `context.push/go(RouteName.x, extra: ...)`.
 /// `Navigator.pop` chỉ dùng cho dialog/bottom sheet.
@@ -174,6 +176,14 @@ class AppRoutes {
           create: (_) =>
               getIt<LionPointsBloc>()..add(const LionPointsStarted()),
           child: const LionPointsPage(),
+        ),
+      ),
+      GoRoute(
+        path: RouteName.blockedUsers,
+        builder: (context, state) => BlocProvider(
+          create: (_) =>
+              getIt<BlockedUsersBloc>()..add(const BlockedUsersStarted()),
+          child: const BlockedUsersPage(),
         ),
       ),
       GoRoute(

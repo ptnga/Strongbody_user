@@ -136,6 +136,23 @@ class AccountPage extends StatelessWidget {
     if (confirmed == true) bloc.add(const AccountLogoutRequested());
   }
 
+  /// Sheet cảnh báo hậu quả + lý do (không bắt buộc) → gọi xoá tài khoản.
+  Future<void> _confirmDelete(BuildContext context) async {
+    final bloc = context.read<AccountBloc>();
+    final result = await showModalBottomSheet<({String reason})>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).surface(context),
+      builder: (_) => const _DeleteAccountSheet(),
+    );
+    if (result != null) {
+      bloc.add(AccountDeleteRequested(reason: result.reason));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -172,6 +189,11 @@ class AccountPage extends StatelessWidget {
                   case AccountNotice.loggedOut:
                     ToastUtil.showInfo(LocaleKeys.accountLoggedOut.tr());
                     context.go(RouteName.rootScreen);
+                  case AccountNotice.accountDeleted:
+                    ToastUtil.showInfo(LocaleKeys.accountDeleted.tr());
+                    context.go(RouteName.rootScreen);
+                  case AccountNotice.accountDeleteFailed:
+                    ToastUtil.showError(LocaleKeys.accountDeleteFailed.tr());
                   case null:
                     break;
                 }
@@ -304,6 +326,18 @@ class AccountPage extends StatelessWidget {
                         ],
                       ),
                       if (signedIn) ...[
+                        AccountSectionTitle(
+                          LocaleKeys.accountBlockedUsers.tr(),
+                        ),
+                        AccountGroup(
+                          children: [
+                            AccountNavRow(
+                              icon: Icons.block,
+                              label: LocaleKeys.accountBlockedUsers.tr(),
+                              onTap: () => context.push(RouteName.blockedUsers),
+                            ),
+                          ],
+                        ),
                         Gap(18.h),
                         SizedBox(
                           height: 50.h,
@@ -324,6 +358,19 @@ class AccountPage extends StatelessWidget {
                                 ? const CupertinoActivityIndicator()
                                 : Text(LocaleKeys.accountLogout.tr()),
                           ),
+                        ),
+                        Gap(10.h),
+                        TextButton(
+                          onPressed: state.deleting
+                              ? null
+                              : () => _confirmDelete(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colour.error,
+                            textStyle: AppTextStyle.lightBodyMediumSemiBold,
+                          ),
+                          child: state.deleting
+                              ? const CupertinoActivityIndicator()
+                              : Text(LocaleKeys.accountDeleteAccount.tr()),
                         ),
                       ],
                     ],
@@ -649,6 +696,107 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Cảnh báo xoá tài khoản (không hoàn tác) + lý do tuỳ chọn. Pop với lý do khi
+/// người dùng xác nhận.
+class _DeleteAccountSheet extends StatefulWidget {
+  const _DeleteAccountSheet();
+
+  @override
+  State<_DeleteAccountSheet> createState() => _DeleteAccountSheetState();
+}
+
+class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              LocaleKeys.accountDeleteTitle.tr(),
+              style: AppTextStyle.lightHeadingSmall.copyWith(
+                color: theme.textPrimary(context),
+              ),
+            ),
+            Gap(10.h),
+            Text(
+              LocaleKeys.accountDeleteWarning.tr(),
+              style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                height: 1.4,
+                color: theme.textSecondary(context),
+              ),
+            ),
+            Gap(16.h),
+            TextField(
+              controller: _reason,
+              minLines: 2,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                color: theme.textPrimary(context),
+              ),
+              decoration: InputDecoration(
+                hintText: LocaleKeys.accountDeleteReasonHint.tr(),
+                hintStyle: AppTextStyle.lightBodyMediumRegular.copyWith(
+                  color: theme.textSecondary(context),
+                ),
+                filled: true,
+                fillColor: theme.muted(context),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            Gap(20.h),
+            SizedBox(
+              height: 50.h,
+              child: FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop((reason: _reason.text.trim())),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colour.error,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                ),
+                child: Text(LocaleKeys.accountDeleteConfirm.tr()),
+              ),
+            ),
+            Gap(8.h),
+            SizedBox(
+              height: 50.h,
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.textPrimary(context),
+                  side: BorderSide(color: theme.border(context)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                ),
+                child: Text(LocaleKeys.commonCancel.tr()),
+              ),
+            ),
+          ],
         ),
       ),
     );
