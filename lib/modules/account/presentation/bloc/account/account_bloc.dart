@@ -24,21 +24,30 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
   final UpdateAccountProfileUseCase _updateProfile;
   final GetLionPointsUseCase _getLionPoints;
   final LogoutUseCase _logout;
+  final RequestAccountDeletionUseCase _requestDeletion;
+  final VerifyAccountDeletionUseCase _verifyDeletion;
   final GlobalStorage _storage;
   final UserPreferences _preferences;
   late final StreamSubscription<AuthEvent> _auth;
+
+  /// Mật khẩu đã nhập ở bước 1, để gửi lại mã (resend) mà không hỏi lại.
+  String? _deletePassword;
 
   AccountBloc({
     required GetAccountProfileUseCase getProfile,
     required UpdateAccountProfileUseCase updateProfile,
     required GetLionPointsUseCase getLionPoints,
     required LogoutUseCase logout,
+    required RequestAccountDeletionUseCase requestAccountDeletion,
+    required VerifyAccountDeletionUseCase verifyAccountDeletion,
     required GlobalStorage storage,
     required UserPreferences preferences,
   }) : _getProfile = getProfile,
        _updateProfile = updateProfile,
        _getLionPoints = getLionPoints,
        _logout = logout,
+       _requestDeletion = requestAccountDeletion,
+       _verifyDeletion = verifyAccountDeletion,
        _storage = storage,
        _preferences = preferences,
        super(const AccountState()) {
@@ -47,6 +56,9 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
     on<AccountToggleChanged>(_onToggle);
     on<AccountProfileSaved>(_onProfileSaved);
     on<AccountLogoutRequested>(_onLogout);
+    on<AccountDeletionRequested>(_onDeletionRequested);
+    on<AccountDeletionVerified>(_onDeletionVerified);
+    on<AccountDeletionCodeResent>(_onDeletionCodeResent);
     // Đăng nhập / đăng xuất ở chỗ khác (tab được giữ sống) → tải lại / về khách.
     _auth = AuthEventBus.stream.listen((event) {
       if (event is! UserProfileUpdated && !isClosed) {
@@ -192,6 +204,94 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
         ),
       ),
       onFailure: (_) => emit(state.copyWith(loggingOut: false)),
+    );
+  }
+
+  /// Bước 1: xác minh mật khẩu → BE gửi mã OTP tới email.
+  Future<void> _onDeletionRequested(
+    AccountDeletionRequested event,
+    Emitter<AccountState> emit,
+  ) async {
+    if (state.deleting) return;
+    _deletePassword = event.password;
+    emit(state.copyWith(deleting: true, clearDeletionError: true));
+    await callApi(
+      useCase: _requestDeletion,
+      param: event.password,
+      onSuccess: (_) async => emit(
+        state.copyWith(
+          deleting: false,
+          notice: AccountNotice.deletionCodeSent,
+        ),
+      ),
+      onFailure: (message) => emit(
+        state.copyWith(
+          deleting: false,
+          deletionError: message,
+          notice: AccountNotice.accountDeleteFailed,
+        ),
+      ),
+    );
+  }
+
+  /// Bước 2: gửi mã OTP để xác nhận; thành công mới xoá phiên.
+  Future<void> _onDeletionVerified(
+    AccountDeletionVerified event,
+    Emitter<AccountState> emit,
+  ) async {
+    if (state.verifyingDeletion) return;
+    emit(state.copyWith(verifyingDeletion: true, clearDeletionError: true));
+    await callApi(
+      useCase: _verifyDeletion,
+      param: event.otp,
+      onSuccess: (_) async {
+        _deletePassword = null;
+        emit(
+          AccountState(
+            status: AccountStatus.signedOut,
+            speakingLanguage: state.speakingLanguage,
+            autoTranslate: state.autoTranslate,
+            readAloud: state.readAloud,
+            attachVoice: state.attachVoice,
+            notice: AccountNotice.accountDeleted,
+            noticeId: state.noticeId + 1,
+          ),
+        );
+      },
+      onFailure: (message) => emit(
+        state.copyWith(
+          verifyingDeletion: false,
+          deletionError: message,
+          notice: AccountNotice.accountDeleteFailed,
+        ),
+      ),
+    );
+  }
+
+  /// Gửi lại mã OTP: gọi lại bước 1 với mật khẩu đã lưu.
+  Future<void> _onDeletionCodeResent(
+    AccountDeletionCodeResent event,
+    Emitter<AccountState> emit,
+  ) async {
+    final password = _deletePassword;
+    if (password == null || state.deleting) return;
+    emit(state.copyWith(deleting: true, clearDeletionError: true));
+    await callApi(
+      useCase: _requestDeletion,
+      param: password,
+      onSuccess: (_) async => emit(
+        state.copyWith(
+          deleting: false,
+          notice: AccountNotice.deletionCodeResent,
+        ),
+      ),
+      onFailure: (message) => emit(
+        state.copyWith(
+          deleting: false,
+          deletionError: message,
+          notice: AccountNotice.accountDeleteFailed,
+        ),
+      ),
     );
   }
 

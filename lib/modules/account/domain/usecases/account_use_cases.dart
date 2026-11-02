@@ -67,3 +67,23 @@ class LogoutUseCase implements UseCase<Unit, NoParams> {
   @override
   Future<Either<Failure, Unit>> call(NoParams params) => _repository.logout();
 }
+
+/// Bước 1 xoá tài khoản; [params] = mật khẩu để xác minh danh tính.
+class RequestAccountDeletionUseCase implements UseCase<Unit, String> {
+  final AccountRepository _repository;
+  RequestAccountDeletionUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, Unit>> call(String params) =>
+      _repository.requestAccountDeletion(password: params);
+}
+
+/// Bước 2 xoá tài khoản; [params] = mã OTP gửi về email.
+class VerifyAccountDeletionUseCase implements UseCase<Unit, String> {
+  final AccountRepository _repository;
+  VerifyAccountDeletionUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, Unit>> call(String params) =>
+      _repository.verifyAccountDeletion(otp: params);
+}

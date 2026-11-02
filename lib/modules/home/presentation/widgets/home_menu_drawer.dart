@@ -135,13 +135,13 @@ class HomeMenuDrawer extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     children: [
                       link(
-                        Icons.move_to_inbox_outlined,
+                        AppSvg.box,
                         LocaleKeys.myRequestsTitle.tr(),
                         () => _go(context, (r) => r.go(RouteName.myRequests)),
                         badge: getIt<NewOffersBadgeNotifier>(),
                       ),
                       link(
-                        Icons.chat_bubble_outline_rounded,
+                        AppSvg.message,
                         LocaleKeys.messagesTitle.tr(),
                         () => _go(context, (r) => r.go(RouteName.messages)),
                         badge: getIt<ChatBadgeNotifier>(),
@@ -150,8 +150,9 @@ class HomeMenuDrawer extends StatelessWidget {
                       Theme(
                         data: theme.copyWith(dividerColor: Colors.transparent),
                         child: ExpansionTile(
-                          leading: Icon(
-                            Icons.shopping_bag_outlined,
+                          leading: AppIcon(
+                            AppSvg.bag,
+                            size: 24.r,
                             color: theme.textPrimary(context),
                           ),
                           title: Text(
@@ -198,7 +199,7 @@ class HomeMenuDrawer extends StatelessWidget {
                         ),
                       ),
                       link(
-                        Icons.search_rounded,
+                        AppSvg.search,
                         LocaleKeys.homeMenuBrowseProviders.tr(),
                         () => _go(
                           context,
