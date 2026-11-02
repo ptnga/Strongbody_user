@@ -16,6 +16,10 @@ class PostRequestFlowArgs {
   /// "Browse providers" (menu / Account): chỉ duyệt, không có request để AI phân tích.
   final bool browseOnly;
 
+  /// Gọi sau khi request đăng xong (vd Social Market › Health Solution: báo provider
+  /// phù hợp qua API matching, như web `SolutionComposer`).
+  final Future<void> Function(String description)? onPosted;
+
   const PostRequestFlowArgs({
     this.text = '',
     this.voicePath,
@@ -23,6 +27,7 @@ class PostRequestFlowArgs {
     this.languageCode,
     this.attachmentPaths = const [],
     this.browseOnly = false,
+    this.onPosted,
   });
 
   /// `extra` của route trong ShellRoute: args trực tiếp, hoặc `start` của trang provider.

@@ -15,6 +15,7 @@ import 'package:strongbody_buyer/modules/home/di/home_module.dart';
 import 'package:strongbody_buyer/modules/post_request/di/post_request_module.dart';
 import 'package:strongbody_buyer/modules/report/di/report_module.dart';
 import 'package:strongbody_buyer/modules/user_block/di/user_block_module.dart';
+import 'package:strongbody_buyer/modules/social_market/di/social_market_module.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -42,6 +43,7 @@ class ServiceLocator {
     registerHomeModule(getIt);
     registerPostRequestModule(getIt);
     registerChatModule(getIt);
+    registerSocialMarketModule(getIt);
     registerAccountModule(getIt);
     registerCheckoutModule(getIt);
     registerReportModule(getIt);
