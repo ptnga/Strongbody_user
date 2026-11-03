@@ -34,6 +34,11 @@ class RouteName {
 
   static const String requestPosted = '/requestPosted';
 
+  //-----------------ASSISTANT---------------
+  /// Chat trợ lý AI (web `/ai-assistant`) — ô nhập ở Home / hero Social Market; đè lên tab.
+  /// `extra` = `AssistantPageArgs`.
+  static const String assistant = '/assistant';
+
   //-----------------SOCIAL MARKET---------------
   /// `/socialMarket/:category` (`longevity`, `health-pro-advisory`, `personal-helper`)
   /// + con `services` / `providers` — đè lên tab.

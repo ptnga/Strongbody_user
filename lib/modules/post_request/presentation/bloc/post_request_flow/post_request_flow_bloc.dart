@@ -141,6 +141,26 @@ class PostRequestFlowBloc
       ),
     );
 
+    // Chat trợ lý đã soạn sẵn form: dùng luôn bản nháp, không gọi AI lại.
+    final prefilled = args.draft;
+    if (prefilled != null) {
+      emit(
+        state.copyWith(
+          analysisStatus: PostRequestAnalysisStatus.ready,
+          transcript: prefilled.values.description,
+          values: prefilled.values.copyWith(
+            attachmentPaths: args.attachmentPaths,
+          ),
+          outcome: prefilled.isEmpty
+              ? PostRequestDraftOutcome.empty
+              : PostRequestDraftOutcome.filled,
+          assistant: prefilled.assistant,
+        ),
+      );
+      await _countMatchingProviders(emit, prefilled.values.description);
+      return;
+    }
+
     // Chỉ duyệt provider: không có gì để phân tích.
     if (args.browseOnly) {
       emit(

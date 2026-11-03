@@ -19,7 +19,15 @@ class MarketExpertCard extends StatelessWidget {
   final MarketExpertEntity expert;
   final VoidCallback? onViewProfile;
 
-  const MarketExpertCard({super.key, required this.expert, this.onViewProfile});
+  /// false = ẩn like / save và số engagement (thẻ kết quả của trợ lý AI, web `showEngagement`).
+  final bool showEngagement;
+
+  const MarketExpertCard({
+    super.key,
+    required this.expert,
+    this.onViewProfile,
+    this.showEngagement = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +108,8 @@ class MarketExpertCard extends StatelessWidget {
                   ],
                 ),
               ),
-              MarketEngagementButtons(id: e.id, showLike: true),
+              if (showEngagement)
+                MarketEngagementButtons(id: e.id, showLike: true),
             ],
           ),
           if (e.about != null) ...[
@@ -119,8 +128,10 @@ class MarketExpertCard extends StatelessWidget {
             Gap(6.h),
             Text(e.languages.join(', '), style: metaStyle),
           ],
-          Gap(12.h),
-          MarketEngagementLine(id: e.id, style: metaStyle),
+          if (showEngagement) ...[
+            Gap(12.h),
+            MarketEngagementLine(id: e.id, style: metaStyle),
+          ],
           if (e.booked != null) ...[
             Gap(4.h),
             Text(LocaleKeys.marketBooked.plural(e.booked!), style: metaStyle),

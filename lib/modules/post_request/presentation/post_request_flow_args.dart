@@ -1,3 +1,4 @@
+import '../domain/entities/request_draft_entity.dart';
 import 'matching_providers_page_args.dart';
 
 /// Args vào luồng Post Request (màn "Here's what I heard") — truyền qua `extra`.
@@ -20,6 +21,9 @@ class PostRequestFlowArgs {
   /// phù hợp qua API matching, như web `SolutionComposer`).
   final Future<void> Function(String description)? onPosted;
 
+  /// Bản nháp có sẵn (chat trợ lý AI đã điền form): bỏ bước AI phân tích, mở thẳng Review.
+  final RequestDraftEntity? draft;
+
   const PostRequestFlowArgs({
     this.text = '',
     this.voicePath,
@@ -28,6 +32,7 @@ class PostRequestFlowArgs {
     this.attachmentPaths = const [],
     this.browseOnly = false,
     this.onPosted,
+    this.draft,
   });
 
   /// `extra` của route trong ShellRoute: args trực tiếp, hoặc `start` của trang provider.

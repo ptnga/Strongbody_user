@@ -8,6 +8,7 @@ import 'package:strongbody_buyer/core/services/microphone_permission_service.dar
 import 'package:strongbody_buyer/core/services/speech_recognition_service.dart';
 import 'package:strongbody_buyer/core/services/voice_note_recorder.dart';
 import 'package:strongbody_buyer/modules/account/di/account_module.dart';
+import 'package:strongbody_buyer/modules/assistant/di/assistant_module.dart';
 import 'package:strongbody_buyer/modules/auth/di/auth_module.dart';
 import 'package:strongbody_buyer/modules/chat/di/chat_module.dart';
 import 'package:strongbody_buyer/modules/checkout/di/checkout_module.dart';
@@ -44,6 +45,7 @@ class ServiceLocator {
     registerPostRequestModule(getIt);
     registerChatModule(getIt);
     registerSocialMarketModule(getIt);
+    registerAssistantModule(getIt);
     registerAccountModule(getIt);
     registerCheckoutModule(getIt);
     registerReportModule(getIt);

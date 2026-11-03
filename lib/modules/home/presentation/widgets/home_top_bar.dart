@@ -33,8 +33,8 @@ class HomeTopBar extends StatelessWidget {
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  AppIcon(
-                    AppSvg.note,
+                  Icon(
+                    Icons.notes_rounded,
                     size: 26.r,
                     color: theme.textPrimary(context),
                   ),

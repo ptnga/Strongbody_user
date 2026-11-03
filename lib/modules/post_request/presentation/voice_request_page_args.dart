@@ -7,12 +7,17 @@ class VoiceRequestPageArgs {
   /// (`context.pop(text)`) thay vì sang "Here's what I heard"; không ghi voice note.
   final bool refine;
 
+  /// true = micro của ô nhập ở Home / hero Social Market: ✓ sang chat trợ lý AI với câu
+  /// vừa nói (web hero → `/ai-assistant`) thay vì "Here's what I heard"; không ghi voice note.
+  final bool toAssistant;
+
   /// Nơi mở màn nói (analytics `voice_request_opened.source`).
   final String source;
 
   const VoiceRequestPageArgs({
     this.attachmentPaths = const [],
     this.refine = false,
+    this.toAssistant = false,
     this.source = 'unknown',
   });
 

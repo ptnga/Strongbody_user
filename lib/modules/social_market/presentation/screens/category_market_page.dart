@@ -361,7 +361,10 @@ class _RequestsSection extends StatelessWidget {
               title: LocaleKeys.marketHeroTitle.tr(),
             ),
             Gap(16.h),
-            const MarketHeroComposer(background: Colour.surface),
+            const MarketHeroComposer(
+              background: Colour.surface,
+              toAssistant: false,
+            ),
           ],
         ),
       ),

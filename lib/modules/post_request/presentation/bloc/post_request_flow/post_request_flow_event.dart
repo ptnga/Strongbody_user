@@ -19,6 +19,7 @@ final class PostRequestFlowStarted extends PostRequestFlowEvent {
     args.text,
     args.voicePath,
     args.browseOnly,
+    args.draft,
     locale,
   ];
 }

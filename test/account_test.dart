@@ -55,6 +55,10 @@ class _Prefs implements UserPreferences {
   Future<void> addRecentSearch(String text) async {}
   @override
   Future<void> clearRecentSearches() async {}
+  @override
+  String? get assistantChat => null;
+  @override
+  Future<void> setAssistantChat(String? json) async {}
 }
 
 class _Repo implements AccountRepository {

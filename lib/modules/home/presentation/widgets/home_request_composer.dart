@@ -18,7 +18,7 @@ typedef RequestSendCallback =
     void Function(String text, List<String> attachmentPaths);
 
 /// Ô "Ask StrongBody" (mirror `RequestComposer.tsx` của web):
-/// - Ô trống → nút micro mở màn nói yêu cầu (transcript trực tiếp); có chữ → nút gửi.
+/// - Ô trống → nút micro mở màn nói (transcript trực tiếp); có chữ → nút gửi.
 /// - Nút "+": đính kèm ảnh / file, đi kèm sang form Post Request.
 class HomeRequestComposer extends StatefulWidget {
   final RequestSendCallback onSend;
@@ -38,6 +38,10 @@ class HomeRequestComposer extends StatefulWidget {
   /// Nền ô nhập (mặc định xám nhạt); đặt trên khối xám thì dùng trắng.
   final Color? background;
 
+  /// Nói xong → chat trợ lý AI (ô hỏi ở Home / hero, web `/ai-assistant`); false →
+  /// "Here's what I heard" (khối đăng request, web `/request-assistant`).
+  final bool voiceToAssistant;
+
   const HomeRequestComposer({
     super.key,
     required this.onSend,
@@ -46,6 +50,7 @@ class HomeRequestComposer extends StatefulWidget {
     this.hintText,
     this.source = 'home',
     this.background,
+    this.voiceToAssistant = false,
   });
 
   @override
@@ -136,6 +141,7 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
       RouteName.voiceRequest,
       extra: VoiceRequestPageArgs(
         attachmentPaths: attachments,
+        toAssistant: widget.voiceToAssistant,
         source: widget.source,
       ),
     );

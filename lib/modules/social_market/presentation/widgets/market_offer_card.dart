@@ -40,11 +40,15 @@ class MarketOfferCard extends StatelessWidget {
   final int index;
   final VoidCallback onWantThis;
 
+  /// false = ẩn like / save và số engagement (thẻ kết quả của trợ lý AI, web `showEngagement`).
+  final bool showEngagement;
+
   const MarketOfferCard({
     super.key,
     required this.offer,
     required this.index,
     required this.onWantThis,
+    this.showEngagement = true,
   });
 
   String? _price() {
@@ -100,7 +104,8 @@ class MarketOfferCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  MarketEngagementButtons(id: o.id, showLike: true),
+                  if (showEngagement)
+                    MarketEngagementButtons(id: o.id, showLike: true),
                   if (price != null) ...[
                     Gap(6.h),
                     MarketBadge(price, tone: MarketBadgeTone.seller),
@@ -171,7 +176,8 @@ class MarketOfferCard extends StatelessWidget {
               runSpacing: 4.h,
               children: [
                 _AvatarStack(seed: index),
-                MarketEngagementLine(id: o.id, style: metaStyle),
+                if (showEngagement)
+                  MarketEngagementLine(id: o.id, style: metaStyle),
               ],
             ),
             trailing: open

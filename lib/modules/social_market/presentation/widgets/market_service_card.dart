@@ -25,6 +25,9 @@ class MarketServiceCard extends StatelessWidget {
   /// Dải ảnh đầu card — web chỉ hiện ở các trang Medical Travel (`serviceCardHasImage`).
   final bool showImage;
 
+  /// false = ẩn like / save và số engagement (thẻ kết quả của trợ lý AI, web `showEngagement`).
+  final bool showEngagement;
+
   const MarketServiceCard({
     super.key,
     required this.service,
@@ -33,6 +36,7 @@ class MarketServiceCard extends StatelessWidget {
     this.onTap,
     this.onSellerTap,
     this.showImage = false,
+    this.showEngagement = true,
   });
 
   @override
@@ -67,7 +71,7 @@ class MarketServiceCard extends StatelessWidget {
                 ),
               ),
             ),
-            MarketEngagementButtons(id: s.id),
+            if (showEngagement) MarketEngagementButtons(id: s.id),
           ],
         ),
         // Không có ảnh → nhãn hình thức ngay dưới tiêu đề; có ảnh thì nằm trên ảnh.
@@ -107,8 +111,10 @@ class MarketServiceCard extends StatelessWidget {
           ),
         ],
         if (meta.isNotEmpty) ...[Gap(6.h), Text(meta, style: metaStyle)],
-        Gap(12.h),
-        MarketEngagementLine(id: s.id, hideLikes: true, style: metaStyle),
+        if (showEngagement) ...[
+          Gap(12.h),
+          MarketEngagementLine(id: s.id, hideLikes: true, style: metaStyle),
+        ],
         Gap(12.h),
         MarketCardFooter(
           leading: s.isMedicalTravel

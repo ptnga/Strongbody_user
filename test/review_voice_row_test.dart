@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/widgets/review/review_fields.dart';
 
 void main() {
+  final trash = find.byWidgetPredicate(
+    (w) => w is AppIcon && w.asset == AppSvg.trash,
+  );
+
   Future<void> pump(WidgetTester tester, {required bool removed}) async {
     tester.view.physicalSize = const Size(375, 812);
     tester.view.devicePixelRatio = 1;
@@ -30,11 +36,11 @@ void main() {
       ),
     );
     if (removed) {
-      expect(find.byIcon(Icons.delete_outline_rounded), findsNothing);
+      expect(trash, findsNothing);
       await tester.tap(find.byType(OutlinedButton));
       expect(undoTaps, 1);
     } else {
-      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+      await tester.tap(trash);
       expect(removeTaps, 1);
     }
     expect(tester.takeException(), isNull);
