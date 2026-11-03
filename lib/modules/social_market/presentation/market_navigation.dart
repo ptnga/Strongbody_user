@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -155,7 +156,11 @@ class MarketNavigation {
             (failure) => ToastUtil.showError(failure.message),
             (count) => ToastUtil.showSuccess(
               count > 0
-                  ? LocaleKeys.marketSolutionSentToProviders.plural(count)
+                  ? pluralTr(
+                      count,
+                      one: LocaleKeys.marketSolutionSentToProvidersOne,
+                      other: LocaleKeys.marketSolutionSentToProvidersOther,
+                    )
                   : LocaleKeys.marketSolutionSentNoMatch.tr(),
             ),
           );

@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
@@ -102,9 +103,21 @@ String _duration(MarketServiceDetail d) {
   final n = d.duration;
   if (n == null) return '';
   return switch (d.durationUnit) {
-    'minute' => LocaleKeys.marketSvcDurationMinute.plural(n),
-    'hour' => LocaleKeys.marketSvcDurationHour.plural(n),
-    _ => LocaleKeys.marketSvcDurationDay.plural(n),
+    'minute' => pluralTr(
+      n,
+      one: LocaleKeys.marketSvcDurationMinuteOne,
+      other: LocaleKeys.marketSvcDurationMinuteOther,
+    ),
+    'hour' => pluralTr(
+      n,
+      one: LocaleKeys.marketSvcDurationHourOne,
+      other: LocaleKeys.marketSvcDurationHourOther,
+    ),
+    _ => pluralTr(
+      n,
+      one: LocaleKeys.marketSvcDurationDayOne,
+      other: LocaleKeys.marketSvcDurationDayOther,
+    ),
   };
 }
 
