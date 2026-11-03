@@ -1,4 +1,4 @@
-package ai.strongbody.request
+package ai.strongbody.buyer
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

@@ -19,6 +19,19 @@ abstract class AccountRemoteDataSource {
   Future<Map<String, dynamic>> getMe();
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body);
   Future<void> logout();
+
+  /// Bước 1: yêu cầu xoá → server gửi mã OTP tới email.
+  Future<void> requestAccountDeletion({
+    required int userId,
+    required String email,
+    required String password,
+  });
+
+  /// Bước 2: gửi mã OTP để xác nhận và xoá thật.
+  Future<void> verifyAccountDeletion({
+    required String email,
+    required String otp,
+  });
   Future<Map<String, dynamic>> getWallet(int userId);
   Future<Map<String, dynamic>> getAppSettings();
   Future<List<Map<String, dynamic>>> getLedger(
@@ -80,6 +93,38 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
   Future<void> logout() async {
     _unwrap(
       await _api.request(path: AccountApiConfig.logout, method: ApiType.post),
+    );
+  }
+
+  /// Bước 1 (`DELETE /buyer/auth/user/{userId}`): BE kiểm tra email+mật khẩu rồi
+  /// gửi mã OTP. Gửi email+password qua query (giống app Provider đang chạy).
+  @override
+  Future<void> requestAccountDeletion({
+    required int userId,
+    required String email,
+    required String password,
+  }) async {
+    _unwrap(
+      await _api.request(
+        path: '${AccountApiConfig.deleteAccount}/$userId',
+        method: ApiType.delete,
+        queryParameters: {'email': email, 'password': password},
+      ),
+    );
+  }
+
+  /// Bước 2 (`POST /verify-account-deletion`): body `{email, otp}`.
+  @override
+  Future<void> verifyAccountDeletion({
+    required String email,
+    required String otp,
+  }) async {
+    _unwrap(
+      await _api.request(
+        path: AccountApiConfig.verifyAccountDeletion,
+        method: ApiType.post,
+        data: {'email': email, 'otp': otp},
+      ),
     );
   }
 

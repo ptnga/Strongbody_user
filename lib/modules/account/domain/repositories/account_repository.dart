@@ -24,4 +24,13 @@ abstract class AccountRepository {
 
   /// Đăng xuất server (lỗi vẫn xoá phiên trên máy, như web/Multime).
   Future<Either<Failure, Unit>> logout();
+
+  /// Bước 1 xoá tài khoản: xác minh mật khẩu → BE gửi mã OTP tới email. Không
+  /// đụng vào phiên đăng nhập.
+  Future<Either<Failure, Unit>> requestAccountDeletion({
+    required String password,
+  });
+
+  /// Bước 2: gửi mã OTP để xác nhận xoá; chỉ khi BE xác nhận mới xoá phiên trên máy.
+  Future<Either<Failure, Unit>> verifyAccountDeletion({required String otp});
 }

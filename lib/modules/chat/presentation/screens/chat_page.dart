@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart' show CupertinoActivityIndicator;
 import 'package:flutter/material.dart';
@@ -11,9 +13,14 @@ import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
+import 'package:strongbody_buyer/core/streams/user_block_event_bus.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/utils/toast_util.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
+import 'package:strongbody_buyer/modules/report/presentation/widgets/report_user_sheet.dart';
+import 'package:strongbody_buyer/modules/user_block/domain/block_action_service.dart';
+import 'package:strongbody_buyer/modules/user_block/domain/usecases/check_block_status_use_case.dart';
+import 'package:strongbody_buyer/modules/user_block/presentation/widgets/block_user_confirm_sheet.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/chat_message_entity.dart';
@@ -45,6 +52,14 @@ class _ChatPageState extends State<ChatPage> {
   final _readIds = <String>{};
   int _shownNoticeId = 0;
 
+  // Chặn người kia (Guideline 1.2 UGC): chặn gửi tin + banner + bỏ chặn.
+  bool _blocked = false;
+  int? _blockRecordId;
+  bool _blockBusy = false;
+  StreamSubscription<UserBlockEvent>? _blockSub;
+
+  int get _partnerId => widget.args.partnerId;
+
   static const _background = Color(0xFFF4F6F9);
 
   @override
@@ -62,12 +77,99 @@ class _ChatPageState extends State<ChatPage> {
         context.read<ChatBloc>().add(const ChatOlderRequested());
       }
     });
+    // Trạng thái chặn: lấy ngay từ registry rồi xác nhận lại với server.
+    _blocked = UserBlockEventBus.isBlocked(_partnerId);
+    _blockRecordId = UserBlockEventBus.recordIdOf(_partnerId);
+    _blockSub = UserBlockEventBus.stream.listen((event) {
+      if (event.userId != _partnerId || !mounted) return;
+      setState(() {
+        _blocked = event is UserBlocked;
+        _blockRecordId = event is UserBlocked
+            ? UserBlockEventBus.recordIdOf(_partnerId)
+            : null;
+      });
+    });
+    _loadBlockStatus();
+  }
+
+  Future<void> _loadBlockStatus() async {
+    final result = await getIt<CheckBlockStatusUseCase>()(
+      CheckBlockParams(userId: _partnerId),
+    );
+    if (!mounted) return;
+    await result.fold((_) async {}, (status) async {
+      if (status.isBlocked) {
+        final recordId =
+            UserBlockEventBus.recordIdOf(_partnerId) ??
+            await getIt<BlockActionService>().resolveBlockRecordId(_partnerId);
+        if (!mounted) return;
+        setState(() {
+          _blocked = true;
+          _blockRecordId = recordId;
+        });
+      } else if (_blocked) {
+        setState(() {
+          _blocked = false;
+          _blockRecordId = null;
+        });
+      }
+    });
+  }
+
+  Future<void> _openReport(String partnerName) => ReportUserSheet.show(
+    context,
+    reportedUserId: _partnerId,
+    userName: partnerName,
+  );
+
+  Future<void> _blockUser(String partnerName) async {
+    if (_blockBusy) return;
+    final confirmed = await BlockUserConfirmSheet.show(
+      context,
+      userName: partnerName,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _blockBusy = true);
+    final ok = await getIt<BlockActionService>().block(_partnerId);
+    if (!mounted) return;
+    setState(() => _blockBusy = false);
+    if (ok) {
+      ToastUtil.showInfo(LocaleKeys.chatBlockedToast.tr());
+    } else {
+      ToastUtil.showError(LocaleKeys.chatBlockFailed.tr());
+    }
+  }
+
+  Future<void> _unblockUser() async {
+    if (_blockBusy) return;
+    setState(() => _blockBusy = true);
+    final recordId =
+        _blockRecordId ??
+        await getIt<BlockActionService>().resolveBlockRecordId(_partnerId);
+    if (!mounted) return;
+    if (recordId == null) {
+      setState(() => _blockBusy = false);
+      ToastUtil.showError(LocaleKeys.chatUnblockFailed.tr());
+      return;
+    }
+    final ok = await getIt<BlockActionService>().unblock(
+      userId: _partnerId,
+      blockRecordId: recordId,
+    );
+    if (!mounted) return;
+    setState(() => _blockBusy = false);
+    if (ok) {
+      ToastUtil.showInfo(LocaleKeys.chatUnblockedToast.tr());
+    } else {
+      ToastUtil.showError(LocaleKeys.chatUnblockFailed.tr());
+    }
   }
 
   @override
   void dispose() {
     _scroll.dispose();
     _readAloud?.dispose();
+    _blockSub?.cancel();
     super.dispose();
   }
 
@@ -201,6 +303,10 @@ class _ChatPageState extends State<ChatPage> {
                     translateBusy: state.savingSettings,
                     onTranslate: ready ? () => _toggleTranslate(state) : null,
                     onBack: () => context.pop(),
+                    blocked: _blocked,
+                    onReport: () => _openReport(partnerName),
+                    onBlock: () => _blockUser(partnerName),
+                    onUnblock: _unblockUser,
                   ),
                 ),
               ),
@@ -209,7 +315,9 @@ class _ChatPageState extends State<ChatPage> {
               else
                 Divider(height: 1, color: theme.border(context)),
               Expanded(child: _body(context, state, partnerName)),
-              if (ready)
+              if (ready && _blocked)
+                _BlockedBanner(busy: _blockBusy, onUnblock: _unblockUser)
+              else if (ready)
                 ChatComposer(
                   hint: first.isEmpty
                       ? LocaleKeys.chatComposerHintGeneric.tr()
@@ -352,6 +460,55 @@ class _ChatPageState extends State<ChatPage> {
           ],
         );
       },
+    );
+  }
+}
+
+/// Thay composer khi đã chặn người kia: báo trạng thái + nút bỏ chặn.
+class _BlockedBanner extends StatelessWidget {
+  final bool busy;
+  final VoidCallback onUnblock;
+
+  const _BlockedBanner({required this.busy, required this.onUnblock});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.surface(context),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 10.h),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  LocaleKeys.chatBlockedBanner.tr(),
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
+                    height: 1.35,
+                    color: theme.textSecondary(context),
+                  ),
+                ),
+              ),
+              Gap(10.w),
+              OutlinedButton(
+                onPressed: busy ? null : onUnblock,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.textPrimary(context),
+                  side: BorderSide(color: theme.border(context)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                child: busy
+                    ? const CupertinoActivityIndicator(radius: 8)
+                    : Text(LocaleKeys.chatUnblock.tr()),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
