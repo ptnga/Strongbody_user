@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -41,8 +42,17 @@ class MarketRequestCard extends StatelessWidget {
     );
     final footerMeta = [
       if (r.conversations > 0)
-        LocaleKeys.marketRequestConversations.plural(r.conversations),
-      if (r.offers > 0) LocaleKeys.marketRequestOffersSent.plural(r.offers),
+        pluralTr(
+          r.conversations,
+          one: LocaleKeys.marketRequestConversationsOne,
+          other: LocaleKeys.marketRequestConversationsOther,
+        ),
+      if (r.offers > 0)
+        pluralTr(
+          r.offers,
+          one: LocaleKeys.marketRequestOffersSentOne,
+          other: LocaleKeys.marketRequestOffersSentOther,
+        ),
     ].join(' · ');
 
     return MarketExpandableCard(

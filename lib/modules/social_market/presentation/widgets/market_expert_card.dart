@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -134,7 +135,14 @@ class MarketExpertCard extends StatelessWidget {
           ],
           if (e.booked != null) ...[
             Gap(4.h),
-            Text(LocaleKeys.marketBooked.plural(e.booked!), style: metaStyle),
+            Text(
+              pluralTr(
+                e.booked!,
+                one: LocaleKeys.marketBookedOne,
+                other: LocaleKeys.marketBookedOther,
+              ),
+              style: metaStyle,
+            ),
           ],
           if (onViewProfile != null) ...[
             Gap(12.h),

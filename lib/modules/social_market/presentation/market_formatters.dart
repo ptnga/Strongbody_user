@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_options.dart';
 
@@ -119,8 +120,13 @@ class MarketFormatters {
       humanize(code);
 
   /// "5 yrs"; rỗng khi chưa khai.
-  static String years(int? years) =>
-      years == null || years <= 0 ? '' : LocaleKeys.marketYears.plural(years);
+  static String years(int? years) => years == null || years <= 0
+      ? ''
+      : pluralTr(
+          years,
+          one: LocaleKeys.marketYearsOne,
+          other: LocaleKeys.marketYearsOther,
+        );
 
   static String budget(MarketBudget budget) => switch (budget) {
     BudgetExact(:final amount) => amount,
@@ -141,29 +147,57 @@ class MarketFormatters {
     final hours = diff.inHours;
     final days = diff.inDays;
     if (diff.inSeconds < 60) return LocaleKeys.marketAgoNow.tr();
-    if (minutes < 60) return LocaleKeys.marketAgoMinutes.plural(minutes);
-    if (hours < 24) return LocaleKeys.marketAgoHours.plural(hours);
+    if (minutes < 60) {
+      return pluralTr(
+        minutes,
+        one: LocaleKeys.marketAgoMinutesOne,
+        other: LocaleKeys.marketAgoMinutesOther,
+      );
+    }
+    if (hours < 24) {
+      return pluralTr(
+        hours,
+        one: LocaleKeys.marketAgoHoursOne,
+        other: LocaleKeys.marketAgoHoursOther,
+      );
+    }
     if (days < 7) {
       return days == 1
           ? LocaleKeys.marketAgoYesterday.tr()
-          : LocaleKeys.marketAgoDays.plural(days);
+          : pluralTr(
+              days,
+              one: LocaleKeys.marketAgoDaysOne,
+              other: LocaleKeys.marketAgoDaysOther,
+            );
     }
     if (days < 30) {
       final weeks = days ~/ 7;
       return weeks == 1
           ? LocaleKeys.marketAgoLastWeek.tr()
-          : LocaleKeys.marketAgoWeeks.plural(weeks);
+          : pluralTr(
+              weeks,
+              one: LocaleKeys.marketAgoWeeksOne,
+              other: LocaleKeys.marketAgoWeeksOther,
+            );
     }
     if (days < 365) {
       final months = days ~/ 30;
       return months == 1
           ? LocaleKeys.marketAgoLastMonth.tr()
-          : LocaleKeys.marketAgoMonths.plural(months);
+          : pluralTr(
+              months,
+              one: LocaleKeys.marketAgoMonthsOne,
+              other: LocaleKeys.marketAgoMonthsOther,
+            );
     }
     final years = days ~/ 365;
     return years == 1
         ? LocaleKeys.marketAgoLastYear.tr()
-        : LocaleKeys.marketAgoYears.plural(years);
+        : pluralTr(
+            years,
+            one: LocaleKeys.marketAgoYearsOne,
+            other: LocaleKeys.marketAgoYearsOther,
+          );
   }
 
   /// Dòng "N interested · N saved · N contacted" (web `EngagementCounts`).
