@@ -12,15 +12,29 @@ abstract final class AnalyticsEvents {
   static const userLoggedOut = 'user_logged_out';
 
   // ---------------------------------------------------------------- home
-  /// Gửi câu tìm ở Home → danh sách provider.
+  /// Gửi câu ở Home → chat trợ lý AI.
   /// `source` composer|typing_suggestion|recent_search, `query_length`, `attachments_count`.
   static const homeSearchSubmitted = 'home_search_submitted';
 
-  /// Bấm thẻ gợi ý ở Home (Physiotherapist…) → "Here's what I heard". `prompt`.
+  /// Bấm thẻ gợi ý ở Home (Physiotherapist…) → chat trợ lý AI. `prompt`.
   static const homePromptTapped = 'home_prompt_tapped';
 
   /// Bấm pill "N new offers" ở Home → My requests. `count`.
   static const homeNewOffersTapped = 'home_new_offers_tapped';
+
+  // ---------------------------------------------------------------- assistant
+  /// Gửi một câu cho trợ lý AI (Home / hero Social Market → chat).
+  /// `source` home|home_card|typing_suggestion|recent_search|home_voice|social_market|composer|example|suggestion|retry, `query_length`, `turn`.
+  static const assistantMessageSent = 'assistant_message_sent';
+
+  /// Trợ lý trả lời xong một lượt. `branch` search|request|info|account|results|out_of_scope…, `has_cards`, `error`.
+  static const assistantReplyReceived = 'assistant_reply_received';
+
+  /// Bấm "New chat" (xoá hội thoại trên máy). `turns`.
+  static const assistantNewChat = 'assistant_new_chat';
+
+  /// Mở form request từ chat (bản nháp AI). `origin` request_branch|no_results.
+  static const assistantRequestReviewOpened = 'assistant_request_review_opened';
 
   // ---------------------------------------------------------------- voice
   /// Mở màn nói yêu cầu. `source` home|bottom_nav|menu|messages|my_requests|heard|providers|providers_refine, `refine`.

@@ -26,6 +26,12 @@ abstract class UserPreferences {
   /// Đăng xuất → không để người dùng sau trên máy thấy từ khoá của người trước.
   Future<void> clearRecentSearches();
 
+  /// Hội thoại với trợ lý AI (JSON các lượt) — web giữ ở localStorage.
+  String? get assistantChat;
+
+  /// null = xoá ("New chat" / đăng xuất).
+  Future<void> setAssistantChat(String? json);
+
   Future<void> setSpeakingLanguage(String? code);
   Future<void> setAutoTranslateChats(bool value);
   Future<void> setReadRepliesAloud(bool value);
@@ -39,6 +45,7 @@ class UserPreferencesImpl implements UserPreferences {
   static const _readAloud = 'read_replies_aloud';
   static const _attachVoice = 'attach_voice_to_requests';
   static const _recentSearches = 'recent_searches';
+  static const _assistantChat = 'assistant_chat';
 
   late Box _box;
 
@@ -80,6 +87,14 @@ class UserPreferencesImpl implements UserPreferences {
 
   @override
   Future<void> clearRecentSearches() => _box.delete(_recentSearches);
+
+  @override
+  String? get assistantChat => _box.get(_assistantChat) as String?;
+
+  @override
+  Future<void> setAssistantChat(String? json) => json == null
+      ? _box.delete(_assistantChat)
+      : _box.put(_assistantChat, json);
 
   @override
   Future<void> setSpeakingLanguage(String? code) => code == null

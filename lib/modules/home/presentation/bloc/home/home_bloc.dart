@@ -51,6 +51,8 @@ class HomeBloc extends BlocWithApi<HomeEvent, HomeState> {
       if (isClosed) return;
       if (event is UserLoggedOut) {
         await _preferences.clearRecentSearches();
+        // Hội thoại với trợ lý AI cũng là dữ liệu của người vừa đăng xuất.
+        await _preferences.setAssistantChat(null);
         if (isClosed) return;
       }
       add(const HomeStarted());

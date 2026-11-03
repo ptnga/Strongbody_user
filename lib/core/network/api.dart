@@ -167,6 +167,9 @@ class ApiClient {
 
     /// Không gắn Bearer token (API `/public/*` dùng `X-API-KEY`, gắn token bị 403).
     bool skipAuth = false,
+
+    /// `ResponseType.stream` → trả `ResponseBody` để đọc dần (server-sent events).
+    ResponseType? responseType,
   }) async {
     try {
       final response = await _dio.request(
@@ -179,6 +182,7 @@ class ApiClient {
           headers: headers,
           sendTimeout: timeout,
           receiveTimeout: timeout,
+          responseType: responseType,
           extra: {'skip_auth': skipAuth},
         ),
       );

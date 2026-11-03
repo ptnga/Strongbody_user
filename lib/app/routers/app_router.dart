@@ -12,6 +12,9 @@ import 'package:strongbody_buyer/modules/account/presentation/bloc/account/accou
 import 'package:strongbody_buyer/modules/account/presentation/bloc/lion_points/lion_points_bloc.dart';
 import 'package:strongbody_buyer/modules/account/presentation/screens/account_page.dart';
 import 'package:strongbody_buyer/modules/account/presentation/screens/lion_points_page.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/assistant_page_args.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/bloc/assistant_chat_cubit.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/screens/assistant_chat_page.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/bloc/chat/chat_bloc.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/bloc/conversations/conversations_bloc.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_page_args.dart';
@@ -156,11 +159,27 @@ class AppRoutes {
                 VoiceRequestStarted(
                   recordVoiceNote:
                       !args.refine &&
+                      !args.toAssistant &&
                       getIt<UserPreferences>().attachVoiceToRequests,
                   initialLanguage: getIt<UserPreferences>().speakingLanguage,
                 ),
               ),
             child: VoiceRequestPage(args: args),
+          );
+        },
+      ),
+      GoRoute(
+        path: RouteName.assistant,
+        builder: (context, state) {
+          final args = AssistantPageArgs.fromExtra(state.extra);
+          return BlocProvider(
+            create: (_) => getIt<AssistantChatCubit>()
+              ..start(
+                language: context.locale.languageCode,
+                text: args.text,
+                source: args.source,
+              ),
+            child: AssistantChatPage(args: args),
           );
         },
       ),

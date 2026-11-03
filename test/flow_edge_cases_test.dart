@@ -170,6 +170,40 @@ Future<PostRequestFlowState> _ready(PostRequestFlowBloc bloc) => _until(
 
 void main() {
   group('PostRequestFlowBloc edge cases', () {
+    test('prefilled draft (assistant chat) skips the AI step', () async {
+      // AI lỗi nếu bị gọi → outcome sẽ là failed.
+      final repo = _Repo()..draft = Left(ServerFailure('should not call'));
+      final bloc = _flow(repo, _Storage())
+        ..add(
+          const PostRequestFlowStarted(
+            args: PostRequestFlowArgs(
+              attachmentPaths: ['/tmp/a.jpg'],
+              draft: RequestDraftEntity(
+                isEmpty: false,
+                values: RequestFormValues(
+                  description: 'Physio at home',
+                  budget: '50',
+                  deliveryTypes: [RequestDeliveryType.atHome],
+                ),
+                assistant: RequestAssistantMeta(
+                  categoryIds: [96654],
+                  qualityScore: 6,
+                ),
+              ),
+            ),
+            locale: 'en',
+          ),
+        );
+      final s = await _ready(bloc);
+      expect(s.outcome, PostRequestDraftOutcome.filled);
+      expect(s.notice, isNull);
+      expect(s.values.description, 'Physio at home');
+      expect(s.values.budget, '50');
+      expect(s.values.attachmentPaths, ['/tmp/a.jpg']);
+      expect(s.assistant?.categoryIds, [96654]);
+      await bloc.close();
+    });
+
     test('AI draft fails → outcome failed + notice, transcript kept', () async {
       final repo = _Repo()..draft = Left(ServerFailure('boom'));
       final bloc = _flow(repo, _Storage())

@@ -14,6 +14,7 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/services/microphone_permission_service.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/assistant_page_args.dart';
 import 'package:strongbody_buyer/modules/home/presentation/home_composer_focus.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
@@ -105,6 +106,17 @@ class _VoiceRequestPageState extends State<VoiceRequestPage>
       });
       if (args.refine) {
         context.pop(result.text);
+        return;
+      }
+      if (args.toAssistant) {
+        context.pushReplacement(
+          RouteName.assistant,
+          extra: AssistantPageArgs(
+            text: result.text,
+            attachmentPaths: args.attachmentPaths,
+            source: '${args.source}_voice',
+          ),
+        );
         return;
       }
       context.pushReplacement(
