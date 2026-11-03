@@ -54,6 +54,40 @@ class AppThemeClass {
         fontWeight: FontWeight.w400,
       ),
     ),
+    // Popup: nền trắng, chữ đen, nút đỏ — tắt surface tint M3 (nền hồng nhạt theo seed).
+    dialogTheme: DialogThemeData(
+      backgroundColor: Colour.surface,
+      surfaceTintColor: Colors.transparent,
+      titleTextStyle: AppTextStyle.lightBodyXLargeBold.copyWith(
+        color: Colour.textPrimary,
+      ),
+      contentTextStyle: AppTextStyle.lightBodyMediumRegular.copyWith(
+        color: Colour.textPrimary,
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colour.surface,
+      modalBackgroundColor: Colour.surface,
+      surfaceTintColor: Colors.transparent,
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: Colour.surface,
+      surfaceTintColor: Colors.transparent,
+      textStyle: AppTextStyle.lightBodyMediumMedium.copyWith(
+        color: Colour.textPrimary,
+      ),
+    ),
+    datePickerTheme: const DatePickerThemeData(
+      backgroundColor: Colour.surface,
+      surfaceTintColor: Colors.transparent,
+      headerForegroundColor: Colour.textPrimary,
+      dividerColor: Colour.border,
+    ),
+    timePickerTheme: const TimePickerThemeData(
+      backgroundColor: Colour.surface,
+      hourMinuteColor: Colour.muted,
+      dialBackgroundColor: Colour.muted,
+    ),
     snackBarTheme: SnackBarThemeData(
       contentTextStyle: AppTextStyle.lightBodyMediumRegular.copyWith(
         color: Colour.surface,

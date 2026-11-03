@@ -32,7 +32,7 @@ class AppDialog {
         content: Text(
           message,
           style: AppTextStyle.lightBodyMediumRegular.copyWith(
-            color: theme.textSecondary(context),
+            color: theme.textPrimary(context),
           ),
         ),
         actions: [
