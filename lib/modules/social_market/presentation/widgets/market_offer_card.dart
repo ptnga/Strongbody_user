@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/utils/language_names.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -261,7 +262,7 @@ class _OfferDetails extends StatelessWidget {
           MarketInfoRow(
             icon: Icons.translate,
             label: LocaleKeys.marketOfferLanguages.tr(),
-            value: o.languages.map(MarketFormatters.humanize).join(', '),
+            value: o.languages.map(languageLabel).join(', '),
           ),
           MarketInfoRow(
             icon: Icons.location_on_outlined,

@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 
+import 'package:strongbody_buyer/core/utils/language_names.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 
 import '../../../domain/entities/request_form_values.dart';
@@ -24,7 +25,7 @@ class ProviderFormatters {
         requestLanguages
             .where((l) => code.toLowerCase().startsWith(l.code.toLowerCase()))
             .firstOrNull;
-    if (option == null) return code;
+    if (option == null) return languageLabel(code);
     return uiLocale == 'en' ? option.name : option.nativeName;
   }
 

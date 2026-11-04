@@ -511,7 +511,7 @@ class _IconButton extends StatelessWidget {
         : FilledButton(
             onPressed: onPressed,
             style: FilledButton.styleFrom(
-              backgroundColor: Colour.primary,
+              backgroundColor: Colour.buttonPrimary,
               foregroundColor: Colors.white,
               padding: padding,
               shape: shape,

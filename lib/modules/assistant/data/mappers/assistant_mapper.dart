@@ -1,3 +1,4 @@
+import 'package:strongbody_buyer/core/utils/language_names.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_draft_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_form_values.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_options.dart';
@@ -119,8 +120,9 @@ class AssistantMapper {
     };
   }
 
-  static List<String> _upperCodes(Object? v) =>
-      _strings(v).map((l) => l.toUpperCase()).toList();
+  /// Mã ngôn ngữ → tên ("en" → "English").
+  static List<String> _languageNames(Object? v) =>
+      _strings(v).map(languageLabel).toList();
 
   /// Thẻ service → JSON kiểu `/public/services` (web `assistantServiceToApi`).
   static Map<String, dynamic> _serviceJson(Map<String, dynamic> c) {
@@ -140,7 +142,7 @@ class AssistantMapper {
       'location': medicalTravel && destinations.isNotEmpty
           ? destinations.join(', ')
           : c['address'],
-      'languages': switch (_upperCodes(c['languages']).join(', ')) {
+      'languages': switch (_languageNames(c['languages']).join(', ')) {
         '' => null,
         final s => s,
       },
@@ -176,7 +178,7 @@ class AssistantMapper {
       ratingCount: reviews,
       verified: c['verified'] == true,
       about: _text(c['description']),
-      languages: _upperCodes(c['languages']),
+      languages: _languageNames(c['languages']),
     );
   }
 

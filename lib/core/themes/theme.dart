@@ -54,7 +54,26 @@ class AppThemeClass {
         fontWeight: FontWeight.w400,
       ),
     ),
-    // Popup: nền trắng, chữ đen, nút đỏ — tắt surface tint M3 (nền hồng nhạt theo seed).
+    // Nút primary dùng [Colour.buttonPrimary] thay đỏ brand (nút xoá tự đặt màu error).
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: Colour.buttonPrimary,
+        foregroundColor: Colors.white,
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colour.buttonPrimary,
+        foregroundColor: Colors.white,
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(foregroundColor: Colour.buttonPrimary),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: Colour.buttonPrimary),
+    ),
+    // Popup: nền trắng, chữ đen — tắt surface tint M3 (nền hồng nhạt theo seed).
     dialogTheme: DialogThemeData(
       backgroundColor: Colour.surface,
       surfaceTintColor: Colors.transparent,

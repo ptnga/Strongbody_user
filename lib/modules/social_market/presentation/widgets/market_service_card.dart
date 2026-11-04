@@ -94,7 +94,7 @@ class MarketServiceCard extends StatelessWidget {
           name: sellerName,
           avatar: seller.avatar,
           country: where,
-          flag: where == seller.country ? seller.flag : null,
+          flag: s.placeFlag,
           trailingMeta: seller.profession,
           onTap: onSellerTap,
         ),

@@ -146,7 +146,7 @@ void main() {
       expect(service.images, ['https://img/1']);
       final seller = r.cards[AssistantKind.sellers]!.single.seller!;
       expect(seller.name, 'sarahkhan113355');
-      expect(seller.languages, ['EN']);
+      expect(seller.languages, ['English']);
       expect(seller.yearsOfExperience, 4);
       final close = r.closeMatches[AssistantKind.services]!.single;
       expect(close.missing, [

@@ -1,9 +1,9 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import 'package:strongbody_buyer/core/utils/language_names.dart';
 import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
-import 'package:strongbody_buyer/modules/post_request/domain/entities/request_options.dart';
 
 import '../domain/entities/market_category.dart';
 import '../domain/entities/market_feed_entities.dart';
@@ -114,10 +114,7 @@ class MarketFormatters {
       .replaceAllMapped(RegExp(r'\b\w'), (m) => m[0]!.toUpperCase());
 
   /// Mã ngôn ngữ (form request lưu code) → tên; giá trị cũ là tên thì giữ.
-  static String languageName(String code) =>
-      requestLanguageByCode(code)?.name ??
-      requestLanguageByCode(code.split('-').first)?.name ??
-      humanize(code);
+  static String languageName(String code) => languageLabel(code);
 
   /// "5 yrs"; rỗng khi chưa khai.
   static String years(int? years) => years == null || years <= 0

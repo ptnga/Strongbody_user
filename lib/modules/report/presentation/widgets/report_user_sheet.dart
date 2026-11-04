@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
@@ -167,7 +168,7 @@ class _ReportFormState extends State<_ReportForm> {
                           )
                         : null,
                     style: FilledButton.styleFrom(
-                      backgroundColor: theme.primary(context),
+                      backgroundColor: Colour.buttonPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14.r),
                       ),

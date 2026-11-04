@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
@@ -119,7 +120,7 @@ class HomeMenuDrawer extends StatelessWidget {
                       icon: AppIcon(AppSvg.microphone, size: 24.r),
                       label: Text(LocaleKeys.homeMenuNewRequest.tr()),
                       style: FilledButton.styleFrom(
-                        backgroundColor: theme.primary(context),
+                        backgroundColor: Colour.buttonPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12.r),
                         ),
