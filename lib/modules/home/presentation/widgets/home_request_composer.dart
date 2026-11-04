@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/constants/app_svg.dart';
@@ -235,7 +236,7 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
   }
 }
 
-/// Nút tròn đỏ: micro (ô trống) ↔ gửi (có chữ).
+/// Nút tròn primary: micro (ô trống) ↔ gửi (có chữ).
 class _MicSendButton extends StatelessWidget {
   final bool hasText;
   final VoidCallback onTap;
@@ -244,12 +245,11 @@ class _MicSendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Material(
-      color: theme.primary(context),
+      color: Colour.buttonPrimary,
       shape: const CircleBorder(),
       elevation: 3,
-      shadowColor: theme.primary(context).withValues(alpha: 0.4),
+      shadowColor: Colour.buttonPrimary.withValues(alpha: 0.4),
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),

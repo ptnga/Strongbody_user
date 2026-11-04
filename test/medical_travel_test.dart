@@ -152,11 +152,12 @@ void main() {
         },
         'organization': {
           'name': 'BlueNet Hospitals',
-          'country': {'title': 'Mexico'},
+          'country': {'title': 'Mexico', 'code': 'MX'},
         },
       });
       expect(s.seller.shopName, 'BlueNet Hospitals');
       expect(s.place, 'Mexico');
+      expect(s.placeFlag, 'https://flagcdn.com/w40/mx.png');
       expect(s.seller.id, 9);
       expect(s.isMedicalTravel, isTrue);
     },

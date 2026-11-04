@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -155,16 +156,19 @@ class _ChatComposerState extends State<ChatComposer> {
                   ),
                   Gap(10.w),
                   Material(
-                    color: theme.primary(context),
+                    color: Colour.buttonPrimary,
                     shape: const CircleBorder(),
                     elevation: 2,
-                    shadowColor: theme.primary(context).withValues(alpha: 0.4),
+                    shadowColor: Colour.buttonPrimary.withValues(alpha: 0.4),
                     child: InkWell(
                       customBorder: const CircleBorder(),
                       onTap: widget.enabled ? action : null,
                       child: SizedBox.square(
                         dimension: 54.r,
-                        child: AppIcon(icon, size: 18.r, color: Colors.white),
+                        // Center: SizedBox ép con full 54 → icon phình to bất kể size.
+                        child: Center(
+                          child: AppIcon(icon, size: 24.r, color: Colors.white),
+                        ),
                       ),
                     ),
                   ),

@@ -430,7 +430,7 @@ class MarketButton extends StatelessWidget {
       case MarketButtonVariant.outline:
         final (background, foreground, border) = switch (variant) {
           MarketButtonVariant.primary => (
-            Colour.primary,
+            Colour.buttonPrimary,
             Colors.white,
             Colors.transparent,
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -73,7 +74,7 @@ class EmptyStateView extends StatelessWidget {
             child: FilledButton(
               onPressed: onAction,
               style: FilledButton.styleFrom(
-                backgroundColor: theme.primary(context),
+                backgroundColor: Colour.buttonPrimary,
                 padding: EdgeInsets.symmetric(horizontal: 22.w),
                 minimumSize: Size(0, 46.h),
                 shape: RoundedRectangleBorder(

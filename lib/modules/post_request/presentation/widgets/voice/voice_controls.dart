@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -150,8 +151,7 @@ class _DoneButtonState extends State<_DoneButton>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final red = theme.primary(context);
+    const color = Colour.buttonPrimary;
     final size = 80.r;
     return SizedBox.square(
       dimension: size * 1.4,
@@ -168,16 +168,16 @@ class _DoneButtonState extends State<_DoneButton>
                 height: size * (1 + 0.4 * t),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: red.withValues(alpha: 0.18 * (1 - t)),
+                  color: color.withValues(alpha: 0.18 * (1 - t)),
                 ),
               );
             },
           ),
           Material(
-            color: red,
+            color: color,
             shape: const CircleBorder(),
             elevation: 6,
-            shadowColor: red.withValues(alpha: 0.45),
+            shadowColor: color.withValues(alpha: 0.45),
             child: InkWell(
               onTap: widget.onTap,
               customBorder: const CircleBorder(),

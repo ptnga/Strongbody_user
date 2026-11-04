@@ -62,10 +62,10 @@ class _AssistantComposerState extends State<AssistantComposer> {
         : (null, AppSvg.microphone, widget.onVoice);
     final tooltip = LocaleKeys.assistantStop.tr();
     final button = Material(
-      color: Colour.primary,
+      color: Colour.buttonPrimary,
       shape: const CircleBorder(),
       elevation: 3,
-      shadowColor: Colour.primary.withValues(alpha: 0.4),
+      shadowColor: Colour.buttonPrimary.withValues(alpha: 0.4),
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),

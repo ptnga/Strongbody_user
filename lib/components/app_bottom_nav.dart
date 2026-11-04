@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -329,13 +330,14 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/// Nút mic đỏ trong chỗ cong, có vòng sóng lan ra (Multime `PulsingCenterButton`).
+/// Nút mic primary (#0B6B8A) trong chỗ cong, có vòng sóng lan ra (Multime
+/// `PulsingCenterButton`).
 class _SpeakButton extends StatefulWidget {
   final VoidCallback onTap;
 
   const _SpeakButton({required this.onTap});
 
-  static const labelColor = Color(0xFFBF0013);
+  static const labelColor = Colour.buttonPrimary;
 
   @override
   State<_SpeakButton> createState() => _SpeakButtonState();
@@ -356,7 +358,7 @@ class _SpeakButtonState extends State<_SpeakButton>
 
   @override
   Widget build(BuildContext context) {
-    final red = Theme.of(context).primary(context);
+    const accent = Colour.buttonPrimary;
     final size = 56.r;
     // Kích thước widget = nút (chỗ cong ôm vừa); sóng vẽ tràn ra ngoài.
     return SizedBox.square(
@@ -371,15 +373,15 @@ class _SpeakButtonState extends State<_SpeakButton>
               builder: (context, _) => Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
-                children: [for (var i = 0; i < 3; i++) _ring(red, size, i)],
+                children: [for (var i = 0; i < 3; i++) _ring(accent, size, i)],
               ),
             ),
           ),
           Material(
-            color: red,
+            color: accent,
             shape: const CircleBorder(),
             elevation: 6,
-            shadowColor: red.withValues(alpha: 0.45),
+            shadowColor: accent.withValues(alpha: 0.45),
             child: InkWell(
               customBorder: const CircleBorder(),
               splashColor: Colors.white.withValues(alpha: 0.2),
@@ -402,7 +404,7 @@ class _SpeakButtonState extends State<_SpeakButton>
     );
   }
 
-  Widget _ring(Color red, double size, int i) {
+  Widget _ring(Color accent, double size, int i) {
     final t = (_pulse.value + i / 3) % 1;
     final opacity = (1 - t) * (1 - t) * 0.4;
     final ring = size + 20.r * t;
@@ -414,8 +416,11 @@ class _SpeakButtonState extends State<_SpeakButton>
         height: ring,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: red.withValues(alpha: opacity * 0.35),
-          border: Border.all(color: red.withValues(alpha: opacity), width: 1.5),
+          color: accent.withValues(alpha: opacity * 0.35),
+          border: Border.all(
+            color: accent.withValues(alpha: opacity),
+            width: 1.5,
+          ),
         ),
       ),
     );

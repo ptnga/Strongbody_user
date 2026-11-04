@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
@@ -518,17 +519,19 @@ class _SearchHeaderState extends State<_SearchHeader> {
                         ),
                   ),
                   Material(
-                    color: theme.primary(context),
+                    color: Colour.buttonPrimary,
                     shape: const CircleBorder(),
                     child: InkWell(
                       onTap: widget.onMic,
                       customBorder: const CircleBorder(),
                       child: SizedBox.square(
                         dimension: 40.r,
-                        child: AppIcon(
-                          AppSvg.microphone,
-                          size: 20.r,
-                          color: Colors.white,
+                        child: Center(
+                          child: AppIcon(
+                            AppSvg.microphone,
+                            size: 20.r,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),

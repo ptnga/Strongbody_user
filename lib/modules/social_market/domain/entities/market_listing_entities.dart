@@ -127,6 +127,9 @@ class MarketServiceEntity extends Equatable {
 
   /// `location || address || nước seller`; null → "Online".
   final String? place;
+
+  /// Cờ khi [place] là một nước (nước seller / nước cơ sở Medical Travel).
+  final String? placeFlag;
   final MarketSeller seller;
 
   /// Field thô cho card đính kèm tin nhắn inquiry (web `cardData`).
@@ -150,6 +153,7 @@ class MarketServiceEntity extends Equatable {
     required this.coverage,
     required this.languages,
     required this.place,
+    this.placeFlag,
     required this.seller,
     this.rawPrice,
     this.originalPrice,

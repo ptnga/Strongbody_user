@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart' show CupertinoActivityIndicator;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../themes/theme.dart';
+import '../design_tokens/colour.dart';
 
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
@@ -22,14 +22,13 @@ class AppPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return SizedBox(
       width: double.infinity,
       height: 48.h,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: theme.primary(context),
+          backgroundColor: Colour.buttonPrimary,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(

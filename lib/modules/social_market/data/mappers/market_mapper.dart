@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:strongbody_buyer/core/utils/language_names.dart';
 
 import '../../domain/entities/market_feed_entities.dart';
 import '../../domain/entities/market_listing_entities.dart';
@@ -302,6 +303,7 @@ class MarketMapper {
     final coverage = deliveries
         .map((d) => d.coverage)
         .firstWhere((c) => c.isNotEmpty, orElse: () => '');
+    final address = _text(s['location']) ?? _text(s['address']);
     return MarketServiceEntity(
       id: _int(s['id']),
       slug: _text(s['slug']) ?? '',
@@ -313,8 +315,12 @@ class MarketMapper {
       price: price,
       strikePrice: strike,
       coverage: coverage.isEmpty ? null : coverage,
-      languages: _text(s['languages']),
-      place: _text(s['location']) ?? _text(s['address']) ?? seller.country,
+      languages: switch (_text(s['languages'])) {
+        null => null,
+        final v => v.split(',').map(languageLabel).join(', '),
+      },
+      place: address ?? seller.country,
+      placeFlag: address == null ? seller.flag : null,
       seller: seller,
       rawPrice: s['price'] is num ? s['price'] as num : null,
       originalPrice: s['original_price'] is num
@@ -358,7 +364,7 @@ class MarketMapper {
         ? const <String>[]
         : _strings(org['languages']);
     final languages = orgLanguages.isNotEmpty
-        ? orgLanguages.map((c) => c.toUpperCase()).toSet().toList()
+        ? orgLanguages.map(languageLabel).toSet().toList()
         : sellerLanguageLabels(e['supported_languages'], e['language_items']);
 
     return MarketExpertEntity(
@@ -410,7 +416,7 @@ class MarketMapper {
     return text.isEmpty ? null : text;
   }
 
-  /// Title ngôn ngữ (bảng languages), seller cũ chưa liên kết thì hiện mã.
+  /// Title ngôn ngữ (bảng languages), seller cũ chưa liên kết thì tên theo mã ("English").
   static List<String> sellerLanguageLabels(Object? codes, Object? items) {
     final out = <String>[];
     void push(String? v) {
@@ -420,13 +426,15 @@ class MarketMapper {
     final list = _list(items).map(_map).nonNulls.toList();
     if (list.isNotEmpty) {
       for (final item in list) {
-        push(_text(item['title']) ?? _text(item['code'])?.toUpperCase());
+        final v = _text(item['title']) ?? _text(item['code']);
+        push(v == null ? null : languageLabel(v));
       }
       return out;
     }
     final raw = codes is String ? codes.split(',') : _list(codes);
     for (final c in raw) {
-      push(_text(c)?.toUpperCase());
+      final v = _text(c);
+      push(v == null ? null : languageLabel(v));
     }
     return out;
   }
@@ -662,7 +670,8 @@ class MarketMapper {
   static MarketServiceEntity medicalService(Map<String, dynamic> s) {
     final base = service(s);
     final org = _map(s['organization']);
-    final orgCountry = label(_map(org?['country']));
+    final orgCountryMap = _map(org?['country']);
+    final orgCountry = label(orgCountryMap);
     final shop = _text(org?['name']) ?? base.seller.shopName;
     final seller = base.seller;
     return MarketServiceEntity(
@@ -678,6 +687,9 @@ class MarketMapper {
       coverage: base.coverage,
       languages: null,
       place: orgCountry ?? seller.country,
+      placeFlag: orgCountry != null
+          ? flagUrl(orgCountryMap?['flag'], orgCountryMap?['code'])
+          : seller.flag,
       seller: MarketSeller(
         id: seller.id ?? _int(s['user_id']),
         shopName: shop,
@@ -809,31 +821,7 @@ class MarketMapper {
   }
 
   /// Tên ngôn ngữ từ mã ISO (web dùng `Intl.DisplayNames`).
-  static String languageName(String code) =>
-      _languageNames[code.toLowerCase()] ?? code.toUpperCase();
-
-  static const _languageNames = {
-    'en': 'English',
-    'vi': 'Vietnamese',
-    'th': 'Thai',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'zh': 'Chinese',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'ru': 'Russian',
-    'ar': 'Arabic',
-    'pt': 'Portuguese',
-    'it': 'Italian',
-    'hi': 'Hindi',
-    'id': 'Indonesian',
-    'ms': 'Malay',
-    'tr': 'Turkish',
-    'hu': 'Hungarian',
-    'nl': 'Dutch',
-    'pl': 'Polish',
-  };
+  static String languageName(String code) => languageLabel(code);
 
   /// Mã vùng từ bảng countries: mỗi mã một lựa chọn, giữ thứ tự API (web `phoneCodeOptions`).
   static List<PhoneCodeOption> phoneCodes(
