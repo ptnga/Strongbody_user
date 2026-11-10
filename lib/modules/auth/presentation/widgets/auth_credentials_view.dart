@@ -8,7 +8,6 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
-import '../../domain/usecases/auth_use_cases.dart';
 import '../bloc/auth/auth_bloc.dart';
 import 'auth_fields.dart';
 
@@ -142,14 +141,6 @@ class _AuthCredentialsViewState extends State<AuthCredentialsView> {
               onPressed: _submit,
             ),
             AuthFormError(error: state.formError),
-            Gap(20.h),
-            AuthSocialButtons(
-              enabled: !state.isSubmitting,
-              onGoogle: () =>
-                  bloc.add(const AuthSocialRequested(SocialProvider.google)),
-              onApple: () =>
-                  bloc.add(const AuthSocialRequested(SocialProvider.apple)),
-            ),
             Gap(22.h),
             widget.signUp
                 ? AuthSwitchLink(
