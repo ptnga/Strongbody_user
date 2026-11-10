@@ -28,7 +28,8 @@ enum AssistantMissing {
   delivery,
   price,
   verified,
-  experienced;
+  experienced,
+  distance;
 
   static AssistantMissing? fromApi(String value) {
     for (final m in values) {
@@ -47,16 +48,44 @@ class AssistantCard extends Equatable {
   final MarketOfferEntity? offer;
   final List<AssistantMissing> missing;
 
+  /// Khoảng cách tới khách (web `PlaceLine`).
+  final double? distanceKm;
+
+  /// Địa chỉ — chỉ thẻ chuyên gia (thẻ dịch vụ đã ghi địa chỉ trong card).
+  final String? address;
+
   const AssistantCard({
     required this.ref,
     this.service,
     this.seller,
     this.offer,
     this.missing = const [],
+    this.distanceKm,
+    this.address,
   });
 
+  /// Khoảng cách: dưới 10 km lấy 1 số lẻ ("2.4", ít nhất 0.1), xa hơn làm tròn (web `formatKm`).
+  static String formatKm(double km) {
+    if (km >= 10) return '${km.round()}';
+    final v = (km * 10).round() / 10;
+    final out = v < 0.1 ? 0.1 : v;
+    return out == out.roundToDouble() ? '${out.toInt()}' : '$out';
+  }
+
+  /// Dòng vị trí của thẻ dịch vụ / chuyên gia: "Hoàn Kiếm · 2.4 km away".
+  bool get hasPlaceLine =>
+      offer == null && (address != null || distanceKm != null);
+
   @override
-  List<Object?> get props => [ref, service, seller, offer, missing];
+  List<Object?> get props => [
+    ref,
+    service,
+    seller,
+    offer,
+    missing,
+    distanceKm,
+    address,
+  ];
 }
 
 /// Khu vực đã tìm quanh: `gps` = vị trí của khách, còn lại = nơi khách nêu.
@@ -64,10 +93,33 @@ class AssistantNear extends Equatable {
   final String label;
   final bool fromGps;
 
-  const AssistantNear({required this.label, required this.fromGps});
+  /// Chỉ xếp người gần lên trước (khách chỉ cần online), không lọc → không hiện dòng khu vực.
+  final bool soft;
+
+  const AssistantNear({
+    required this.label,
+    required this.fromGps,
+    this.soft = false,
+  });
+
+  /// Tên khu vực để hiện (web `NearLine`): GPS tra ngược ra địa chỉ dài → quận + thành phố
+  /// (bỏ phố / phường đầu và tên nước cuối); nơi khách tự nói → 2 phần đầu. BE để "GPS" khi
+  /// chưa tra được tên → rỗng.
+  String get displayLabel {
+    final parts = label
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final picked = fromGps && parts.length >= 3
+        ? parts.sublist(parts.length - 3, parts.length - 1)
+        : parts.take(2).toList();
+    final out = picked.join(', ');
+    return out.toUpperCase() == 'GPS' ? '' : out;
+  }
 
   @override
-  List<Object?> get props => [label, fromGps];
+  List<Object?> get props => [label, fromGps, soft];
 }
 
 /// Kết quả một lượt (BE `PublicResult`). `raw` giữ nguyên JSON để lưu hội thoại và gửi lại
@@ -87,8 +139,13 @@ class AssistantResult extends Equatable {
   final bool needsLocation;
   final AssistantNear? near;
 
-  /// Không ai trong khu vực nên đã nới vị trí (kết quả ở xa hơn / online).
+  /// Không ai trong khu vực nên đã nới vị trí (kết quả ở xa hơn / online) — chỉ tính nhóm
+  /// đang hiện thẻ.
   final bool nearRelaxed;
+
+  /// Điều kiện khách nói mà BE phải bỏ để có kết quả (web `RelaxedLine`), chỉ tính nhóm
+  /// đang hiện thẻ; vị trí có [nearRelaxed] riêng.
+  final List<AssistantMissing> relaxed;
   final List<String> suggestions;
   final String? reason;
   final Map<String, dynamic> raw;
@@ -105,6 +162,7 @@ class AssistantResult extends Equatable {
     this.needsLocation = false,
     this.near,
     this.nearRelaxed = false,
+    this.relaxed = const [],
     this.suggestions = const [],
     this.reason,
     this.raw = const {},
@@ -185,6 +243,10 @@ final class AssistantReplyTurn extends AssistantTurn {
   /// Khách bấm "Đăng yêu cầu" khi không có kết quả: form điền từ điều kiện đã hiểu.
   final RequestDraftEntity? requestDraft;
 
+  /// Lượt vừa chạy trong phiên này: chữ chạy dần. Hội thoại nạp lại thì hiện ngay cả câu
+  /// (web `live`, không lưu).
+  final bool live;
+
   const AssistantReplyTurn({
     this.branch,
     this.text = '',
@@ -194,6 +256,7 @@ final class AssistantReplyTurn extends AssistantTurn {
     this.streaming = false,
     this.error,
     this.requestDraft,
+    this.live = false,
   });
 
   bool get isEmpty => text.isEmpty && result == null && error == null;
@@ -215,6 +278,7 @@ final class AssistantReplyTurn extends AssistantTurn {
     streaming: streaming ?? this.streaming,
     error: error ?? this.error,
     requestDraft: requestDraft ?? this.requestDraft,
+    live: live,
   );
 
   @override
@@ -227,5 +291,6 @@ final class AssistantReplyTurn extends AssistantTurn {
     streaming,
     error,
     requestDraft,
+    live,
   ];
 }

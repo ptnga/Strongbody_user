@@ -115,8 +115,11 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.text('home 0'), findsOneWidget);
-    // Home: không có thanh dưới (prototype).
-    expect(find.byType(AppBottomNav), findsNothing);
+    // Home cũng có thanh dưới (như fly-bar của web).
+    expect(
+      tester.widget<AppBottomNav>(find.byType(AppBottomNav)).current,
+      AppTab.home,
+    );
 
     // Bấm tab trên thanh: Account → bar đánh dấu đúng tab, nút Speak hiện.
     router.go(AppTab.messages.location);
@@ -130,6 +133,6 @@ void main() {
       tester.widget<AppBottomNav>(find.byType(AppBottomNav)).current,
       AppTab.account,
     );
-    expect(find.text('navSpeak'), findsOneWidget);
+    expect(find.text('navGetHelp'), findsOneWidget);
   });
 }

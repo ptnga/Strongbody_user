@@ -37,6 +37,9 @@ abstract class AuthRepository {
     required String newPassword,
   });
 
+  /// Web `useEmailDomainValidation` (MX record). Không bao giờ lỗi: không rõ → `valid` null.
+  Future<({bool? valid, String? error})> verifyEmailDomain(String email);
+
   Future<Either<Failure, AuthSession>> loginWithGoogle();
 
   Future<Either<Failure, AuthSession>> loginWithApple();

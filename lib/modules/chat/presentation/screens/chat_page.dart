@@ -25,6 +25,7 @@ import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../domain/entities/chat_message_entity.dart';
 import '../bloc/chat/chat_bloc.dart';
+import '../chat_card_pairing.dart';
 import '../chat_formatters.dart';
 import '../chat_page_args.dart';
 import '../chat_read_aloud.dart';
@@ -189,9 +190,7 @@ class _ChatPageState extends State<ChatPage> {
         () {
           if (!mounted) return;
           final current = context.read<ChatBloc>().state;
-          final t = current.autoTranslate
-              ? current.translations[message.id]
-              : null;
+          final t = current.translationFor(message);
           final reader = _readAloud ??= getIt<ChatReadAloud>();
           if (message.type == ChatMessageType.voice) {
             reader.enqueue(audioUrl: t?.audioUrl ?? message.voice?.url);
@@ -412,6 +411,8 @@ class _ChatPageState extends State<ChatPage> {
       );
     }
     final readId = state.readMessageId;
+    // Thẻ + lời nhắn gửi liền nhau (inquiry) hiện gộp một bong bóng (web).
+    final pairing = ChatCardPairing.of(messages);
     return ListView.builder(
       controller: _scroll,
       reverse: true,
@@ -425,6 +426,7 @@ class _ChatPageState extends State<ChatPage> {
           );
         }
         final message = messages[index];
+        if (pairing.hidden.contains(message.id)) return const SizedBox.shrink();
         final older = index + 1 < messages.length ? messages[index + 1] : null;
         final newDay =
             older == null ||
@@ -445,12 +447,11 @@ class _ChatPageState extends State<ChatPage> {
                   key: ValueKey(message.id),
                   message: message,
                   mine: mine,
-                  translation: state.autoTranslate
-                      ? state.translations[message.id]
-                      : null,
+                  translation: state.translationFor(message),
                   showOriginal: state.showOriginal.contains(message.id),
                   read: message.id == readId,
                   partner: state.session?.partner,
+                  attachedCard: pairing.attached[message.id],
                   onToggleOriginal: () => context.read<ChatBloc>().add(
                     ChatOriginalToggled(message.id),
                   ),

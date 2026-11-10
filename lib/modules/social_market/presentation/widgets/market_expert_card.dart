@@ -11,6 +11,7 @@ import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 import '../../domain/entities/market_listing_entities.dart';
 import '../market_formatters.dart';
 import 'engagement_widgets.dart';
+import 'market_service_card.dart' show MarketVerifiedAvatar;
 import 'market_ui.dart';
 
 /// Card hồ sơ (web `ExpertCard` biến thể `profile`): avatar + tên (+ Licence
@@ -161,4 +162,223 @@ class MarketExpertCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Card chân dung của lưới trang category + listing provider (web `ExpertCard`
+/// biến thể `spotlight`): căn giữa — avatar 72 (đã xác minh: viền + huy hiệu số mục ở
+/// góc), tên 2 dòng, nghề / tổ chức · số năm, cờ + nước · ngôn ngữ, rating, giới thiệu
+/// 2 dòng. Chỉ có nút lưu (không like).
+class MarketExpertSpotlightCard extends StatelessWidget {
+  final MarketExpertEntity expert;
+  final VoidCallback? onTap;
+
+  const MarketExpertSpotlightCard({
+    super.key,
+    required this.expert,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final e = expert;
+    final name = e.name.isEmpty ? LocaleKeys.marketFallbackSeller.tr() : e.name;
+    final subtitle =
+        e.subtitle ??
+        (e.medicalTravel ? LocaleKeys.marketMedicalTravel.tr() : null) ??
+        (e.representativeOf != null
+            ? LocaleKeys.marketCardRepresentativeOf.tr(
+                namedArgs: {'org': e.representativeOf!},
+              )
+            : e.independent
+            ? LocaleKeys.marketCardIndependent.tr()
+            : null);
+    // Tổ chức khác tên provider thì đứng thay nghề.
+    final profession = e.organization != null && e.organization != e.name
+        ? e.organization
+        : subtitle;
+    final years = MarketFormatters.years(e.yearsOfExperience);
+    final languages = e.languages.join(', ');
+    final v = e.cardVerifications;
+    final metaStyle = AppTextStyle.lightBodyMediumRegular.copyWith(
+      color: Colour.textSecondary,
+    );
+
+    return MarketCard(
+      onTap: onTap,
+      padding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 16.h),
+            child: Column(
+              children: [
+                MarketVerifiedAvatar(
+                  name: name,
+                  avatar: e.avatar,
+                  size: 72,
+                  verified: v?.any ?? false,
+                  badge: v == null ? null : _VerificationBadge(v),
+                ),
+                Gap(12.h),
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyle.lightBodyLargeSemiBold.copyWith(
+                    color: Colour.textPrimary,
+                  ),
+                ),
+                if (profession != null || years.isNotEmpty) ...[
+                  Gap(2.h),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        if (profession != null)
+                          TextSpan(
+                            text: profession,
+                            style: AppTextStyle.lightBodyMediumMedium.copyWith(
+                              color: Colour.buttonPrimary,
+                            ),
+                          ),
+                        if (profession != null && years.isNotEmpty)
+                          const TextSpan(text: '\u00a0· '),
+                        if (years.isNotEmpty) TextSpan(text: years),
+                      ],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: metaStyle,
+                  ),
+                ],
+                if (e.country != null || languages.isNotEmpty) ...[
+                  Gap(6.h),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        if (e.country != null) ...[
+                          if (e.flag != null)
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Padding(
+                                padding: EdgeInsets.only(right: 6.w),
+                                child: CountryFlag(e.flag),
+                              ),
+                            ),
+                          TextSpan(text: e.country),
+                        ],
+                        if (e.country != null && languages.isNotEmpty)
+                          const TextSpan(text: '\u00a0· '),
+                        if (languages.isNotEmpty) ...[
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: EdgeInsets.only(right: 4.w),
+                              child: Icon(
+                                Icons.language,
+                                size: 16.r,
+                                color: Colour.textSecondary,
+                              ),
+                            ),
+                          ),
+                          TextSpan(text: languages),
+                        ],
+                      ],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: metaStyle,
+                  ),
+                ],
+                if (e.hasRating) ...[
+                  Gap(4.h),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star_rounded, size: 16.r, color: Colour.amber),
+                      Gap(2.w),
+                      Text(
+                        e.ratingValue.toStringAsFixed(1),
+                        style: AppTextStyle.lightBodyMediumMedium.copyWith(
+                          color: Colour.textPrimary,
+                        ),
+                      ),
+                      Text(' (${e.ratingCount})', style: metaStyle),
+                    ],
+                  ),
+                ],
+                Gap(8.h),
+                // Giới thiệu 2 dòng — luôn giữ chỗ để các card thẳng hàng.
+                Text(
+                  '${e.about ?? ''}\n',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                    color: Colour.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: 4.h,
+            right: 4.w,
+            child: MarketEngagementButtons(id: e.id),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Huy hiệu xác minh gọn ở góc avatar (web `VerificationSummary compact`): icon
+/// verified + chấm số mục đã xác minh.
+class _VerificationBadge extends StatelessWidget {
+  final MarketVerifications v;
+
+  const _VerificationBadge(this.v);
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: EdgeInsets.all(2.r),
+    decoration: const BoxDecoration(
+      color: Colour.surface,
+      shape: BoxShape.circle,
+    ),
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(
+          Icons.verified,
+          size: 18.r,
+          color: Colour.buttonPrimary,
+          semanticLabel: LocaleKeys.marketCardVerified.tr(),
+        ),
+        Positioned(
+          right: -4.r,
+          bottom: -4.r,
+          child: Container(
+            width: 12.r,
+            height: 12.r,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colour.textPrimary,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colour.surface),
+            ),
+            child: Text(
+              '${v.count}',
+              style: AppTextStyle.lightBodyXSmallMedium.copyWith(
+                color: Colour.surface,
+                height: 1,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

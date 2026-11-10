@@ -20,7 +20,13 @@ class VoiceNote {
 /// tiếng → mọi lỗi ở đây đều bỏ qua, request vẫn đi tiếp chỉ là không có voice note.
 abstract class VoiceNoteRecorder {
   /// `false` = không ghi được (bị chặn / máy không cho ghi song song).
-  Future<bool> start();
+  ///
+  /// [standalone] = chỉ ghi âm (nút "Get help", web `useVoiceCapture`): tự xin quyền micro
+  /// và tự quản lý audio session (không chạy cùng nhận dạng giọng nói trên máy).
+  Future<bool> start({bool standalone = false});
+
+  /// Độ lớn tiếng 0–1 (~12 lần/giây) trong lúc ghi — để vẽ sóng âm.
+  Stream<double> get levels;
 
   Future<void> pause();
 
@@ -42,12 +48,28 @@ class VoiceNoteRecorderImpl implements VoiceNoteRecorder {
   String? _path;
 
   @override
-  Future<bool> start() async {
+  Stream<double> get levels {
+    final recorder = _recorder;
+    if (recorder == null) return const Stream.empty();
+    // dBFS (-60 im lặng … 0 lớn nhất) → 0–1.
+    return recorder
+        .onAmplitudeChanged(const Duration(milliseconds: 80))
+        .map((a) => ((a.current + 60) / 60).clamp(0.0, 1.0));
+  }
+
+  @override
+  Future<bool> start({bool standalone = false}) async {
     await discard();
     try {
       final recorder = AudioRecorder();
       _recorder = recorder;
-      if (Platform.isIOS) await recorder.ios?.manageAudioSession(false);
+      if (standalone && !await recorder.hasPermission()) {
+        await _disposeRecorder();
+        return false;
+      }
+      if (!standalone && Platform.isIOS) {
+        await recorder.ios?.manageAudioSession(false);
+      }
       final dir = await getTemporaryDirectory();
       final path =
           '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';

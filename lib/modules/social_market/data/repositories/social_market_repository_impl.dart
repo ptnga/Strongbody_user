@@ -7,6 +7,7 @@ import 'package:strongbody_buyer/core/network/exception.dart';
 import 'package:strongbody_buyer/core/utils/app_logger.dart';
 import 'package:strongbody_buyer/modules/chat/domain/usecases/chat_use_cases.dart';
 
+import '../../domain/entities/market_category.dart';
 import '../../domain/entities/market_feed_entities.dart';
 import '../../domain/entities/market_inquiry.dart';
 import '../../domain/entities/market_listing_entities.dart';
@@ -67,28 +68,82 @@ class SocialMarketRepositoryImpl implements SocialMarketRepository {
     required int page,
     required int limit,
     bool newestFirst = false,
+    MarketPageScope? scope,
+    String? orderBy,
+    String? orderDir,
+    String? language,
   }) => _guard(() async {
-    final raw = await _remote.getServices({
-      'page': ?(page > 1 || newestFirst ? page : null),
-      'limit': limit,
-      if (newestFirst) ...{'order_by': 'created_at', 'order_dir': 'DESC'},
-      'category_slug': categorySlug,
-    });
+    final raw = await _remote.getServices(
+      servicesQuery(
+        categorySlug: categorySlug,
+        page: page,
+        limit: limit,
+        newestFirst: newestFirst,
+        scope: scope,
+        orderBy: orderBy,
+        orderDir: orderDir,
+        language: language,
+      ),
+    );
     return _page(raw, MarketMapper.service);
   }, 'Cannot load services');
+
+  /// Query `/public/services` như web: listing (`fetchServicesPage`) luôn gửi `page` +
+  /// mới nhất trước, sắp xếp riêng thắng mặc định; mục Services (`fetchCategoryPackages`)
+  /// chỉ gửi `page` từ trang 2.
+  static Map<String, dynamic> servicesQuery({
+    String categorySlug = '',
+    required int page,
+    required int limit,
+    bool newestFirst = false,
+    MarketPageScope? scope,
+    String? orderBy,
+    String? orderDir,
+    String? language,
+  }) {
+    final listing = newestFirst || orderBy != null;
+    return {
+      'page': ?(page > 1 || listing ? page : null),
+      'limit': limit,
+      if (listing) ...{
+        'order_by': orderBy ?? 'created_at',
+        'order_dir': orderDir ?? 'DESC',
+      },
+      ...?scope?.servicesScope,
+      if (scope == null) 'category_slug': categorySlug,
+      'language': ?language,
+    };
+  }
+
+  /// Query `/expert/balanced` của listing / section Experts (web `fetchProvidersPage`).
+  static Map<String, dynamic> expertsQuery({
+    String categorySlug = '',
+    required int page,
+    required int limit,
+    MarketPageScope? scope,
+  }) => {
+    'page': page,
+    'limit': limit,
+    ...?scope?.providersScope,
+    if (scope == null) 'category_slug': categorySlug,
+    'sort': 'score_rank',
+  };
 
   @override
   Future<Either<Failure, MarketPage<MarketExpertEntity>>> getExperts({
     required String categorySlug,
     required int page,
     required int limit,
+    MarketPageScope? scope,
   }) => _guard(() async {
-    final raw = await _remote.getExperts({
-      'page': page,
-      'limit': limit,
-      'category_slug': categorySlug,
-      'sort': 'score_rank',
-    });
+    final raw = await _remote.getExperts(
+      expertsQuery(
+        categorySlug: categorySlug,
+        page: page,
+        limit: limit,
+        scope: scope,
+      ),
+    );
     return _page(raw, MarketMapper.expert);
   }, 'Cannot load providers');
 

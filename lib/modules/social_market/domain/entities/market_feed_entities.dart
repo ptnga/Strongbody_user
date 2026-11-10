@@ -192,6 +192,9 @@ class HealthSolutionEntity extends Equatable {
   List<Object?> get props => [id, title];
 }
 
+/// Người vừa trả lời một request (avatar ở dải hoạt động của thẻ request).
+typedef EngagementContact = ({String name, String? avatar});
+
 /// Số like / save / contact + trạng thái của mình (`/user/engagement/summary`).
 class EngagementState extends Equatable {
   final int likes;
@@ -200,12 +203,24 @@ class EngagementState extends Equatable {
   final bool liked;
   final bool saved;
 
+  /// Mình đã liên hệ item này (`my_state.contacted`).
+  final bool contacted;
+
+  /// Request: số người bấm "Me too" + mình đã bấm chưa + vài người vừa trả lời.
+  final int similars;
+  final bool similar;
+  final List<EngagementContact> recentContacts;
+
   const EngagementState({
     this.likes = 0,
     this.saves = 0,
     this.contacts = 0,
     this.liked = false,
     this.saved = false,
+    this.contacted = false,
+    this.similars = 0,
+    this.similar = false,
+    this.recentContacts = const [],
   });
 
   static const empty = EngagementState();
@@ -216,23 +231,38 @@ class EngagementState extends Equatable {
     int? contacts,
     bool? liked,
     bool? saved,
+    bool? contacted,
   }) => EngagementState(
     likes: likes ?? this.likes,
     saves: saves ?? this.saves,
     contacts: contacts ?? this.contacts,
     liked: liked ?? this.liked,
     saved: saved ?? this.saved,
+    contacted: contacted ?? this.contacted,
+    similars: similars,
+    similar: similar,
+    recentContacts: recentContacts,
   );
 
   @override
-  List<Object?> get props => [likes, saves, contacts, liked, saved];
+  List<Object?> get props => [
+    likes,
+    saves,
+    contacts,
+    liked,
+    saved,
+    similars,
+    similar,
+    recentContacts,
+  ];
 }
 
 /// `target_type` của engagement — đúng giá trị web truyền.
 enum EngagementTarget {
   service('service'),
   sellerProfile('seller_profile'),
-  offer('offer');
+  offer('offer'),
+  request('request');
 
   final String apiValue;
 

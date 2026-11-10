@@ -83,7 +83,7 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
       'category_id': draft.assistant.categoryIds.firstOrNull,
     });
     context.push(
-      RouteName.requestReview,
+      RouteName.postRequest,
       extra: PostRequestFlowArgs(
         draft: draft,
         attachmentPaths: widget.args.attachmentPaths,
@@ -236,7 +236,8 @@ class _EmptyChat extends StatelessWidget {
 
   const _EmptyChat({required this.onAsk});
 
-  static final _ellipsis = RegExp(r'(\.{3}|…)$');
+  /// Như web `ex.replace(/\.{3}|…$/, '')`.
+  static final _ellipsis = RegExp(r'\.{3}|…$');
 
   @override
   Widget build(BuildContext context) {
@@ -269,7 +270,7 @@ class _EmptyChat extends StatelessWidget {
                     MarketFilterChip(
                       label: ex,
                       selected: false,
-                      onTap: () => onAsk(ex.replaceAll(_ellipsis, '')),
+                      onTap: () => onAsk(ex.replaceFirst(_ellipsis, '')),
                     ),
                 ],
               ),

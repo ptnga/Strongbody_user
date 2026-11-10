@@ -2,19 +2,25 @@ import 'package:fpdart/fpdart.dart';
 
 import 'package:strongbody_buyer/core/base/failure.dart';
 
+import '../entities/market_category.dart';
 import '../entities/market_feed_entities.dart';
 import '../entities/market_inquiry.dart';
 import '../entities/market_listing_entities.dart';
 import '../entities/medical_travel_entities.dart';
 
 abstract class SocialMarketRepository {
-  /// Service theo category. `newestFirst` = listing (web `fetchServicesPage`);
-  /// không có = mục Selling (web `fetchCategoryPackages`, thứ tự mặc định BE).
+  /// Service theo category. `newestFirst` / [orderBy] = web `fetchServicesPage`
+  /// (luôn gửi `page`); không có = mục Services (web `fetchCategoryPackages`, thứ tự
+  /// mặc định BE). [scope] thắng [categorySlug].
   Future<Either<Failure, MarketPage<MarketServiceEntity>>> getServices({
     required String categorySlug,
     required int page,
     required int limit,
     bool newestFirst = false,
+    MarketPageScope? scope,
+    String? orderBy,
+    String? orderDir,
+    String? language,
   });
 
   /// Seller của category, xếp `score_rank`.
@@ -22,6 +28,7 @@ abstract class SocialMarketRepository {
     required String categorySlug,
     required int page,
     required int limit,
+    MarketPageScope? scope,
   });
 
   Future<Either<Failure, MarketPage<MarketOfferEntity>>> getPublicOffers({

@@ -34,6 +34,18 @@ class LionPointsBloc extends BlocWithApi<LionPointsEvent, LionPointsState> {
       param: const NoParams(),
       onSuccess: (result) async {
         emit(state.copyWith(wallet: result.wallet));
+        // Chưa có ví (404) → 0 điểm, lịch sử trống (web `EMPTY_WALLET`).
+        if (!result.wallet.exists) {
+          emit(
+            state.copyWith(
+              status: LionPointsStatus.success,
+              items: const [],
+              page: 1,
+              hasMore: false,
+            ),
+          );
+          return;
+        }
         await _load(emit, 1);
       },
       onFailure: (_) => emit(state.copyWith(status: LionPointsStatus.failure)),
@@ -44,7 +56,11 @@ class LionPointsBloc extends BlocWithApi<LionPointsEvent, LionPointsState> {
     LionPointsLoadMore event,
     Emitter<LionPointsState> emit,
   ) async {
-    if (!state.hasMore || state.isLoadingMore || state.wallet == null) return;
+    if (!state.hasMore ||
+        state.isLoadingMore ||
+        !(state.wallet?.exists ?? false)) {
+      return;
+    }
     emit(state.copyWith(isLoadingMore: true));
     await _load(emit, state.page + 1);
   }

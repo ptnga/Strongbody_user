@@ -14,8 +14,8 @@ import 'package:strongbody_buyer/core/domain/global_dependencies.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
+import 'package:strongbody_buyer/modules/post_request/presentation/widgets/voice/get_help_sheet.dart';
 
 import '../bloc/conversations/conversations_bloc.dart';
 import '../chat_page_args.dart';
@@ -87,11 +87,9 @@ class _MessagesPageState extends State<MessagesPage> {
                       onChanged: (q) => context.read<ConversationsBloc>().add(
                         ConversationsQueryChanged(q),
                       ),
-                      // Mic đỏ = màn nói yêu cầu như Home (nút Speak).
-                      onMic: () => context.push(
-                        RouteName.voiceRequest,
-                        extra: const VoiceRequestPageArgs(source: 'messages'),
-                      ),
+                      // Mic = nói yêu cầu như nút "Get help".
+                      onMic: () =>
+                          showGetHelpSheet(context, source: 'messages'),
                     ),
                   ],
                 ),
@@ -105,7 +103,7 @@ class _MessagesPageState extends State<MessagesPage> {
                     }
                     final items = state.visibleItems;
                     final people = state.visiblePeople;
-                    final searching = state.query.trim().length >= 2;
+                    final searching = state.query.trim().isNotEmpty;
                     final me = gs.userId ?? 0;
                     final empty =
                         items.isEmpty && people.isEmpty && !state.isSearching;

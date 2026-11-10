@@ -17,7 +17,16 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     final body = await _apiClient.request(
       path: HomeApiConfig.sentOffersByMyRequests,
       method: ApiType.get,
-      queryParameters: {'status': 'pending', 'page': 1, 'limit': 1},
+      // Cùng query với tab "Pending" của web Received offers (`BuyerListOffer`):
+      // offer từ request + chat, chỉ cần `total`.
+      queryParameters: {
+        'status': 'pending',
+        'source': 'request,chat',
+        'order_by': 'created_at',
+        'order_dir': 'desc',
+        'page': 1,
+        'limit': 1,
+      },
     );
     // `{ data: { list, total, total_page } }`
     final data = body is Map ? body['data'] : null;

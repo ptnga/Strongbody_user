@@ -29,11 +29,11 @@ void openMarketAssistant(
   );
 }
 
-/// Gửi từ khối cuối mục Requests / "Request similar" → trợ lý AI soạn request ("Here's
-/// what I heard"), như web gửi sang `/request-assistant`.
+/// Gửi từ khối cuối mục Requests / "Request similar" → AI soạn form "Post a request",
+/// như web gửi sang `/request-assistant`.
 void openMarketRequest(BuildContext context, String text, List<String> files) {
   context.push(
-    RouteName.requestHeard,
+    RouteName.postRequest,
     extra: PostRequestFlowArgs(text: text, attachmentPaths: files),
   );
 }

@@ -11,6 +11,9 @@ abstract class AssistantRepository {
     String? timezone,
     Map<String, dynamic>? previous,
     String? previousText,
+
+    /// Điều kiện đã gộp sẵn (bỏ qua LLM, tìm thẳng) — web trang matches lượt 2.
+    Map<String, dynamic>? understanding,
     CancelToken? cancelToken,
   });
 

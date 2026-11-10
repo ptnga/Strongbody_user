@@ -10,6 +10,9 @@ class AssistantChatParams {
   /// Điều kiện của lần tìm gần nhất: khách nói "rẻ hơn" thì BE sửa tiếp trên đó.
   final Map<String, dynamic>? previous;
   final String? previousText;
+
+  /// Điều kiện đã gộp sẵn → BE bỏ qua LLM, tìm thẳng.
+  final Map<String, dynamic>? understanding;
   final CancelToken? cancelToken;
 
   const AssistantChatParams({
@@ -17,6 +20,7 @@ class AssistantChatParams {
     required this.language,
     this.previous,
     this.previousText,
+    this.understanding,
     this.cancelToken,
   });
 }
@@ -32,6 +36,7 @@ class StreamAssistantChatUseCase {
     language: params.language,
     previous: params.previous,
     previousText: params.previousText,
+    understanding: params.understanding,
     cancelToken: params.cancelToken,
   );
 }

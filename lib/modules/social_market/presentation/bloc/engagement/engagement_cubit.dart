@@ -91,6 +91,20 @@ class EngagementCubit extends Cubit<EngagementCubitState> {
   }
 
   /// Gọi khi đã đăng nhập (card tự mở popup đăng nhập cho khách).
+  /// Vừa gửi inquiry thành công → +1 "contacted" ngay trên card (web `markContacted`).
+  void markContacted(int id) {
+    final cur = state.of(id);
+    if (cur.contacted) return;
+    emit(
+      state.copyWith(
+        items: {
+          ...state.items,
+          id: cur.copyWith(contacted: true, contacts: cur.contacts + 1),
+        },
+      ),
+    );
+  }
+
   Future<void> toggle(int id, EngagementKind kind) async {
     final key = '$id:${kind.name}';
     if (state.pending.contains(key)) return;

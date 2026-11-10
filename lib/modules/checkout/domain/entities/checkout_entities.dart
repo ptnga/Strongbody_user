@@ -50,3 +50,39 @@ class OfferPaymentRequest extends Equatable {
     paymentMethodId,
   ];
 }
+
+/// Offer đọc lại lúc mở checkout (web `getOfferById` → `/user/offer/{id}`): chặn offer đã
+/// trả / đã huỷ, lấy điểm + voucher đã áp mới nhất.
+class CheckoutOfferSnapshot extends Equatable {
+  final String status;
+  final String paymentStatus;
+  final double? price;
+  final int pointsUsed;
+  final double pointsValue;
+  final double voucherValue;
+  final String? voucherCode;
+
+  const CheckoutOfferSnapshot({
+    this.status = '',
+    this.paymentStatus = '',
+    this.price,
+    this.pointsUsed = 0,
+    this.pointsValue = 0,
+    this.voucherValue = 0,
+    this.voucherCode,
+  });
+
+  bool get isPaid => paymentStatus == 'paid';
+  bool get isCancelled => status == 'cancelled' || status == 'canceled';
+
+  @override
+  List<Object?> get props => [
+    status,
+    paymentStatus,
+    price,
+    pointsUsed,
+    pointsValue,
+    voucherValue,
+    voucherCode,
+  ];
+}

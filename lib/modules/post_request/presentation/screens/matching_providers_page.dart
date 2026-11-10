@@ -24,15 +24,15 @@ import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 import '../../domain/entities/provider_entity.dart';
 import '../../domain/entities/provider_refine_query.dart';
 import '../bloc/matching_providers/matching_providers_bloc.dart';
-import '../bloc/post_request_flow/post_request_flow_bloc.dart';
+import '../post_request_flow_args.dart';
+import '../widgets/voice/get_help_sheet.dart';
 import '../matching_providers_page_args.dart';
 import '../voice_request_page_args.dart';
 import '../widgets/providers/provider_card.dart';
 import '../widgets/providers/provider_formatters.dart';
 
-/// "Browse matching providers". browse: Request offer → request gửi riêng cho người đó
-/// (sang Review), Post request → đăng cho mọi provider phù hợp;
-/// choose: chọn nhiều rồi "Done" (chế độ "Only providers I choose" của Review).
+/// "Matching providers": duyệt provider theo nghề. Request offer → form "Post a request"
+/// gửi riêng cho người đó (`/buyer/request/to-seller`); Post request → nút "Get help".
 class MatchingProvidersPage extends StatefulWidget {
   final MatchingProvidersPageArgs args;
 
@@ -44,8 +44,6 @@ class MatchingProvidersPage extends StatefulWidget {
 
 class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
   final _scrollController = ScrollController();
-
-  bool get _choosing => widget.args.mode == MatchingProvidersMode.choose;
 
   @override
   void initState() {
@@ -96,7 +94,7 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
       RouteName.chat,
       extra: ChatPageArgs(
         partnerId: provider.userId,
-        name: provider.name,
+        name: ProviderFormatters.name(provider),
         avatar: provider.avatarUrl,
         profession: provider.profession,
         source: 'providers',
@@ -108,81 +106,44 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
     AppAnalytics.capture(AnalyticsEvents.providerRequestOfferTapped, {
       'provider_id': provider.userId,
     });
-    context.read<PostRequestFlowBloc>().add(
-      PostRequestFlowProvidersSelected([provider]),
+    context.push(
+      RouteName.postRequest,
+      extra: PostRequestFlowArgs(
+        sellerUserIds: [provider.userId],
+        sellerName: ProviderFormatters.name(provider),
+      ),
     );
-    context.push(RouteName.requestReview);
   }
 
-  /// "Not sure who to pick? · Post request" → Review của chính request này, đăng cho mọi
-  /// provider phù hợp — như nút "Post request & get offers" ở màn Heard (bỏ provider
-  /// đã chọn bằng "Request offer" trước đó).
+  /// "Not sure who to pick? · Post request" → nói / gõ yêu cầu (như nút "Get help").
   void _postToAll() {
     AppAnalytics.capture(AnalyticsEvents.providersPostToAllTapped, {
       'match_count': context.read<MatchingProvidersBloc>().state.matchCount,
     });
-    context.read<PostRequestFlowBloc>()
-      ..add(const PostRequestFlowProvidersSelected([]))
-      ..add(
-        const PostRequestFlowVisibilityChanged(RequestVisibility.allMatching),
-      );
-    context.push(RouteName.requestReview);
-  }
-
-  void _done(List<ProviderEntity> providers) {
-    AppAnalytics.capture(AnalyticsEvents.providersSelectionDone, {
-      'count': providers.length,
-    });
-    context.read<PostRequestFlowBloc>().add(
-      PostRequestFlowProvidersSelected(providers),
-    );
-    context.pop();
+    showGetHelpSheet(context, source: 'providers');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Back hệ thống (Android) đi cùng đường với nút back ở header.
-    return PopScope(
-      canPop: !widget.args.backToHeard,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) context.pushReplacement(RouteName.requestHeard);
-      },
-      child: Scaffold(
-        backgroundColor: theme.background(context),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _SearchHeader(
-                // Mở từ ô tìm ở Home → back về "Here's what I heard" của câu đó (prototype).
-                onBack: () => widget.args.backToHeard
-                    ? context.pushReplacement(RouteName.requestHeard)
-                    : context.pop(),
-                // Mic đỏ = nói yêu cầu mới như Home (nút Speak). `go` để bỏ luồng hiện tại
-                // (ShellRoute) — request mới dựng PostRequestFlowBloc mới. Lọc bằng giọng
-                // nói vẫn ở thẻ "Refine by voice". Về Home rồi mở màn nói (Home nằm dưới).
-                onMic: () {
-                  final router = GoRouter.of(context);
-                  router.go(RouteName.rootScreen);
-                  WidgetsBinding.instance.addPostFrameCallback(
-                    (_) => router.push(
-                      RouteName.voiceRequest,
-                      extra: const VoiceRequestPageArgs(source: 'providers'),
-                    ),
-                  );
-                },
+    return Scaffold(
+      backgroundColor: theme.background(context),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _SearchHeader(
+              onBack: () => context.pop(),
+              onMic: () => showGetHelpSheet(context, source: 'providers'),
+            ),
+            const _FilterChips(),
+            Divider(height: 1, color: theme.border(context)),
+            Expanded(
+              child: BlocBuilder<MatchingProvidersBloc, MatchingProvidersState>(
+                builder: (context, state) => _buildList(context, state),
               ),
-              const _FilterChips(),
-              Divider(height: 1, color: theme.border(context)),
-              Expanded(
-                child:
-                    BlocBuilder<MatchingProvidersBloc, MatchingProvidersState>(
-                      builder: (context, state) => _buildList(context, state),
-                    ),
-              ),
-              _choosing ? _buildDoneBar(context) : _buildPostBar(context),
-            ],
-          ),
+            ),
+            _buildPostBar(context),
+          ],
         ),
       ),
     );
@@ -280,7 +241,6 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
             ProviderCard(
               provider: provider,
               extras: state.extras[provider.id],
-              selected: _choosing ? state.isSelected(provider) : null,
               onToggleSelect: () => context.read<MatchingProvidersBloc>().add(
                 MatchingProvidersToggled(provider),
               ),
@@ -347,40 +307,6 @@ class _MatchingProvidersPageState extends State<MatchingProvidersPage> {
                 child: Text(LocaleKeys.providersPostRequest.tr()),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDoneBar(BuildContext context) {
-    final theme = Theme.of(context);
-    return BlocSelector<
-      MatchingProvidersBloc,
-      MatchingProvidersState,
-      List<ProviderEntity>
-    >(
-      selector: (state) => state.selected,
-      builder: (context, selected) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
-          child: SizedBox(
-            width: double.infinity,
-            height: 50.h,
-            child: FilledButton(
-              onPressed: () => _done(selected),
-              style: FilledButton.styleFrom(
-                backgroundColor: theme.secondary(context),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                textStyle: AppTextStyle.lightBodyMediumBold,
-              ),
-              child: Text(
-                LocaleKeys.providersDone.tr(args: ['${selected.length}']),
-              ),
-            ),
           ),
         ),
       ),

@@ -81,6 +81,7 @@ class _FakeRepo implements AssistantRepository {
     String? timezone,
     Map<String, dynamic>? previous,
     String? previousText,
+    Map<String, dynamic>? understanding,
     CancelToken? cancelToken,
   }) {
     requests.add({

@@ -14,20 +14,16 @@ import 'package:strongbody_buyer/modules/home/presentation/bloc/home/home_bloc.d
 import 'package:strongbody_buyer/modules/post_request/data/mappers/post_request_mapper.dart';
 import 'package:strongbody_buyer/modules/post_request/data/models/response/request_draft_response_dto.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/my_request_entity.dart';
+import 'package:strongbody_buyer/modules/post_request/domain/entities/posted_request_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/provider_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/provider_keyword.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/provider_refine_query.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_draft_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_form_values.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/repositories/post_request_repository.dart';
-import 'package:strongbody_buyer/modules/post_request/domain/usecases/create_buyer_request_use_case.dart';
-import 'package:strongbody_buyer/modules/post_request/domain/usecases/draft_request_use_case.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/usecases/get_provider_extras_use_case.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/usecases/search_providers_use_case.dart';
-import 'package:strongbody_buyer/modules/post_request/domain/usecases/transcribe_audio_use_case.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/bloc/matching_providers/matching_providers_bloc.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/bloc/post_request_flow/post_request_flow_bloc.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/post_request_flow_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 
 class _FakeStorage implements GlobalStorage {
@@ -122,7 +118,7 @@ class _FakePostRequestRepository implements PostRequestRepository {
   }
 
   @override
-  Future<Either<Failure, String?>> createBuyerRequest({
+  Future<Either<Failure, CreatedRequest>> createBuyerRequest({
     required int userId,
     required RequestFormValues values,
     RequestAssistantMeta? assistant,
@@ -132,7 +128,7 @@ class _FakePostRequestRepository implements PostRequestRepository {
     createdDescription = values.description;
     createdSellerIds = sellerUserIds;
     createdVoice = values.voicePath;
-    return const Right('active');
+    return const Right(CreatedRequest(id: 42, status: 'active'));
   }
 
   @override
@@ -196,29 +192,22 @@ class _FakePostRequestRepository implements PostRequestRepository {
     required int userId,
     int page = 1,
     int limit = 20,
+    bool? isPrivate,
   }) async => const Right(MyRequestPage(items: [], totalPage: 1));
 
   @override
   Future<Either<Failure, List<RequestOfferEntity>>> getRequestOffers(
     int requestId,
   ) async => const Right([]);
+
+  @override
+  Future<Either<Failure, SentRequest>> getSentRequest(int id) async =>
+      Left(NotFoundFailure('none'));
+
+  @override
+  Future<Either<Failure, List<CurrencyOption>>> getCurrencies() async =>
+      const Right([]);
 }
-
-PostRequestFlowBloc _flowBloc(
-  _FakeStorage storage,
-  PostRequestRepository repo,
-) => PostRequestFlowBloc(
-  transcribeAudio: TranscribeAudioUseCase(repo),
-  draftRequest: DraftRequestUseCase(repo),
-  searchProviders: SearchProvidersUseCase(repo),
-  createBuyerRequest: CreateBuyerRequestUseCase(repo),
-  storage: storage,
-);
-
-Future<PostRequestFlowState> _until(
-  PostRequestFlowBloc bloc,
-  bool Function(PostRequestFlowState) test,
-) => test(bloc.state) ? Future.value(bloc.state) : bloc.stream.firstWhere(test);
 
 const _provider = ProviderEntity(
   id: 1,
@@ -526,242 +515,6 @@ void main() {
       expect(ProviderRefineQuery.parse('yoga teacher').keyword, 'yoga');
       expect(ProviderRefineQuery.parse('hello there').isEmpty, isTrue);
     });
-  });
-
-  group('PostRequestFlowBloc', () {
-    test('typed text → AI draft → matching providers count', () async {
-      final repo = _FakePostRequestRepository();
-      final bloc = _flowBloc(_FakeStorage(), repo)
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'I need a physiotherapist'),
-            locale: 'en',
-          ),
-        );
-      final ready = await _until(
-        bloc,
-        (s) => !s.isAnalyzing && s.matchCount != null,
-      );
-      expect(ready.outcome, PostRequestDraftOutcome.filled);
-      expect(ready.values.description, 'Drafted: I need a physiotherapist');
-      expect(ready.assistant?.categoryIds, [96654]);
-      expect(repo.searchedKeyword, 'physiotherapist');
-      expect(ready.matchCount, 12);
-      await bloc.close();
-    });
-
-    test('voice only (no on-device text) → BE transcription first', () async {
-      final repo = _FakePostRequestRepository();
-      final bloc = _flowBloc(_FakeStorage(), repo)
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(
-              voicePath: '/tmp/voice.m4a',
-              voiceDuration: Duration(seconds: 9),
-            ),
-            locale: 'en',
-          ),
-        );
-      final ready = await _until(bloc, (s) => !s.isAnalyzing);
-      expect(repo.transcribedPath, '/tmp/voice.m4a');
-      expect(ready.transcript, 'I need a physiotherapist at home');
-      expect(ready.values.voicePath, '/tmp/voice.m4a');
-      expect(ready.values.voiceDuration, const Duration(seconds: 9));
-      await bloc.close();
-    });
-
-    test('guest submit keeps request pending', () async {
-      final storage = _FakeStorage();
-      final bloc = _flowBloc(storage, _FakePostRequestRepository())
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'Yoga'),
-            locale: 'en',
-          ),
-        );
-      await _until(bloc, (s) => !s.isAnalyzing);
-      bloc.add(const PostRequestFlowSubmitted());
-      await _until(
-        bloc,
-        (s) => s.submitStatus == PostRequestSubmitStatus.pendingAuth,
-      );
-      expect(storage.pending?['description'], 'Drafted: Yoga');
-      await bloc.close();
-    });
-
-    test('chosen providers → posted to each seller, voice kept', () async {
-      final repo = _FakePostRequestRepository();
-      final bloc = _flowBloc(_FakeStorage(loggedIn: true), repo)
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'Yoga', voicePath: '/tmp/v.m4a'),
-            locale: 'en',
-          ),
-        );
-      await _until(bloc, (s) => !s.isAnalyzing);
-      bloc
-        ..add(
-          const PostRequestFlowVisibilityChanged(
-            RequestVisibility.chosenProviders,
-          ),
-        )
-        ..add(const PostRequestFlowSubmitted());
-      await _until(bloc, (s) => s.notice == PostRequestNotice.chooseProviders);
-
-      bloc
-        ..add(const PostRequestFlowNoticeConsumed())
-        ..add(const PostRequestFlowProvidersSelected([_provider]))
-        ..add(const PostRequestFlowSubmitted());
-      await _until(
-        bloc,
-        (s) => s.submitStatus == PostRequestSubmitStatus.success,
-      );
-      expect(repo.createdSellerIds, [501]);
-      expect(repo.createdVoice, '/tmp/v.m4a');
-      await bloc.close();
-    });
-
-    test(
-      'providers "Post request" after "Request offer" posts to all',
-      () async {
-        final repo = _FakePostRequestRepository();
-        final bloc = _flowBloc(_FakeStorage(loggedIn: true), repo)
-          ..add(
-            const PostRequestFlowStarted(
-              args: PostRequestFlowArgs(text: 'Yoga', voicePath: '/tmp/v.m4a'),
-              locale: 'en',
-            ),
-          );
-        await _until(bloc, (s) => !s.isAnalyzing);
-        // "Request offer" trên một provider rồi quay lại, bấm "Post request".
-        bloc.add(const PostRequestFlowProvidersSelected([_provider]));
-        await _until(
-          bloc,
-          (s) => s.visibility == RequestVisibility.chosenProviders,
-        );
-        bloc
-          ..add(const PostRequestFlowProvidersSelected([]))
-          ..add(
-            const PostRequestFlowVisibilityChanged(
-              RequestVisibility.allMatching,
-            ),
-          );
-        final review = await _until(
-          bloc,
-          (s) =>
-              s.visibility == RequestVisibility.allMatching &&
-              s.selectedProviders.isEmpty,
-        );
-        expect(review.values.description, isNotEmpty);
-
-        bloc.add(const PostRequestFlowSubmitted());
-        await _until(
-          bloc,
-          (s) => s.submitStatus == PostRequestSubmitStatus.success,
-        );
-        expect(repo.createdSellerIds, isEmpty);
-        expect(repo.createdDescription, review.values.description);
-        expect(repo.createdVoice, '/tmp/v.m4a');
-        await bloc.close();
-      },
-    );
-
-    test('delivery is required; removing voice drops the file', () async {
-      final repo = _FakePostRequestRepository();
-      final bloc = _flowBloc(_FakeStorage(loggedIn: true), repo)
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'Yoga', voicePath: '/tmp/v.m4a'),
-            locale: 'en',
-          ),
-        );
-      final ready = await _until(bloc, (s) => !s.isAnalyzing);
-      bloc
-        ..add(
-          PostRequestFlowValuesChanged(
-            ready.values.copyWith(deliveryTypes: const []),
-          ),
-        )
-        ..add(const PostRequestFlowSubmitted());
-      await _until(bloc, (s) => s.notice == PostRequestNotice.deliveryRequired);
-
-      bloc
-        ..add(const PostRequestFlowNoticeConsumed())
-        ..add(
-          PostRequestFlowValuesChanged(
-            ready.values.copyWith(
-              deliveryTypes: const [RequestDeliveryType.remote],
-            ),
-          ),
-        )
-        ..add(const PostRequestFlowVoiceRemoved())
-        ..add(const PostRequestFlowSubmitted());
-      await _until(
-        bloc,
-        (s) => s.submitStatus == PostRequestSubmitStatus.success,
-      );
-      expect(repo.createdSellerIds, isEmpty);
-      expect(repo.createdVoice, isNull);
-      await bloc.close();
-    });
-  });
-
-  test('browse only (menu / Saved providers) skips AI analysis', () async {
-    final repo = _FakePostRequestRepository();
-    final bloc = _flowBloc(_FakeStorage(loggedIn: true), repo)
-      ..add(
-        const PostRequestFlowStarted(
-          args: PostRequestFlowArgs(browseOnly: true),
-          locale: 'en',
-        ),
-      );
-    final ready = await _until(bloc, (s) => !s.isAnalyzing);
-    expect(ready.outcome, PostRequestDraftOutcome.empty);
-    expect(ready.notice, isNull);
-    expect(repo.searchedKeyword, isNull);
-    await bloc.close();
-  });
-
-  test('voice note: remove → Undo remove keeps it on the request', () async {
-    final repo = _FakePostRequestRepository();
-    final bloc = _flowBloc(_FakeStorage(loggedIn: true), repo)
-      ..add(
-        const PostRequestFlowStarted(
-          args: PostRequestFlowArgs(
-            text: 'Yoga',
-            voicePath: '/tmp/v.m4a',
-            voiceDuration: Duration(seconds: 9),
-          ),
-          locale: 'en',
-        ),
-      );
-    await _until(bloc, (s) => !s.isAnalyzing);
-
-    bloc.add(const PostRequestFlowVoiceRemoved());
-    final removed = await _until(bloc, (s) => s.hasRemovedVoice);
-    expect(removed.values.hasVoice, isFalse);
-    expect(removed.removedVoiceDuration, const Duration(seconds: 9));
-
-    bloc.add(const PostRequestFlowVoiceRestored());
-    final restored = await _until(bloc, (s) => !s.hasRemovedVoice);
-    expect(restored.values.voicePath, '/tmp/v.m4a');
-    expect(restored.values.voiceDuration, const Duration(seconds: 9));
-
-    bloc
-      ..add(
-        PostRequestFlowValuesChanged(
-          restored.values.copyWith(
-            deliveryTypes: const [RequestDeliveryType.remote],
-          ),
-        ),
-      )
-      ..add(const PostRequestFlowSubmitted());
-    await _until(
-      bloc,
-      (s) => s.submitStatus == PostRequestSubmitStatus.success,
-    );
-    expect(repo.createdVoice, '/tmp/v.m4a');
-    await bloc.close();
   });
 
   group('MatchingProvidersBloc', () {

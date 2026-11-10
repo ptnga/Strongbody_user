@@ -12,6 +12,12 @@ class AssistantRateLimitException implements Exception {
   const AssistantRateLimitException();
 }
 
+/// Stream đóng mà chưa có event `done` (proxy cắt, BE sập giữa chừng): coi như lỗi, cho
+/// thử lại (web `AssistantIncompleteError`).
+class AssistantIncompleteException implements Exception {
+  const AssistantIncompleteException();
+}
+
 /// Tách luồng server-sent events thành các payload `data:` (mỗi event cách nhau 1 dòng trống).
 class SseDataParser {
   String _buffer = '';
@@ -68,7 +74,8 @@ class AssistantRemoteDataSourceImpl implements AssistantRemoteDataSource {
                 responseType: ResponseType.stream,
                 cancelToken: cancelToken,
                 timeout: _timeout,
-                skipAuth: true,
+                // Đăng nhập thì gửi Bearer (proxy chuyển tiếp): BE giới hạn số lượt theo
+                // tài khoản, rộng hơn khách vãng lai (web `accessToken`).
               )
               as ResponseBody;
     } on DioException catch (e) {
@@ -86,15 +93,20 @@ class AssistantRemoteDataSourceImpl implements AssistantRemoteDataSource {
     }
 
     final parser = SseDataParser();
+    var finished = false;
     await for (final chunk in utf8.decoder.bind(response.stream)) {
       for (final data in parser.add(chunk)) {
+        final Object? json;
         try {
-          final json = jsonDecode(data);
-          if (json is Map) yield Map<String, dynamic>.from(json);
+          json = jsonDecode(data);
         } catch (_) {
-          // Dòng hỏng: bỏ qua (như web).
+          continue; // Dòng hỏng: bỏ qua (như web).
         }
+        if (json is! Map) continue;
+        if (json['type'] == 'done') finished = true;
+        yield Map<String, dynamic>.from(json);
       }
     }
+    if (!finished) throw const AssistantIncompleteException();
   }
 }

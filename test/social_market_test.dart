@@ -36,6 +36,10 @@ class _Repo implements SocialMarketRepository {
     required int page,
     required int limit,
     bool newestFirst = false,
+    MarketPageScope? scope,
+    String? orderBy,
+    String? orderDir,
+    String? language,
   }) async {
     serviceCalls.add((
       slug: categorySlug,
@@ -61,6 +65,7 @@ class _Repo implements SocialMarketRepository {
     required String categorySlug,
     required int page,
     required int limit,
+    MarketPageScope? scope,
   }) async => failExperts
       ? Left(ServerFailure('boom'))
       : const Right(MarketPage(items: [], total: 0, totalPages: 0));
@@ -110,7 +115,7 @@ class _Repo implements SocialMarketRepository {
 
 void main() {
   group('MarketMapper.service (web ServiceCard / service-meta)', () {
-    test('giá thấp nhất trong các hình thức + "From" khi nhiều mức', () {
+    test('giá là của service (không theo hình thức nhận), không "From"', () {
       final s = MarketMapper.service({
         'id': 1,
         'title': 'Massage',
@@ -128,12 +133,14 @@ void main() {
         MarketDeliveryType.remote,
         MarketDeliveryType.atHome,
       ]);
-      expect(s.price!.text, '£45');
-      expect(s.price!.from, isTrue);
+      // Web 79f0b5c8a: giá = `price` của service, hình thức nhận không có giá riêng.
+      expect(s.price!.text, '£999');
+      expect(s.price!.from, isFalse);
+      expect(s.price!.consultation, isFalse);
       expect(s.coverage, '10 km');
       expect(s.description, 'Relax & recover');
-      // original_price cao hơn giá thấp nhất → giá gạch ngang cùng đơn vị tiền.
-      expect(s.strikePrice, '£100');
+      // original_price thấp hơn giá bán → không gạch ngang.
+      expect(s.strikePrice, isNull);
     });
 
     test('service luồng cũ: hình thức suy từ cột type, giá từ price', () {
@@ -206,12 +213,16 @@ void main() {
       ],
       'years_of_experience': 0,
     });
-    expect(e.name, 'BlueNet Hospitals');
+    // Web expertToCard: tên = tên shop của provider, organization ở dòng dưới.
+    expect(e.name, 'Dr A');
+    expect(e.organization, 'BlueNet Hospitals');
     expect(e.country, 'Mexico');
     expect(e.flag, 'https://flagcdn.com/w40/mx.png');
     expect(e.subtitle, 'Palm Reader');
     expect(e.hasRating, isTrue);
-    expect(e.verified, isTrue);
+    // `verified` = danh tính (seller_verified); chứng chỉ = mục bằng cấp.
+    expect(e.verified, isFalse);
+    expect(e.verifications?.diploma, isTrue);
     expect(e.languages, ['English']);
     expect(e.yearsOfExperience, isNull);
   });
@@ -353,28 +364,32 @@ void main() {
 
   test('CategoryMarketBloc: mục lỗi không chặn các mục khác', () async {
     final repo = _Repo()..failExperts = true;
-    final bloc = CategoryMarketBloc(
-      getServices: GetMarketServicesUseCase(repo),
-      getExperts: GetMarketExpertsUseCase(repo),
-      getOffers: GetPublicOffersUseCase(repo),
-      getRequests: GetPublicRequestsUseCase(repo),
-      getSolutions: GetHealthSolutionsUseCase(repo),
-    )..add(const CategoryMarketStarted(MarketCategory.healthProAdvisory));
+    final bloc =
+        CategoryMarketBloc(
+          getServices: GetMarketServicesUseCase(repo),
+          getExperts: GetMarketExpertsUseCase(repo),
+          getCoordinators: GetCoordinatorsUseCase(repo),
+          getDestinations: GetDestinationsUseCase(repo),
+        )..add(
+          CategoryMarketStarted(
+            MarketPageScope.of(MarketCategory.healthProAdvisory),
+            language: 'en',
+          ),
+        );
     await bloc.stream.firstWhere(
-      (s) => MarketSectionKind.values.every((k) => !s.isLoading(k)),
+      (s) => s.sections.every((k) => !s.isLoading(k)),
     );
-    expect(bloc.state.status(MarketSectionKind.sellers), SectionStatus.failure);
+    expect(bloc.state.status(MarketSectionKind.experts), SectionStatus.failure);
     expect(
       bloc.state.status(MarketSectionKind.services),
       SectionStatus.success,
     );
-    // Mục Selling: 6 service của category, thứ tự mặc định BE.
-    expect(repo.serviceCalls.single, (
-      slug: 'health-pro-advisory-1',
-      page: 1,
-      limit: 6,
-      newest: false,
-    ));
+    // Spotlight (10, quality_score) · Services (12, thứ tự BE) · ngôn ngữ (10, mới nhất).
+    expect(repo.serviceCalls, [
+      (slug: 'health-pro-advisory-1', page: 1, limit: 10, newest: false),
+      (slug: 'health-pro-advisory-1', page: 1, limit: 12, newest: false),
+      (slug: 'health-pro-advisory-1', page: 1, limit: 10, newest: true),
+    ]);
     await bloc.close();
   });
 }

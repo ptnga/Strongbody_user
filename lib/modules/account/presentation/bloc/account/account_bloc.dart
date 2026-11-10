@@ -219,10 +219,7 @@ class AccountBloc extends BlocWithApi<AccountEvent, AccountState> {
       useCase: _requestDeletion,
       param: event.password,
       onSuccess: (_) async => emit(
-        state.copyWith(
-          deleting: false,
-          notice: AccountNotice.deletionCodeSent,
-        ),
+        state.copyWith(deleting: false, notice: AccountNotice.deletionCodeSent),
       ),
       onFailure: (message) => emit(
         state.copyWith(

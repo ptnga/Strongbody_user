@@ -116,7 +116,9 @@ class _Group extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: MarketBadge(
                 LocaleKeys.assistantMissingLabel.tr(
-                  namedArgs: {'items': card.missing.map(_missing).join(', ')},
+                  namedArgs: {
+                    'items': card.missing.map(assistantMissingLabel).join(', '),
+                  },
                 ),
                 tone: MarketBadgeTone.warning,
                 icon: Icons.info_outline_rounded,
@@ -125,19 +127,62 @@ class _Group extends StatelessWidget {
             Gap(8.h),
           ],
           AssistantResultCard(card: card),
+          if (card.hasPlaceLine) ...[Gap(6.h), _PlaceLine(card: card)],
         ],
       ],
     );
   }
+}
 
-  static String _missing(AssistantMissing m) => switch (m) {
-    AssistantMissing.languages => LocaleKeys.assistantMissingLanguages.tr(),
-    AssistantMissing.gender => LocaleKeys.assistantMissingGender.tr(),
-    AssistantMissing.delivery => LocaleKeys.assistantMissingDelivery.tr(),
-    AssistantMissing.price => LocaleKeys.assistantMissingPrice.tr(),
-    AssistantMissing.verified => LocaleKeys.assistantMissingVerified.tr(),
-    AssistantMissing.experienced => LocaleKeys.assistantMissingExperienced.tr(),
-  };
+/// Nhãn điều kiện chưa khớp / đã nới (web `missing.*`).
+String assistantMissingLabel(AssistantMissing m) => switch (m) {
+  AssistantMissing.languages => LocaleKeys.assistantMissingLanguages.tr(),
+  AssistantMissing.gender => LocaleKeys.assistantMissingGender.tr(),
+  AssistantMissing.delivery => LocaleKeys.assistantMissingDelivery.tr(),
+  AssistantMissing.price => LocaleKeys.assistantMissingPrice.tr(),
+  AssistantMissing.verified => LocaleKeys.assistantMissingVerified.tr(),
+  AssistantMissing.experienced => LocaleKeys.assistantMissingExperienced.tr(),
+  AssistantMissing.distance => LocaleKeys.assistantMissingDistance.tr(),
+};
+
+/// Dòng vị trí của thẻ (web `PlaceLine`): khoảng cách tới khách; thẻ chuyên gia ghi cả địa
+/// chỉ (thẻ dịch vụ đã có địa chỉ trong card).
+class _PlaceLine extends StatelessWidget {
+  final AssistantCard card;
+
+  const _PlaceLine({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    final km = card.distanceKm;
+    final text = [
+      ?card.address,
+      if (km != null)
+        LocaleKeys.assistantDistanceAway.tr(
+          namedArgs: {'km': AssistantCard.formatKm(km)},
+        ),
+    ].join(' · ');
+    return Row(
+      children: [
+        Icon(
+          Icons.location_on_outlined,
+          size: 16.r,
+          color: Colour.textSecondary,
+        ),
+        Gap(6.w),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyle.lightBodySmallRegular.copyWith(
+              color: Colour.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Một thẻ: dùng lại card Social Market, ẩn like / save (web `showEngagement={false}`).

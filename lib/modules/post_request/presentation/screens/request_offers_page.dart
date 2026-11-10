@@ -23,6 +23,7 @@ import '../../domain/entities/my_request_entity.dart';
 import '../bloc/request_offers/request_offers_bloc.dart';
 import '../request_offers_page_args.dart';
 import '../request_formatters.dart';
+import '../widgets/my_requests/my_request_formatters.dart';
 import '../widgets/my_requests/offer_card.dart';
 
 /// "Offers" — mọi offer provider gửi cho một request; chưa có thì báo chưa có offer.
@@ -214,7 +215,7 @@ void _reply(BuildContext context, RequestOfferEntity offer) {
     RouteName.chat,
     extra: ChatPageArgs(
       partnerId: sellerId,
-      name: offer.sellerName,
+      name: MyRequestFormatters.sellerName(offer),
       avatar: offer.sellerAvatar,
       profession: offer.profession,
       focusOfferId: offer.id,

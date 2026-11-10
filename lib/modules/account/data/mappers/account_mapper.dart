@@ -43,6 +43,22 @@ class AccountMapper {
     );
   }
 
+  /// Field của web `updateBuyerProfile` (FormData): tên chỉ gửi khi có giá trị (`if
+  /// (firstName)`), `city` luôn gửi — rỗng = xoá.
+  static Map<String, String> profileForm({
+    required String firstName,
+    required String lastName,
+    required String city,
+  }) {
+    final first = firstName.trim();
+    final last = lastName.trim();
+    return {
+      if (first.isNotEmpty) 'first_name': first,
+      if (last.isNotEmpty) 'last_name': last,
+      'city': city.trim(),
+    };
+  }
+
   static LionWallet? wallet(Map<String, dynamic> json) {
     final id = _int(json['id']);
     if (id == null) return null;
@@ -50,6 +66,9 @@ class AccountMapper {
       id: id,
       points: _int(json['balanceCents'] ?? json['balance_cents']) ?? 0,
       expiringPoints: _int(json['expiredCents'] ?? json['expired_cents']) ?? 0,
+      expiresAt: DateTime.tryParse(
+        _str(json['expiresAt'] ?? json['expires_at']) ?? '',
+      )?.toLocal(),
     );
   }
 
@@ -72,6 +91,7 @@ class AccountMapper {
       amount: _int(json['amountCents'] ?? json['amount_cents']) ?? 0,
       source: _str(json['source']) ?? '',
       reason: _str(json['reason']) ?? '',
+      idempotencyKey: _str(json['idempotencyKey']) ?? '',
       at: DateTime.tryParse(
         _str(json['eventAt'] ?? json['createdAt']) ?? '',
       )?.toLocal(),

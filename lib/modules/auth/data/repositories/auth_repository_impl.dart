@@ -23,15 +23,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
   }) => _guard(() async {
-    // Giống body web gửi `/v1/public/auth/sign-up` (form chỉ có email + mật khẩu → tên rỗng).
+    // Giống body web `BuyerSignUpForm` → `/api/auth/signup` → `/v1/public/auth/sign-up`: form
+    // chỉ có email + mật khẩu nên web không gửi `username` / `full_name` (undefined); IP lỗi → ''.
     await _remote.signUp({
       'email': email,
       'password': password,
-      'username': '',
-      'full_name': '',
       'language_code': _storage.locale,
       'referral_code': _storage.referralCode ?? '',
-      'ip_address': await _remote.publicIp() ?? 'Not Available',
+      'ip_address': await _remote.publicIp() ?? '',
       'attribution': const <String, dynamic>{},
     });
     return unit;
@@ -85,6 +84,16 @@ class AuthRepositoryImpl implements AuthRepository {
   );
 
   @override
+  Future<({bool? valid, String? error})> verifyEmailDomain(String email) async {
+    try {
+      return await _remote.verifyEmailDomain(email);
+    } catch (_) {
+      // Như web: lỗi mạng / route lỗi → "chưa rõ", không chặn đăng ký.
+      return (valid: null, error: null);
+    }
+  }
+
+  @override
   Future<Either<Failure, AuthSession>> loginWithGoogle() => _guard(() async {
     final idToken = await _social.googleIdToken();
     return _persist(await _remote.loginGoogle(idToken));
@@ -118,6 +127,9 @@ class AuthRepositoryImpl implements AuthRepository {
       email: dto.email,
     );
     AuthEventBus.emit(const UserLoggedIn());
+    // Web gọi `submitApplyJob('', email)` sau mọi lần đăng ký / đăng nhập thành công.
+    final leadEmail = dto.email ?? '';
+    if (leadEmail.isNotEmpty) _remote.applyJob(leadEmail).ignore();
     return AuthSession(
       userId: userId,
       name: name.isEmpty ? null : name,

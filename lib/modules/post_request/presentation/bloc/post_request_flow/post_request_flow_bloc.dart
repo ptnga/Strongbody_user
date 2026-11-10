@@ -8,40 +8,53 @@ import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
 import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/bloc/abstract_bloc_with_api.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
+import 'package:strongbody_buyer/core/usecases/usecase.dart';
 
-import '../../../domain/entities/provider_keyword.dart';
 import '../../../domain/entities/post_request_failure.dart';
-import '../../../domain/entities/provider_entity.dart';
+import '../../../domain/entities/posted_request_entity.dart';
 import '../../../domain/entities/request_draft_entity.dart';
 import '../../../domain/entities/request_form_values.dart';
 import '../../../domain/usecases/create_buyer_request_use_case.dart';
 import '../../../domain/usecases/draft_request_use_case.dart';
-import '../../../domain/usecases/search_providers_use_case.dart';
+import '../../../domain/usecases/get_currencies_use_case.dart';
 import '../../../domain/usecases/transcribe_audio_use_case.dart';
 import '../../post_request_flow_args.dart';
 
 part 'post_request_flow_event.dart';
 part 'post_request_flow_state.dart';
 
-/// Luồng Post Request sau khi nói / gõ yêu cầu — dùng chung cho các màn
-/// "Here's what I heard" → "Review your request" → "Request posted" (ShellRoute).
+/// Màn "Post a request" (web `/request-assistant`): form hiện ngay (đang khoá) kèm
+/// thanh tiến trình trong lúc AI xử lý (giọng nói → text → LLM), AI xong thì form mở
+/// với nội dung đã điền để người dùng kiểm tra rồi đăng.
 ///
-/// API giống web (`useRequestDraft` + `useCreateRequest`) và Multime (`voice` file):
-/// (giọng nói → text) → `/api/ai/request-draft` → `/public/profiles?keyword=`
-/// → `POST /buyer/request` hoặc `/buyer/request/to-seller`.
+/// Giống web `useRequestDraft` + `useCreateRequest`: `/speech-to-text` →
+/// `/api/ai/request-draft` → `POST /buyer/request` (hoặc `/to-seller`); chưa đăng nhập
+/// thì giữ request, đăng ký / đăng nhập xong đăng tiếp.
 class PostRequestFlowBloc
     extends BlocWithApi<PostRequestFlowEvent, PostRequestFlowState> {
   final TranscribeAudioUseCase _transcribeAudio;
   final DraftRequestUseCase _draftRequest;
-  final SearchProvidersUseCase _searchProviders;
   final CreateBuyerRequestUseCase _createBuyerRequest;
+  final GetCurrenciesUseCase _getCurrencies;
   final GlobalStorage _storage;
 
-  /// Người dùng sửa form (Review mở từ Providers) trong lúc AI còn phân tích → không để
-  /// bản nháp AI ghi đè.
-  bool _editedDuringAnalysis = false;
+  /// Mốc % của từng bước: giọng nói → text 3–40%, AI soạn form 40–95%.
+  static const _stepRange = {
+    PostRequestDraftStep.transcribing: (3.0, 40.0),
+    PostRequestDraftStep.drafting: (40.0, 95.0),
+  };
+  static const _tick = Duration(milliseconds: 120);
 
-  /// Seller đã nhận request (gửi lần lượt) → bấm Post lại sau lỗi không gửi trùng.
+  /// Giữ thanh 100% thêm một nhịp trước khi mở form để mắt kịp thấy "xong".
+  static const finishHold = Duration(milliseconds: 450);
+
+  Timer? _ticker;
+  List<int> _sellerUserIds = const [];
+
+  /// Bản ghi chỉ để chuyển chữ (không kèm request) — xoá khi đóng màn.
+  String? _tempAudio;
+
+  /// Seller đã nhận request (gửi lần lượt) → bấm gửi lại sau lỗi không gửi trùng.
   final _postedSellerIds = <int>{};
 
   Future<void> Function(String description)? _onPosted;
@@ -49,42 +62,42 @@ class PostRequestFlowBloc
   PostRequestFlowBloc({
     required TranscribeAudioUseCase transcribeAudio,
     required DraftRequestUseCase draftRequest,
-    required SearchProvidersUseCase searchProviders,
     required CreateBuyerRequestUseCase createBuyerRequest,
+    required GetCurrenciesUseCase getCurrencies,
     required GlobalStorage storage,
   }) : _transcribeAudio = transcribeAudio,
        _draftRequest = draftRequest,
-       _searchProviders = searchProviders,
        _createBuyerRequest = createBuyerRequest,
+       _getCurrencies = getCurrencies,
        _storage = storage,
        super(const PostRequestFlowState()) {
     on<PostRequestFlowStarted>(_onStarted);
     on<PostRequestFlowValuesChanged>((event, emit) {
-      if (state.isAnalyzing) _editedDuringAnalysis = true;
-      emit(state.copyWith(values: event.values));
+      if (!state.isWorking) emit(state.copyWith(values: event.values));
     });
-    on<PostRequestFlowVisibilityChanged>(
-      (event, emit) => emit(state.copyWith(visibility: event.visibility)),
-    );
-    on<PostRequestFlowProvidersSelected>(
-      (event, emit) => emit(
-        state.copyWith(
-          selectedProviders: event.providers,
-          visibility: event.providers.isEmpty
-              ? state.visibility
-              : RequestVisibility.chosenProviders,
-        ),
-      ),
-    );
-    on<PostRequestFlowCategoryChanged>((event, emit) {
-      final meta = state.assistant;
+    on<_PostRequestFlowTicked>((event, emit) {
+      final step = state.step;
+      if (!state.isWorking || step == null) return;
+      final cap = _stepRange[step]!.$2;
+      if (state.progress >= cap - 0.5) return;
       emit(
         state.copyWith(
-          assistant: RequestAssistantMeta(
-            categoryIds: [event.categoryId],
-            qualityScore: meta?.qualityScore,
-            suggestion: meta?.suggestion ?? '',
-          ),
+          progress: state.progress + (cap - state.progress) * 0.06,
+        ),
+      );
+    });
+    on<_PostRequestFlowCurrenciesLoaded>((event, emit) {
+      // Tiền chọn sẵn chưa có id → điền id khi danh sách tải xong (web `CurrencySelect`).
+      final values = state.values;
+      final match = event.currencies
+          .where((c) => c.code == values.currency)
+          .firstOrNull;
+      emit(
+        state.copyWith(
+          currencies: event.currencies,
+          values: values.currencyId == null && match != null
+              ? values.copyWith(currencyId: match.id)
+              : values,
         ),
       );
     });
@@ -126,59 +139,75 @@ class PostRequestFlowBloc
   ) async {
     final args = event.args;
     _onPosted = args.onPosted;
-    var text = args.text.trim();
-    emit(
-      state.copyWith(
-        analysisStatus: PostRequestAnalysisStatus.analyzing,
-        transcript: text,
-        languageCode: args.languageCode,
-        values: RequestFormValues(
-          description: text,
-          attachmentPaths: args.attachmentPaths,
-          voicePath: args.voicePath,
-          voiceDuration: args.voiceDuration,
-        ),
-      ),
+    _sellerUserIds = args.sellerUserIds;
+    if (!args.attachVoice) _tempAudio = args.audioPath;
+    unawaited(_loadCurrencies());
+
+    // Request mới: Working language mặc định = ngôn ngữ giao diện (gửi riêng 1 provider
+    // thì không có ô này); voice note chỉ kèm khi bật "Attach my voice to requests".
+    final base = RequestFormValues(
+      description: args.text.trim(),
+      sellerLanguages: args.isSend ? const [] : [event.locale.split('-').first],
+      attachmentPaths: args.attachmentPaths,
+      voicePath: args.attachVoice ? args.audioPath : null,
+      voiceDuration: args.attachVoice ? args.voiceDuration : null,
     );
 
-    // Chat trợ lý đã soạn sẵn form: dùng luôn bản nháp, không gọi AI lại.
-    final prefilled = args.draft;
-    if (prefilled != null) {
+    final draft = args.draft;
+    final prefill = args.prefill;
+    if (draft != null || prefill != null) {
       emit(
         state.copyWith(
           analysisStatus: PostRequestAnalysisStatus.ready,
-          transcript: prefilled.values.description,
-          values: prefilled.values.copyWith(
-            attachmentPaths: args.attachmentPaths,
-          ),
-          outcome: prefilled.isEmpty
+          progress: 100,
+          values: draft != null
+              ? draft.values.copyWith(attachmentPaths: args.attachmentPaths)
+              : prefill!.copyWith(sellerLanguages: base.sellerLanguages),
+          outcome: draft == null || draft.isEmpty
               ? PostRequestDraftOutcome.empty
               : PostRequestDraftOutcome.filled,
-          assistant: prefilled.assistant,
+          assistant: draft?.assistant,
         ),
       );
-      await _countMatchingProviders(emit, prefilled.values.description);
       return;
     }
 
-    // Chỉ duyệt provider: không có gì để phân tích.
-    if (args.browseOnly) {
+    var text = base.description;
+    final audio = args.audioPath;
+    if (text.isEmpty && audio == null) {
       emit(
         state.copyWith(
           analysisStatus: PostRequestAnalysisStatus.ready,
-          outcome: PostRequestDraftOutcome.empty,
+          progress: 100,
+          values: base,
+          outcome: PostRequestDraftOutcome.none,
         ),
       );
       return;
     }
 
-    // Máy chưa nhận ra chữ nhưng có voice note → chuyển chữ qua BE (BE tự nhận diện ngôn ngữ).
-    final voicePath = args.voicePath;
-    if (text.isEmpty && voicePath != null) {
+    _startTicker();
+    if (text.isNotEmpty) {
+      // Hiện sẵn câu đã gõ trong form (đang khoá) trong lúc chờ AI.
+      emit(
+        state.copyWith(
+          step: PostRequestDraftStep.drafting,
+          progress: _stepRange[PostRequestDraftStep.drafting]!.$1 / 4,
+          values: base,
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          step: PostRequestDraftStep.transcribing,
+          progress: _stepRange[PostRequestDraftStep.transcribing]!.$1,
+          values: base,
+        ),
+      );
       PostRequestNotice? notice;
       await callApi(
         useCase: _transcribeAudio,
-        param: TranscribeAudioParams(voicePath),
+        param: TranscribeAudioParams(audio!),
         onSuccess: (transcript) async => text = transcript.trim(),
         onFailure: (_) => notice ??= PostRequestNotice.transcribeFailed,
         onFailureTyped: (failure) {
@@ -189,62 +218,93 @@ class PostRequestFlowBloc
       );
       if (notice == null && text.isEmpty) notice = PostRequestNotice.emptyVoice;
       if (notice != null) {
-        emit(
-          state.copyWith(
-            analysisStatus: PostRequestAnalysisStatus.ready,
-            outcome: PostRequestDraftOutcome.failed,
-            notice: notice,
-          ),
+        await _finish(
+          emit,
+          values: base,
+          outcome: PostRequestDraftOutcome.failed,
+          notice: notice,
         );
         _trackAnalysis(transcribed: false);
         return;
       }
       emit(
         state.copyWith(
-          transcript: text,
-          values: state.values.copyWith(description: text),
+          step: PostRequestDraftStep.drafting,
+          progress: _stepRange[PostRequestDraftStep.drafting]!.$1,
         ),
       );
     }
 
-    RequestDraftEntity? draft;
+    RequestDraftEntity? result;
     await callApi(
       useCase: _draftRequest,
       param: DraftRequestParams(text: text, locale: event.locale),
-      onSuccess: (result) async => draft = result,
+      onSuccess: (draft) async => result = draft,
       onFailure: (_) {},
     );
-
-    final result = draft;
-    if (result == null) {
-      emit(
-        state.copyWith(
-          analysisStatus: PostRequestAnalysisStatus.ready,
-          outcome: PostRequestDraftOutcome.failed,
-          notice: PostRequestNotice.draftFailed,
-        ),
+    final drafted = result;
+    if (drafted == null) {
+      await _finish(
+        emit,
+        values: base.copyWith(description: text),
+        outcome: PostRequestDraftOutcome.failed,
+        notice: PostRequestNotice.draftFailed,
       );
     } else {
-      emit(
-        state.copyWith(
-          analysisStatus: PostRequestAnalysisStatus.ready,
-          values: _editedDuringAnalysis
-              ? state.values
-              : result.values.copyWith(
-                  attachmentPaths: state.values.attachmentPaths,
-                  voicePath: state.values.voicePath,
-                  voiceDuration: state.values.voiceDuration,
-                ),
-          outcome: result.isEmpty
-              ? PostRequestDraftOutcome.empty
-              : PostRequestDraftOutcome.filled,
-          assistant: result.assistant,
+      await _finish(
+        emit,
+        values: drafted.values.copyWith(
+          attachmentPaths: base.attachmentPaths,
+          voicePath: base.voicePath,
+          voiceDuration: base.voiceDuration,
         ),
+        outcome: drafted.isEmpty
+            ? PostRequestDraftOutcome.empty
+            : PostRequestDraftOutcome.filled,
+        assistant: drafted.assistant,
       );
     }
+    _trackAnalysis(transcribed: audio != null && args.text.trim().isEmpty);
+  }
 
-    await _countMatchingProviders(emit, text);
-    _trackAnalysis(transcribed: voicePath != null && args.text.trim().isEmpty);
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(_tick, (_) {
+      if (!isClosed) add(const _PostRequestFlowTicked());
+    });
+  }
+
+  /// Thanh lên 100%, giữ một nhịp rồi mở form với kết quả.
+  Future<void> _finish(
+    Emitter<PostRequestFlowState> emit, {
+    required RequestFormValues values,
+    required PostRequestDraftOutcome outcome,
+    RequestAssistantMeta? assistant,
+    PostRequestNotice? notice,
+  }) async {
+    _ticker?.cancel();
+    emit(state.copyWith(progress: 100));
+    await Future<void>.delayed(finishHold);
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        analysisStatus: PostRequestAnalysisStatus.ready,
+        clearStep: true,
+        values: values,
+        outcome: outcome,
+        assistant: assistant,
+        notice: notice,
+      ),
+    );
+  }
+
+  /// Danh sách tiền + id của tiền đang chọn (gửi kèm `currency_id`).
+  Future<void> _loadCurrencies() async {
+    final result = await _getCurrencies(const NoParams());
+    if (isClosed) return;
+    result.match((_) {}, (list) {
+      if (list.isNotEmpty) add(_PostRequestFlowCurrenciesLoaded(list));
+    });
   }
 
   void _trackAnalysis({required bool transcribed}) {
@@ -253,63 +313,42 @@ class PostRequestFlowBloc
       'notice': state.notice?.name,
       'has_voice': state.values.hasVoice,
       'transcribed': transcribed,
-      'match_count': state.matchCount,
       'category_id': state.assistant?.categoryIds.firstOrNull,
       'quality_score': state.assistant?.qualityScore,
     });
   }
 
   Map<String, Object?> _requestProperties(RequestFormValues values) => {
-    'visibility': state.visibility.name,
-    'providers_selected': state.visibility == RequestVisibility.chosenProviders
-        ? state.selectedProviders.length
-        : 0,
+    'send_to_providers': _sellerUserIds.length,
     'has_voice': values.hasVoice,
     'attachments_count': values.attachmentPaths.length,
     'delivery_types': values.deliveryTypes.map((t) => t.apiValue).join(','),
     'has_budget': values.budget.trim().isNotEmpty,
-    'has_schedule': values.deadline != null || !values.isScheduleEmpty,
+    'anonymous': values.anonymous,
+    'languages': values.sellerLanguages.join(','),
+    'similar_to': values.similarToRequestId,
     'category_id': state.assistant?.categoryIds.firstOrNull,
   };
-
-  /// "12 providers match" — tổng kết quả của `/public/profiles?keyword=<tên nghề>`.
-  Future<void> _countMatchingProviders(
-    Emitter<PostRequestFlowState> emit,
-    String text,
-  ) async {
-    final keyword = ProviderKeyword.fromText(
-      '$text ${state.values.description}',
-      state.assistant?.categoryIds ?? const [],
-    );
-    if (keyword == null) return;
-    emit(state.copyWith(providerKeyword: keyword));
-    await callApi(
-      useCase: _searchProviders,
-      param: SearchProvidersParams(keyword: keyword, limit: 1),
-      onSuccess: (page) async => emit(state.copyWith(matchCount: page.total)),
-      onFailure: (_) {},
-    );
-  }
 
   Future<void> _onSubmitted(
     PostRequestFlowSubmitted event,
     Emitter<PostRequestFlowState> emit,
   ) async {
-    if (state.isAnalyzing || state.isSubmitting) return;
+    if (state.isWorking || state.isSubmitting) return;
     final values = state.values.copyWith(
       description: state.values.description.trim(),
     );
 
-    final notice = values.description.isEmpty
-        ? PostRequestNotice.descriptionRequired
-        : values.deliveryTypes.isEmpty
-        ? PostRequestNotice.deliveryRequired
-        : state.visibility == RequestVisibility.chosenProviders &&
-              state.selectedProviders.isEmpty
-        ? PostRequestNotice.chooseProviders
-        : null;
-    if (notice != null) {
-      emit(state.copyWith(notice: notice));
+    final notice = switch (RequestFormValues.descriptionError(
+      values.description,
+    )) {
+      DescriptionError.required => PostRequestNotice.descriptionRequired,
+      DescriptionError.tooShort => PostRequestNotice.descriptionTooShort,
+      DescriptionError.tooLong => PostRequestNotice.descriptionTooLong,
+      null => null,
+    };
+    if (notice != null || !RequestFormValues.isValidBudgetText(values.budget)) {
+      if (notice != null) emit(state.copyWith(notice: notice));
       return;
     }
 
@@ -318,8 +357,7 @@ class PostRequestFlowBloc
       // Chưa đăng nhập: giữ nội dung (trừ file) — đăng nhập xong sẽ đăng tiếp.
       await _storage.savePendingRequest({
         ...values.toStorageJson(),
-        'visibility': state.visibility.name,
-        'sellerUserIds': state.selectedProviders.map((p) => p.userId).toList(),
+        'sellerUserIds': _sellerUserIds,
         if (state.assistant != null)
           'assistant': {
             'categoryIds': state.assistant!.categoryIds,
@@ -327,7 +365,7 @@ class PostRequestFlowBloc
             'suggestion': state.assistant!.suggestion,
           },
       });
-      // Lần trước đã đóng popup đăng ký → về idle trước để màn Review mở lại popup.
+      // Lần trước đã đóng popup đăng ký → về idle trước để màn mở lại popup.
       if (state.submitStatus == PostRequestSubmitStatus.pendingAuth) {
         emit(state.copyWith(submitStatus: PostRequestSubmitStatus.idle));
       }
@@ -340,15 +378,13 @@ class PostRequestFlowBloc
       return;
     }
 
-    final chosen = state.visibility == RequestVisibility.chosenProviders;
     final sellerIds = [
-      if (chosen)
-        for (final p in state.selectedProviders)
-          if (!_postedSellerIds.contains(p.userId)) p.userId,
+      for (final id in _sellerUserIds)
+        if (!_postedSellerIds.contains(id)) id,
     ];
-    // Mọi provider đã chọn đều đã nhận ở lần trước → xong; KHÔNG gửi danh sách rỗng
+    // Mọi provider đã nhận ở lần trước → xong; KHÔNG gửi danh sách rỗng
     // (rỗng = đăng công khai cho mọi provider).
-    if (chosen && sellerIds.isEmpty) {
+    if (_sellerUserIds.isNotEmpty && sellerIds.isEmpty) {
       await _storage.clearPendingRequest();
       emit(
         state.copyWith(
@@ -373,13 +409,18 @@ class PostRequestFlowBloc
         sellerUserIds: sellerIds,
         onSellerPosted: _postedSellerIds.add,
       ),
-      onSuccess: (status) async {
+      onSuccess: (created) async {
         AppAnalytics.capture(AnalyticsEvents.requestPosted, {
-          'status': status,
+          'status': created.status,
           ..._requestProperties(values),
         });
         await _storage.clearPendingRequest();
-        emit(state.copyWith(submitStatus: PostRequestSubmitStatus.success));
+        emit(
+          state.copyWith(
+            submitStatus: PostRequestSubmitStatus.success,
+            created: created,
+          ),
+        );
         final onPosted = _onPosted;
         _onPosted = null;
         if (onPosted != null) unawaited(onPosted(values.description));
@@ -400,10 +441,15 @@ class PostRequestFlowBloc
     );
   }
 
-  /// Bỏ file ghi âm của luồng (đã gửi lên BE hoặc người dùng bỏ dở / nói lại).
+  /// Bỏ file ghi âm của luồng (đã gửi lên BE hoặc người dùng bỏ dở).
   @override
   Future<void> close() async {
-    for (final path in {state.values.voicePath, state.removedVoicePath}) {
+    _ticker?.cancel();
+    for (final path in {
+      state.values.voicePath,
+      state.removedVoicePath,
+      _tempAudio,
+    }) {
       if (path == null) continue;
       try {
         final file = File(path);

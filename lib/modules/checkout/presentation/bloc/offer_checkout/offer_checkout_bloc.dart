@@ -25,16 +25,21 @@ class OfferCheckoutBloc
   final PayOfferUseCase _payOffer;
   final GetLionPointsUseCase _getLionPoints;
 
+  /// Đọc lại offer lúc mở (web `getOfferById`); null = bỏ bước kiểm tra.
+  final GetCheckoutOfferUseCase? _getOffer;
+
   OfferCheckoutBloc({
     required this.offer,
     required GetPaymentCardsUseCase getCards,
     required AddPaymentCardUseCase addCard,
     required PayOfferUseCase payOffer,
     required GetLionPointsUseCase getLionPoints,
+    GetCheckoutOfferUseCase? getOffer,
   }) : _getCards = getCards,
        _addCard = addCard,
        _payOffer = payOffer,
        _getLionPoints = getLionPoints,
+       _getOffer = getOffer,
        super(const OfferCheckoutState()) {
     on<OfferCheckoutStarted>(_onStarted);
     on<OfferCheckoutCardSelected>(
@@ -52,11 +57,36 @@ class OfferCheckoutBloc
 
   OfferCheckoutQuote get quote => OfferCheckoutQuote.of(offer, state);
 
+  /// Web `voucher?.code || offer.voucher_code || null`.
+  String? get _voucherCode => state.snapshot?.voucherCode ?? offer.voucherCode;
+
   Future<void> _onStarted(
     OfferCheckoutStarted event,
     Emitter<OfferCheckoutState> emit,
   ) async {
+    final getOffer = _getOffer;
     await Future.wait([
+      // Web `/checkout/offer`: offer đã trả / đã huỷ → không cho thanh toán. Lỗi mạng
+      // không chặn (dùng offer đang có).
+      if (getOffer != null)
+        callApi(
+          useCase: getOffer,
+          param: offer.id,
+          onSuccess: (fresh) async {
+            if (fresh.isPaid) OfferPaymentGuard.markSubmitted(offer.id);
+            emit(
+              state.copyWith(
+                snapshot: fresh,
+                blocked: fresh.isPaid
+                    ? OfferCheckoutBlocked.alreadyPaid
+                    : fresh.isCancelled
+                    ? OfferCheckoutBlocked.cancelled
+                    : null,
+              ),
+            );
+          },
+          onFailure: (_) {},
+        ),
       callApi(
         useCase: _getCards,
         param: const NoParams(),
@@ -72,7 +102,7 @@ class OfferCheckoutBloc
           final usable = OfferCheckoutQuote.usablePoints(
             wallet: result.wallet.points,
             valueOfPoint: result.pointValue,
-            price: offer.price ?? 0,
+            price: state.snapshot?.price ?? offer.price ?? 0,
           );
           emit(
             state.copyWith(
@@ -86,7 +116,13 @@ class OfferCheckoutBloc
         onFailure: (_) {},
       ),
     ]);
-    emit(state.copyWith(status: OfferCheckoutStatus.ready));
+    emit(
+      state.copyWith(
+        status: state.blocked != null
+            ? OfferCheckoutStatus.unavailable
+            : OfferCheckoutStatus.ready,
+      ),
+    );
   }
 
   Future<void> _onAddCard(
@@ -147,7 +183,7 @@ class OfferCheckoutBloc
       'points_used': q.points,
       'points_value': q.pointsDiscount,
       'currency': 'USD',
-      'voucher': offer.voucherCode,
+      'voucher': _voucherCode,
       'method': q.isFree ? 'free' : 'card',
     };
     AppAnalytics.capture(AnalyticsEvents.checkoutPayTapped, payment);
@@ -158,7 +194,7 @@ class OfferCheckoutBloc
         offerId: offer.id,
         pointsUsed: q.points,
         pointsValue: q.pointsDiscount,
-        voucherCode: offer.voucherCode,
+        voucherCode: _voucherCode,
         paymentMethodId: q.isFree ? null : state.selectedCardId,
       ),
       onSuccess: (result) async {

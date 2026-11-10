@@ -10,7 +10,11 @@ final class UserLoggedIn extends AuthEvent {
 }
 
 final class UserLoggedOut extends AuthEvent {
-  const UserLoggedOut();
+  /// `true` = hết phiên (BE từ chối refresh token), không phải tự bấm Log out → shell mở lại
+  /// đăng nhập như web `RefreshTokenGuard` (`signOut({ callbackUrl: '/login' })`).
+  final bool expired;
+
+  const UserLoggedOut({this.expired = false});
 }
 
 /// Đổi tên / ảnh ở Account → Home làm mới lời chào, avatar.

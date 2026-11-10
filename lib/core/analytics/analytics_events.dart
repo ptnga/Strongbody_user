@@ -8,7 +8,8 @@ abstract final class AnalyticsEvents {
   /// Mở app (sau khi PostHog khởi tạo).
   static const appOpen = 'app_open';
 
-  /// Đăng xuất (tự bấm hoặc hết phiên). Sau event này PostHog reset danh tính.
+  /// Đăng xuất. `reason` manual|session_expired (BE từ chối refresh token).
+  /// Sau event này PostHog reset danh tính.
   static const userLoggedOut = 'user_logged_out';
 
   // ---------------------------------------------------------------- home

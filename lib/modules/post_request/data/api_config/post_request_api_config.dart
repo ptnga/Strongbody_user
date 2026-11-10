@@ -12,6 +12,12 @@ class PostRequestApiConfig {
   /// Gửi request riêng cho một seller (`seller_id`, `is_privated=true`) — web `sendRequestToSeller`.
   static const String buyerRequestToSeller = '/buyer/request/to-seller';
 
+  /// Một request của buyer (web `getRequestById`) — trang "Providers for your request".
+  static String request(int id) => '/user/request/$id';
+
+  /// Bảng `currencies` (không cần đăng nhập — web `getCurrencies`).
+  static const String currencies = '/admin/currencies';
+
   /// Request của buyer (Multime `request_buyer_repository.dart`).
   static const String myRequests = '/user/requests';
 

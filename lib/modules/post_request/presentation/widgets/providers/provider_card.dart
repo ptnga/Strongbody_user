@@ -96,7 +96,7 @@ class ProviderCard extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            provider.name,
+                            ProviderFormatters.name(provider),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppTextStyle.lightBodyLargeBold.copyWith(

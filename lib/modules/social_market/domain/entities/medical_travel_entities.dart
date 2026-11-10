@@ -154,7 +154,7 @@ class PhoneCodeOption extends Equatable {
 class AppointmentRequest extends Equatable {
   final int serviceId;
 
-  /// asap | within_3_months | specific_date | not_sure.
+  /// asap | specific_date | not_sure (web popup v2).
   final String timeframe;
 
   /// YYYY-MM-DD khi `specific_date`.

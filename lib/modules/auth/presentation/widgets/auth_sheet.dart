@@ -13,6 +13,7 @@ import 'package:strongbody_buyer/core/utils/toast_util.dart';
 import '../bloc/auth/auth_bloc.dart';
 import 'auth_code_views.dart';
 import 'auth_credentials_view.dart';
+import 'auth_fields.dart';
 
 /// Mở sheet đăng ký / đăng nhập (mobile của web `AuthDialog`). Trả `true` khi đã đăng nhập.
 ///
@@ -55,14 +56,28 @@ class _AuthSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listenWhen: (previous, current) =>
-          previous.status != current.status &&
-          current.status == AuthStatus.success,
-      listener: (context, state) {
-        ToastUtil.showSuccess(LocaleKeys.authWelcome.tr());
-        Navigator.of(context).pop(true);
-      },
+    return MultiBlocListener(
+      listeners: [
+        // Toast từng bước như web: đăng ký / đăng nhập / xác minh OTP thành công, email đã có
+        // tài khoản, gửi lại mã, đặt lại mật khẩu.
+        BlocListener<AuthBloc, AuthState>(
+          listenWhen: (previous, current) =>
+              previous.noticeId != current.noticeId && current.notice != null,
+          listener: (context, state) {
+            final notice = state.notice!;
+            final message = notice.message.resolve();
+            notice.info
+                ? ToastUtil.showInfo(message)
+                : ToastUtil.showSuccess(message);
+          },
+        ),
+        BlocListener<AuthBloc, AuthState>(
+          listenWhen: (previous, current) =>
+              previous.status != current.status &&
+              current.status == AuthStatus.success,
+          listener: (context, state) => Navigator.of(context).pop(true),
+        ),
+      ],
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,

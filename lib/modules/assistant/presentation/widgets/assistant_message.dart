@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -14,6 +15,7 @@ import 'package:strongbody_buyer/modules/social_market/presentation/widgets/medi
 import '../../domain/entities/assistant_entities.dart';
 import 'assistant_results.dart';
 import 'assistant_rich_text.dart';
+import 'assistant_typewriter.dart';
 
 TextStyle get _bodyStyle => AppTextStyle.lightBodyLargeRegular.copyWith(
   color: Colour.textPrimary,
@@ -82,27 +84,36 @@ class AssistantReply extends StatelessWidget {
 
     final children = <Widget>[
       if (turn.streaming && text.isEmpty)
-        _StatusCard(branch: turn.branch)
+        _StatusCard(turn: turn)
       else if (text.isNotEmpty)
         MarketCard(
           padding: EdgeInsets.all(16.r),
-          child: AssistantRichText(
+          // Chữ chạy dần cho lượt vừa chạy (web `useTypewriter`), lượt nạp lại hiện ngay.
+          child: AssistantTypewriter(
             text: text,
-            style: _bodyStyle,
-            trailing: turn.streaming
-                ? SizedBox.square(
-                    dimension: 14.r,
-                    child: const CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colour.textTertiary,
-                    ),
-                  )
-                : null,
+            live: turn.live,
+            builder: (shown, typing) => AssistantRichText(
+              text: shown,
+              style: _bodyStyle,
+              trailing: turn.streaming || typing
+                  ? CupertinoActivityIndicator(radius: 7.r)
+                  : null,
+            ),
           ),
         ),
       if (turn.error != null) _ErrorCard(error: turn.error!, onRetry: onRetry),
-      if (r != null && r.near != null && branch == 'search' && r.hasCards)
+      if (r != null &&
+          r.near != null &&
+          !r.near!.soft &&
+          branch == 'search' &&
+          r.hasCards)
         _NearLine(result: r),
+      if (r != null &&
+          branch == 'search' &&
+          r.hasCards &&
+          !turn.streaming &&
+          r.relaxed.isNotEmpty)
+        _RelaxedLine(items: r.relaxed),
       if (r != null && r.needsLocation && isLast && !turn.streaming)
         const _LocationHint(),
       if (r != null && branch == 'request' && r.requestDraft != null)
@@ -127,12 +138,7 @@ class AssistantReply extends StatelessWidget {
           ],
         ),
       if (r != null && branch == 'search' && r.hasCloseMatches)
-        AssistantResultGroups(
-          result: r,
-          groups: r.closeMatches,
-          limit: 3,
-          close: true,
-        ),
+        AssistantResultGroups(result: r, groups: r.closeMatches, close: true),
       if (turn.requestDraft case final draft?)
         AssistantRequestDraftPanel(
           draft: draft,
@@ -166,17 +172,25 @@ class AssistantReply extends StatelessWidget {
 }
 
 class _StatusCard extends StatelessWidget {
-  final String? branch;
+  final AssistantReplyTurn turn;
 
-  const _StatusCard({required this.branch});
+  const _StatusCard({required this.turn});
 
-  String get _status => switch (branch) {
-    'account' || 'info' => LocaleKeys.assistantStatusReading.tr(),
-    'results' => LocaleKeys.assistantStatusThinking.tr(),
-    'request' => LocaleKeys.assistantStatusRequest.tr(),
-    'search' || 'refine' => LocaleKeys.assistantStatusSearching.tr(),
-    _ => LocaleKeys.assistantStatusUnderstanding.tr(),
-  };
+  /// Web `StatusLine`: thẻ kết quả đã hiện → AI đang viết câu trả lời; route mới đoán
+  /// "request" thì bước hiểu câu còn đổi được → chỉ báo "request" khi đã có kết quả.
+  String get _status {
+    if (turn.result?.hasCards ?? false) {
+      return LocaleKeys.assistantStatusWriting.tr();
+    }
+    return switch (turn.branch) {
+      'account' || 'info' => LocaleKeys.assistantStatusReading.tr(),
+      'results' => LocaleKeys.assistantStatusThinking.tr(),
+      _ when turn.result?.branch == 'request' =>
+        LocaleKeys.assistantStatusRequest.tr(),
+      'search' || 'refine' => LocaleKeys.assistantStatusSearching.tr(),
+      _ => LocaleKeys.assistantStatusUnderstanding.tr(),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -263,15 +277,17 @@ class _NearLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final near = result.near!;
-    // Không hiện bán kính; chỉ 2 phần đầu của địa chỉ.
-    final label = near.label.split(',').take(2).join(',').trim();
+    // Không hiện bán kính (thông số hệ thống), chỉ khu vực đang tìm quanh.
+    final label = near.displayLabel;
     final args = {'label': label};
     final text = result.nearRelaxed
         ? (near.fromGps
               ? LocaleKeys.assistantNearYouRelaxed.tr()
               : LocaleKeys.assistantNearRelaxed.tr(namedArgs: args))
         : (near.fromGps
-              ? LocaleKeys.assistantNearYou.tr()
+              ? (label.isEmpty
+                    ? LocaleKeys.assistantNearYou.tr()
+                    : LocaleKeys.assistantNearYouLabel.tr(namedArgs: args))
               : LocaleKeys.assistantNear.tr(namedArgs: args));
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,6 +302,31 @@ class _NearLine extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Điều kiện khách nói mà BE phải bỏ để có kết quả (web `RelaxedLine`, vd. "tại nhà" khi
+/// quanh khách không ai làm tận nhà): nói rõ, kẻo khách tưởng các thẻ đáp ứng đủ.
+class _RelaxedLine extends StatelessWidget {
+  final List<AssistantMissing> items;
+
+  const _RelaxedLine({required this.items});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(Icons.info_outline_rounded, size: 18.r, color: Colour.textTertiary),
+      Gap(6.w),
+      Expanded(
+        child: Text(
+          LocaleKeys.assistantRelaxedLine.tr(
+            namedArgs: {'items': items.map(assistantMissingLabel).join(', ')},
+          ),
+          style: _metaStyle,
+        ),
+      ),
+    ],
+  );
 }
 
 /// Câu "gần tôi": web xin quyền vị trí của trình duyệt; app chưa có định vị → gợi ý

@@ -6,7 +6,8 @@ import 'request_form_values.dart';
 class MyRequestEntity extends Equatable {
   final int id;
 
-  /// pending | active | closed | expired | canceled
+  /// Web: pending | pending_approval (đang duyệt) | active (đang mở) | closed |
+  /// cancelled | rejected | spam (bị từ chối).
   final String status;
   final int offersCount;
 
@@ -19,6 +20,12 @@ class MyRequestEntity extends Equatable {
   /// Mô tả, ngân sách, cách nhận, ngày/lịch — đọc như web `requestToFormValues`.
   final RequestFormValues details;
 
+  /// Request gửi riêng một provider (tab "Private requests" của web).
+  final bool isPrivate;
+
+  /// Request sinh từ inquiry: provider nhận trả lời trong chat (không gửi offer).
+  final RequestInquiryInfo? inquiry;
+
   const MyRequestEntity({
     required this.id,
     required this.status,
@@ -28,13 +35,21 @@ class MyRequestEntity extends Equatable {
     this.createdAt,
     this.updatedAt,
     this.hasVoice = false,
+    this.isPrivate = false,
+    this.inquiry,
   });
 
   String get description => details.description;
 
-  /// Tab "Closed": đã đóng / hết hạn / bị huỷ (Multime `isInactive`).
-  bool get isClosed =>
-      const {'closed', 'expired', 'canceled', 'cancelled'}.contains(status);
+  /// Đang duyệt (web badge "In review").
+  bool get isInReview => status == 'pending' || status == 'pending_approval';
+
+  /// Bị từ chối (web: cancelled / rejected / spam → "Not approved").
+  bool get isRejected =>
+      const {'cancelled', 'canceled', 'rejected', 'spam'}.contains(status);
+
+  /// Không còn nhận offer: đã đóng / hết hạn / bị từ chối.
+  bool get isClosed => status == 'closed' || status == 'expired' || isRejected;
 
   @override
   List<Object?> get props => [
@@ -46,6 +61,37 @@ class MyRequestEntity extends Equatable {
     updatedAt,
     hasVoice,
     details,
+    isPrivate,
+    inquiry,
+  ];
+}
+
+/// Web `RequestInquiryInfo` — item đã hỏi + provider nhận của request riêng.
+class RequestInquiryInfo extends Equatable {
+  /// User id provider nhận → "Open chat".
+  final int? recipientId;
+  final String recipientName;
+  final String? recipientAvatar;
+
+  /// service | product | offer
+  final String targetType;
+  final String title;
+
+  const RequestInquiryInfo({
+    this.recipientId,
+    this.recipientName = '',
+    this.recipientAvatar,
+    this.targetType = '',
+    this.title = '',
+  });
+
+  @override
+  List<Object?> get props => [
+    recipientId,
+    recipientName,
+    recipientAvatar,
+    targetType,
+    title,
   ];
 }
 
@@ -64,6 +110,7 @@ class RequestOfferEntity extends Equatable {
   final int id;
 
   /// pending (chờ buyer trả tiền) | accepted | delivered | completed | cancelled
+  /// (web `StatusConfig`).
   final String status;
 
   /// User id của provider — mở chat (`Reply`).
@@ -72,6 +119,8 @@ class RequestOfferEntity extends Equatable {
 
   /// Request kèm theo offer (mở trang Offers từ chat khi chưa có request trong tay).
   final MyRequestEntity? request;
+
+  /// Tên shop / organization (web `sellerDisplayName`); rỗng = "Unknown Provider".
   final String sellerName;
   final String? sellerAvatar;
   final bool sellerVerified;
@@ -82,7 +131,7 @@ class RequestOfferEntity extends Equatable {
   final double? price;
   final String? currency;
 
-  /// `Service.rating` — 0/null = chưa có đánh giá.
+  /// `Seller.rating` như web (thiếu thì `Service.rating`) — 0/null = chưa có đánh giá.
   final double? rating;
   final int? reviewCount;
 
@@ -147,6 +196,9 @@ class RequestOfferEntity extends Equatable {
       const {'accepted', 'delivered', 'completed'}.contains(status);
 
   bool get isCancelled => status == 'cancelled' || status == 'canceled';
+
+  /// Web chỉ cho "Start order (Accept & Pay)" khi offer còn `pending`.
+  bool get canPay => status == 'pending';
 
   @override
   List<Object?> get props => [

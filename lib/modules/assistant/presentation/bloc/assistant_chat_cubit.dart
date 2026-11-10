@@ -52,18 +52,24 @@ class AssistantChatCubit extends Cubit<AssistantChatState> {
     if (first.isNotEmpty) ask(first, source: source ?? 'entry');
   }
 
-  /// Lần tìm gần nhất trong chat (web `lastSearch`).
+  /// Lần tìm / request gần nhất trong chat (web `lastSearch`): khách nói "rẻ hơn" thì BE
+  /// sửa tiếp trên điều kiện đó.
   static ({Map<String, dynamic> understanding, String text})? lastSearch(
     List<AssistantTurn> turns,
   ) {
     for (final t in turns.reversed) {
-      if (t is AssistantReplyTurn &&
-          t.result?.branch == 'search' &&
-          t.result?.understanding != null) {
-        return (
-          understanding: t.result!.understanding!,
-          text: t.saidText ?? '',
-        );
+      if (t is! AssistantReplyTurn) continue;
+      final result = t.result;
+      final understanding = result?.understanding;
+      if (result == null || understanding == null) continue;
+      // Lượt hỏi lại "cần dịch vụ gì?" cũng tính: câu trả lời tiếp theo tìm luôn với thời
+      // gian / ngân sách / hình thức khách đã nói ở câu trước. Lượt request (vấn đề cá
+      // nhân) cũng có chủ đề để câu sau hỏi tiếp.
+      final asked =
+          result.branch == 'out_of_scope' &&
+          understanding['scope_reason'] == 'no_topic';
+      if (result.branch == 'search' || result.branch == 'request' || asked) {
+        return (understanding: understanding, text: t.saidText ?? '');
       }
     }
     return null;
@@ -76,7 +82,14 @@ class AssistantChatCubit extends Cubit<AssistantChatState> {
   }) async {
     final text = raw.trim();
     if (text.isEmpty) return;
-    final history = base ?? state.turns;
+    // Lượt trước còn đang chạy (khách bấm chip gợi ý giữa chừng) sẽ bị huỷ: tắt cờ
+    // streaming của nó luôn, kẻo vòng quay hiện mãi.
+    final history = [
+      for (final t in base ?? state.turns)
+        t is AssistantReplyTurn && t.streaming
+            ? t.copyWith(streaming: false)
+            : t,
+    ];
     final prev = lastSearch(history);
     final saidText = prev != null && prev.text.isNotEmpty
         ? _lastThree('${prev.text} · $text')
@@ -91,7 +104,7 @@ class AssistantChatCubit extends Cubit<AssistantChatState> {
       state.copyWith(
         turns: [
           ...next,
-          AssistantReplyTurn(streaming: true, saidText: saidText),
+          AssistantReplyTurn(streaming: true, live: true, saidText: saidText),
         ],
       ),
     );

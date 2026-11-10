@@ -20,7 +20,11 @@ final class ChatMessageEdited extends ChatRealtimeEvent {
 
 final class ChatTranslationArrived extends ChatRealtimeEvent {
   final ChatTranslation translation;
-  const ChatTranslationArrived(this.translation);
+
+  /// Sự kiện cũ không có `recipient_user_id` — bản dịch chữ chỉ áp khi `target_lang`
+  /// khớp ngôn ngữ mình chọn (web `shouldApplyTextTranslation`).
+  final bool legacy;
+  const ChatTranslationArrived(this.translation, {this.legacy = false});
 }
 
 /// WS đóng vì token hết hạn (4401/4403) → cần JWT mới.
@@ -33,10 +37,12 @@ final class ChatAccessDenied extends ChatRealtimeEvent {
   const ChatAccessDenied();
 }
 
-/// Kết nối tới `{ch}` (+ `{ch}_translation`, `{ch}_voice_translation` khi bật dịch).
+/// Kết nối tới `{ch}` + `{ch}_voice_translation` (luôn nghe, như web) + `{ch}_translation`
+/// (chỉ khi bật dịch tự động).
 abstract class ChatConnection {
   Stream<ChatRealtimeEvent> get events;
 
+  /// [withTranslations] = nghe kênh bản dịch chữ `{ch}_translation`.
   void subscribe({required bool withTranslations});
 
   /// Lịch sử, mới nhất trước. [cursor] = `nextCursor` của trang trước.
@@ -58,9 +64,10 @@ final class ConversationChanged extends ConversationUpdate {
   const ConversationChanged(this.conversation);
 }
 
-/// `global_unread_update` → tải lại tổng chưa đọc.
+/// `global_unread_update` — [total] = `data.total_unread_count` (null → tải lại).
 final class UnreadChanged extends ConversationUpdate {
-  const UnreadChanged();
+  final int? total;
+  const UnreadChanged([this.total]);
 }
 
 /// Server từ chối (JWT `personal-update-token` hết hạn) → socket ngừng, cần kết nối lại.

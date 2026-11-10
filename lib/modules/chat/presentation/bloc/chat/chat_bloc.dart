@@ -63,6 +63,11 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
   static const _firstPage = 20;
   static const _olderPage = 50;
 
+  /// Web `openChannel` / `loadInitialMessages`: mở kênh / tải lịch sử lỗi được thử lại
+  /// sau [loadRetryDelay] cho tới khi quá [loadTimeout] mới báo lỗi (nút "Try again").
+  final Duration loadRetryDelay;
+  final Duration loadTimeout;
+
   ChatBloc({
     required this.args,
     required OpenChatSessionUseCase openSession,
@@ -79,6 +84,8 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
     required ChatBadgeNotifier badge,
     required GlobalStorage storage,
     required UserPreferences preferences,
+    this.loadRetryDelay = const Duration(milliseconds: 1500),
+    this.loadTimeout = const Duration(seconds: 10),
   }) : _openSession = openSession,
        _refreshSession = refreshSession,
        _connect = connect,
@@ -120,9 +127,8 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
       return;
     }
     emit(state.copyWith(status: ChatStatus.connecting));
-    final opened = await _openSession(args.partnerId);
+    final session = await _openWithRetry();
     if (isClosed) return;
-    final session = opened.toNullable();
     if (session == null) {
       emit(state.copyWith(status: ChatStatus.failure));
       return;
@@ -132,7 +138,7 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
 
     // Chạy song song (tạo Future trước rồi mới await).
     final settingsFuture = _getSettings(session.channelId);
-    final pageFuture = _historyPage(null, _firstPage);
+    final pageFuture = _firstHistoryPage();
     final offersFuture = _getOffers((
       channelId: session.channelId,
       partnerId: session.partner.id,
@@ -163,9 +169,11 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
       ),
     );
     await _markNewestRead(emit);
-    if (state.autoTranslate) {
-      await _loadTranslations(emit, state.messages);
-    } else if (settings == null && _preferences.autoTranslateChats) {
+    // Bản dịch giọng nói luôn tải (web `hydrateVoiceTranslations`); chữ chỉ khi bật dịch.
+    await _loadTranslations(emit, state.messages, text: state.autoTranslate);
+    if (!state.autoTranslate &&
+        settings == null &&
+        _preferences.autoTranslateChats) {
       // Hội thoại chưa có cài đặt + Account bật "Auto-translate messages" (đã đồng ý).
       add(const ChatTranslateToggled());
     }
@@ -255,6 +263,39 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
     ].any(text.contains);
   }
 
+  /// Web `/message-center/[id]` `openChannel`: `createChannel` lỗi → thử lại sau
+  /// [loadRetryDelay] tới khi quá [loadTimeout] mới báo lỗi.
+  Future<ChatSession?> _openWithRetry() async {
+    final started = DateTime.now();
+    while (!isClosed) {
+      final session = (await _openSession(args.partnerId)).toNullable();
+      if (session != null) return session;
+      final elapsed = DateTime.now().difference(started);
+      if (elapsed + loadRetryDelay >= loadTimeout) return null;
+      await Future<void>.delayed(loadRetryDelay);
+    }
+    return null;
+  }
+
+  /// Trang đầu: lỗi tạm thời → thử lại tới khi quá [loadTimeout] (web
+  /// `MESSAGES_LOAD_TIMEOUT_MS` / `MESSAGES_RETRY_DELAY_MS`).
+  Future<ChatHistoryPage?> _firstHistoryPage() async {
+    final started = DateTime.now();
+    while (!isClosed) {
+      final remaining = loadTimeout - DateTime.now().difference(started);
+      if (remaining <= Duration.zero) return null;
+      final page = await _historyPage(
+        null,
+        _firstPage,
+      ).timeout(remaining, onTimeout: () => null);
+      if (page != null) return page;
+      final elapsed = DateTime.now().difference(started);
+      if (elapsed + loadRetryDelay >= loadTimeout) return null;
+      await Future<void>.delayed(loadRetryDelay);
+    }
+    return null;
+  }
+
   Future<ChatHistoryPage?> _historyPage(String? cursor, int count) async {
     for (var attempt = 0; attempt < 2; attempt++) {
       final connection = _connection;
@@ -301,7 +342,7 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
         clearCursor: page.nextCursor == null,
       ),
     );
-    if (state.autoTranslate) await _loadTranslations(emit, older);
+    await _loadTranslations(emit, older, text: state.autoTranslate);
   }
 
   // ------------------------------------------------------------------ gửi
@@ -503,16 +544,17 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
           'enabled': settings.autoTranslate,
         });
         _connection?.subscribe(withTranslations: settings.autoTranslate);
+        // Giữ bản dịch đã có: tắt dịch chỉ ẩn bản dịch chữ (voice vẫn nghe bản dịch,
+        // xem [ChatState.translationFor]).
         emit(
           state.copyWith(
             settings: settings,
             savingSettings: false,
-            translations: settings.autoTranslate ? null : const {},
             showOriginal: const {},
           ),
         );
         if (settings.autoTranslate) {
-          await _loadTranslations(emit, state.messages);
+          await _loadTranslations(emit, state.messages, text: true);
         }
       },
       onFailure: (_) => emit(
@@ -530,30 +572,35 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
     emit(state.copyWith(showOriginal: next));
   }
 
-  /// Bản dịch đã có cho tin của partner chưa có bản dịch (Multime chỉ dịch tin partner).
+  /// Bản dịch đã có cho tin của partner (Multime chỉ dịch tin partner): audio của tin
+  /// voice luôn tải (web `hydrateVoiceTranslations`), chữ chỉ khi [text] (bật dịch).
   Future<void> _loadTranslations(
     Emitter<ChatState> emit,
-    List<ChatMessageEntity> messages,
-  ) async {
+    List<ChatMessageEntity> messages, {
+    required bool text,
+  }) async {
     final session = state.session;
     if (session == null) return;
     final partner = messages
-        .where(
-          (m) =>
-              m.senderId != session.myUserId &&
-              !state.translations.containsKey(m.id),
-        )
+        .where((m) => m.senderId != session.myUserId && !m.isLocal)
         .toList();
-    final textIds = partner
-        .where(
-          (m) =>
-              m.type == ChatMessageType.text ||
-              (m.voice?.transcript?.isNotEmpty ?? false),
-        )
-        .map((m) => m.id)
-        .toList();
+    final textIds = !text
+        ? const <String>[]
+        : partner
+              .where(
+                (m) =>
+                    state.translations[m.id]?.text == null &&
+                    (m.type == ChatMessageType.text ||
+                        (m.voice?.transcript?.isNotEmpty ?? false)),
+              )
+              .map((m) => m.id)
+              .toList();
     final voiceIds = partner
-        .where((m) => m.type == ChatMessageType.voice)
+        .where(
+          (m) =>
+              m.type == ChatMessageType.voice &&
+              state.translations[m.id]?.audioUrl == null,
+        )
         .map((m) => m.id)
         .toList();
     if (textIds.isEmpty && voiceIds.isEmpty) return;
@@ -653,7 +700,16 @@ class ChatBloc extends BlocWithApi<ChatEvent, ChatState> {
             ),
           );
         }
-      case ChatTranslationArrived(:final translation):
+      case ChatTranslationArrived(:final translation, :final legacy):
+        // Sự kiện cũ không có người nhận: bản dịch chữ phải đúng ngôn ngữ mình chọn.
+        final target = state.settings?.targetLanguage;
+        if (legacy &&
+            translation.text != null &&
+            translation.targetLang != null &&
+            target != null &&
+            translation.targetLang != target) {
+          return;
+        }
         emit(state.copyWith(translations: _merged([translation])));
       case ChatAccessDenied():
         if (await _renewSession(emit)) await _catchUp(emit);

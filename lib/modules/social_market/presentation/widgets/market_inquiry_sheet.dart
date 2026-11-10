@@ -22,6 +22,7 @@ import 'package:strongbody_buyer/modules/post_request/domain/entities/request_op
 
 import '../../data/mappers/market_mapper.dart';
 import '../../domain/entities/market_inquiry.dart';
+import '../bloc/engagement/engagement_cubit.dart';
 import '../bloc/inquiry/inquiry_cubit.dart';
 import '../market_formatters.dart';
 import 'market_ui.dart';
@@ -39,6 +40,9 @@ class InquiryTarget {
   final String? recipientAvatar;
   final Map<String, dynamic> cardData;
 
+  /// Lời nhắn điền sẵn (vd "Free consult" của board Offers).
+  final String? message;
+
   const InquiryTarget({
     required this.kind,
     required this.id,
@@ -50,6 +54,7 @@ class InquiryTarget {
     this.recipientName,
     this.recipientShop,
     this.recipientAvatar,
+    this.message,
   });
 }
 
@@ -70,6 +75,13 @@ Future<void> showMarketInquirySheet(
     return;
   }
   final router = GoRouter.of(context);
+  // Số "contacted" của card cập nhật ngay khi gửi xong (web `markContacted`).
+  EngagementCubit? engagement;
+  try {
+    engagement = context.read<EngagementCubit>();
+  } catch (_) {
+    engagement = null;
+  }
   final recipient = await showModalBottomSheet<int>(
     context: context,
     useRootNavigator: true,
@@ -84,6 +96,11 @@ Future<void> showMarketInquirySheet(
     ),
   );
   if (recipient == null) return;
+  if (engagement != null &&
+      !engagement.isClosed &&
+      engagement.target.apiValue == target.kind.name) {
+    engagement.markContacted(target.id);
+  }
   router.push(
     RouteName.chat,
     extra: ChatPageArgs(
@@ -107,7 +124,7 @@ class _InquirySheet extends StatefulWidget {
 class _InquirySheetState extends State<_InquirySheet> {
   static const _supportTypes = ['remote', 'at_home', 'at_clinic'];
 
-  final _description = TextEditingController();
+  late final _description = TextEditingController(text: widget.target.message);
   final _budget = TextEditingController();
   String _currency = 'USD';
   final List<PlatformFile> _files = [];
@@ -220,7 +237,13 @@ class _InquirySheetState extends State<_InquirySheet> {
         content: description,
         cardData: budgetText == null
             ? t.cardData
-            : {...t.cardData, 'budget': budgetText},
+            : {
+                ...t.cardData,
+                'budget': budgetText,
+                'budget_min': budget.min,
+                'budget_max': budget.max,
+                'budget_currency': _currency,
+              },
         budgetFrom: budget.min,
         budgetTo: budget.max,
         budgetCurrency: currency ?? 'USD',

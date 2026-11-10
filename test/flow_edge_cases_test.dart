@@ -8,12 +8,14 @@ import 'package:strongbody_buyer/core/base/failure.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/my_request_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/post_request_failure.dart';
+import 'package:strongbody_buyer/modules/post_request/domain/entities/posted_request_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/provider_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_draft_entity.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_form_values.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/repositories/post_request_repository.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/usecases/create_buyer_request_use_case.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/usecases/draft_request_use_case.dart';
+import 'package:strongbody_buyer/modules/post_request/domain/usecases/get_currencies_use_case.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/usecases/get_my_requests_use_case.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/usecases/get_provider_extras_use_case.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/usecases/get_request_offers_use_case.dart';
@@ -58,7 +60,9 @@ MyRequestEntity _r(int id, {String status = 'active', int offers = 0}) =>
 class _Repo implements PostRequestRepository {
   Either<Failure, String> transcribe = const Right('back pain at home');
   Either<Failure, RequestDraftEntity>? draft;
-  Either<Failure, String?> create = const Right('42');
+  Either<Failure, CreatedRequest> create = const Right(
+    CreatedRequest(id: 42, status: 'active'),
+  );
   Completer<void>? createGate;
   Completer<void>? draftGate;
   int createCalls = 0;
@@ -97,7 +101,7 @@ class _Repo implements PostRequestRepository {
   }
 
   @override
-  Future<Either<Failure, String?>> createBuyerRequest({
+  Future<Either<Failure, CreatedRequest>> createBuyerRequest({
     required int userId,
     required RequestFormValues values,
     RequestAssistantMeta? assistant,
@@ -130,12 +134,17 @@ class _Repo implements PostRequestRepository {
     ProviderEntity provider,
   ) async => Left(ServerFailure('no extras'));
 
+  /// `isPrivate` của từng lần gọi `getMyRequests` (tab Public / Private).
+  final myScopes = <bool?>[];
+
   @override
   Future<Either<Failure, MyRequestPage>> getMyRequests({
     required int userId,
     int page = 1,
     int limit = 20,
+    bool? isPrivate,
   }) async {
+    myScopes.add(isPrivate);
     await myGates[page]?.future;
     return myPages[page - 1];
   }
@@ -149,13 +158,24 @@ class _Repo implements PostRequestRepository {
       RequestOfferEntity(id: 1, status: 'pending', sellerName: 'A', price: 50),
     ]);
   }
+
+  @override
+  Future<Either<Failure, SentRequest>> getSentRequest(int id) async =>
+      Left(NotFoundFailure('none'));
+
+  @override
+  Future<Either<Failure, List<CurrencyOption>>> getCurrencies() async =>
+      const Right([
+        CurrencyOption(id: 1, code: 'USD'),
+        CurrencyOption(id: 2, code: 'VND'),
+      ]);
 }
 
 PostRequestFlowBloc _flow(_Repo repo, _Storage storage) => PostRequestFlowBloc(
   transcribeAudio: TranscribeAudioUseCase(repo),
   draftRequest: DraftRequestUseCase(repo),
-  searchProviders: SearchProvidersUseCase(repo),
   createBuyerRequest: CreateBuyerRequestUseCase(repo),
+  getCurrencies: GetCurrenciesUseCase(repo),
   storage: storage,
 );
 
@@ -169,141 +189,221 @@ Future<PostRequestFlowState> _ready(PostRequestFlowBloc bloc) => _until(
 );
 
 void main() {
-  group('PostRequestFlowBloc edge cases', () {
-    test('prefilled draft (assistant chat) skips the AI step', () async {
-      // AI lỗi nếu bị gọi → outcome sẽ là failed.
+  group('PostRequestFlowBloc (web /request-assistant)', () {
+    const long =
+        'I need a physiotherapist at home for my lower back pain this weekend.';
+
+    test('typed text → form locked while drafting → filled form', () async {
+      final repo = _Repo();
+      final bloc = _flow(repo, _Storage())
+        ..add(
+          const PostRequestFlowStarted(
+            args: PostRequestFlowArgs(text: long),
+            locale: 'en',
+          ),
+        );
+      final working = await _until(
+        bloc.stream,
+        bloc.state,
+        (s) => s.step == PostRequestDraftStep.drafting,
+      );
+      expect(working.isWorking, isTrue);
+      expect(working.values.description, long);
+      final s = await _ready(bloc);
+      expect(s.progress, 100);
+      expect(s.outcome, PostRequestDraftOutcome.filled);
+      expect(s.values.deliveryTypes, [RequestDeliveryType.atHome]);
+      await bloc.close();
+    });
+
+    test(
+      'voice → BE transcription → AI; recording not kept unless attached',
+      () async {
+        final repo = _Repo();
+        final bloc = _flow(repo, _Storage())
+          ..add(
+            const PostRequestFlowStarted(
+              args: PostRequestFlowArgs(audioPath: '/tmp/a.m4a'),
+              locale: 'en',
+            ),
+          );
+        final step = await _until(
+          bloc.stream,
+          bloc.state,
+          (s) => s.step == PostRequestDraftStep.transcribing,
+        );
+        expect(step.isWorking, isTrue);
+        final s = await _ready(bloc);
+        expect(s.values.description, 'back pain at home');
+        expect(s.values.voicePath, isNull);
+        await bloc.close();
+
+        final attached = _flow(repo, _Storage())
+          ..add(
+            const PostRequestFlowStarted(
+              args: PostRequestFlowArgs(
+                audioPath: '/tmp/b.m4a',
+                attachVoice: true,
+                voiceDuration: Duration(seconds: 9),
+              ),
+              locale: 'en',
+            ),
+          );
+        final kept = await _ready(attached);
+        expect(kept.values.voicePath, '/tmp/b.m4a');
+        await attached.close();
+      },
+    );
+
+    test(
+      'voice: rate limited / empty transcription → failed + notice',
+      () async {
+        final repo = _Repo()..transcribe = Left(SpeechRateLimitFailure('slow'));
+        var bloc = _flow(repo, _Storage())
+          ..add(
+            const PostRequestFlowStarted(
+              args: PostRequestFlowArgs(audioPath: '/tmp/a.m4a'),
+              locale: 'en',
+            ),
+          );
+        var s = await _ready(bloc);
+        expect(s.outcome, PostRequestDraftOutcome.failed);
+        expect(s.notice, PostRequestNotice.rateLimited);
+        await bloc.close();
+
+        repo.transcribe = const Right('  ');
+        bloc = _flow(repo, _Storage())
+          ..add(
+            const PostRequestFlowStarted(
+              args: PostRequestFlowArgs(audioPath: '/tmp/a.m4a'),
+              locale: 'en',
+            ),
+          );
+        s = await _ready(bloc);
+        expect(s.notice, PostRequestNotice.emptyVoice);
+        await bloc.close();
+      },
+    );
+
+    test('AI draft fails → failed + notice, typed text kept', () async {
+      final repo = _Repo()..draft = Left(ServerFailure('boom'));
+      final bloc = _flow(repo, _Storage())
+        ..add(
+          const PostRequestFlowStarted(
+            args: PostRequestFlowArgs(text: long),
+            locale: 'vi',
+          ),
+        );
+      final s = await _ready(bloc);
+      expect(s.outcome, PostRequestDraftOutcome.failed);
+      expect(s.notice, PostRequestNotice.draftFailed);
+      expect(s.values.description, long);
+      expect(s.values.sellerLanguages, ['vi']);
+      await bloc.close();
+    });
+
+    test('Me too prefill opens the form without AI', () async {
       final repo = _Repo()..draft = Left(ServerFailure('should not call'));
       final bloc = _flow(repo, _Storage())
         ..add(
           const PostRequestFlowStarted(
             args: PostRequestFlowArgs(
-              attachmentPaths: ['/tmp/a.jpg'],
-              draft: RequestDraftEntity(
-                isEmpty: false,
-                values: RequestFormValues(
-                  description: 'Physio at home',
-                  budget: '50',
-                  deliveryTypes: [RequestDeliveryType.atHome],
-                ),
-                assistant: RequestAssistantMeta(
-                  categoryIds: [96654],
-                  qualityScore: 6,
-                ),
+              prefill: RequestFormValues(
+                description: long,
+                deliveryTypes: [RequestDeliveryType.remote],
+                similarToRequestId: 99,
               ),
             ),
             locale: 'en',
           ),
         );
       final s = await _ready(bloc);
-      expect(s.outcome, PostRequestDraftOutcome.filled);
       expect(s.notice, isNull);
-      expect(s.values.description, 'Physio at home');
-      expect(s.values.budget, '50');
-      expect(s.values.attachmentPaths, ['/tmp/a.jpg']);
-      expect(s.assistant?.categoryIds, [96654]);
+      expect(s.values.similarToRequestId, 99);
+      expect(s.values.sellerLanguages, ['en']);
       await bloc.close();
     });
 
-    test('AI draft fails → outcome failed + notice, transcript kept', () async {
-      final repo = _Repo()..draft = Left(ServerFailure('boom'));
-      final bloc = _flow(repo, _Storage())
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'knee pain'),
-            locale: 'en',
-          ),
-        );
-      final s = await _ready(bloc);
-      expect(s.outcome, PostRequestDraftOutcome.failed);
-      expect(s.notice, PostRequestNotice.draftFailed);
-      expect(s.values.description, 'knee pain');
-      await bloc.close();
-    });
-
-    test('voice only: rate limited / empty transcription → notice', () async {
-      final limited = _Repo()
-        ..transcribe = Left(SpeechRateLimitFailure('too many'));
-      final a = _flow(limited, _Storage())
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: '', voicePath: '/tmp/a.wav'),
-            locale: 'en',
-          ),
-        );
-      expect((await _ready(a)).notice, PostRequestNotice.rateLimited);
-      await a.close();
-
-      final empty = _Repo()..transcribe = const Right('   ');
-      final b = _flow(empty, _Storage())
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: '', voicePath: '/tmp/a.wav'),
-            locale: 'en',
-          ),
-        );
-      final s = await _ready(b);
-      expect(s.notice, PostRequestNotice.emptyVoice);
-      expect(s.outcome, PostRequestDraftOutcome.failed);
-      await b.close();
-    });
-
-    test('submit validation: empty description, no providers chosen', () async {
+    test('currency id is filled when the list loads', () async {
       final repo = _Repo();
       final bloc = _flow(repo, _Storage())
         ..add(
           const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'yoga'),
+            args: PostRequestFlowArgs(),
+            locale: 'en',
+          ),
+        );
+      final s = await _until(
+        bloc.stream,
+        bloc.state,
+        (s) => s.currencies.isNotEmpty,
+      );
+      expect(s.values.currencyId, 1);
+      await bloc.close();
+    });
+
+    test(
+      'submit: description under 50 chars or bad budget → no post',
+      () async {
+        final repo = _Repo();
+        final bloc = _flow(repo, _Storage())
+          ..add(
+            const PostRequestFlowStarted(
+              args: PostRequestFlowArgs(text: 'back pain'),
+              locale: 'en',
+            ),
+          );
+        final ready = await _ready(bloc);
+        bloc.add(const PostRequestFlowSubmitted());
+        final s = await _until(
+          bloc.stream,
+          bloc.state,
+          (s) => s.notice != null,
+        );
+        expect(s.notice, PostRequestNotice.descriptionTooShort);
+
+        bloc
+          ..add(const PostRequestFlowNoticeConsumed())
+          ..add(
+            PostRequestFlowValuesChanged(
+              ready.values.copyWith(description: long, budget: 'abc'),
+            ),
+          )
+          ..add(const PostRequestFlowSubmitted());
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(repo.createCalls, 0);
+        await bloc.close();
+      },
+    );
+
+    test('guest submit keeps the request pending for after sign up', () async {
+      final storage = _Storage(loggedIn: false);
+      final bloc = _flow(_Repo(), storage)
+        ..add(
+          const PostRequestFlowStarted(
+            args: PostRequestFlowArgs(text: long),
             locale: 'en',
           ),
         );
       await _ready(bloc);
-
-      bloc.add(
-        const PostRequestFlowValuesChanged(
-          RequestFormValues(
-            description: '   ',
-            deliveryTypes: [RequestDeliveryType.atHome],
-          ),
-        ),
-      );
       bloc.add(const PostRequestFlowSubmitted());
-      expect(
-        (await bloc.stream.firstWhere((s) => s.notice != null)).notice,
-        PostRequestNotice.descriptionRequired,
+      final s = await _until(
+        bloc.stream,
+        bloc.state,
+        (s) => s.submitStatus == PostRequestSubmitStatus.pendingAuth,
       );
-      bloc
-        ..add(const PostRequestFlowNoticeConsumed())
-        ..add(
-          const PostRequestFlowValuesChanged(
-            RequestFormValues(
-              description: 'Yoga at home',
-              deliveryTypes: [RequestDeliveryType.atHome],
-            ),
-          ),
-        )
-        ..add(
-          const PostRequestFlowVisibilityChanged(
-            RequestVisibility.chosenProviders,
-          ),
-        )
-        ..add(const PostRequestFlowSubmitted());
-      expect(
-        (await bloc.stream.firstWhere((s) => s.notice != null)).notice,
-        PostRequestNotice.chooseProviders,
-      );
-      expect(repo.createCalls, 0);
+      expect(s.values.description, long);
+      expect(storage.pending?['description'], long);
+      expect(storage.pending?['anonymous'], false);
       await bloc.close();
     });
 
-    test('submit failure keeps pending draft; double tap posts once', () async {
-      final repo = _Repo()
-        ..create = Left(ServerFailure('Server error'))
-        ..createGate = Completer<void>();
-      final storage = _Storage()..pending = {'description': 'old'};
-      final bloc = _flow(repo, storage)
+    test('success → created request id; double tap posts once', () async {
+      final repo = _Repo()..createGate = Completer<void>();
+      final bloc = _flow(repo, _Storage())
         ..add(
           const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'massage'),
+            args: PostRequestFlowArgs(text: long),
             locale: 'en',
           ),
         );
@@ -311,137 +411,51 @@ void main() {
       bloc
         ..add(const PostRequestFlowSubmitted())
         ..add(const PostRequestFlowSubmitted());
-      await bloc.stream.firstWhere(
-        (s) => s.submitStatus == PostRequestSubmitStatus.submitting,
-      );
       await Future<void>.delayed(Duration.zero);
       repo.createGate!.complete();
-      final s = await bloc.stream.firstWhere(
-        (s) => s.submitStatus == PostRequestSubmitStatus.failure,
+      final s = await _until(
+        bloc.stream,
+        bloc.state,
+        (s) => s.submitStatus == PostRequestSubmitStatus.success,
       );
+      expect(s.created?.id, 42);
       expect(repo.createCalls, 1);
-      expect(s.notice, PostRequestNotice.requestFailed);
-      expect(s.noticeMessage, 'Server error');
-      expect(storage.pending, isNotNull);
       await bloc.close();
     });
-  });
-
-  group('PostRequestFlowBloc retry / auth / AI merge', () {
-    test(
-      'guest closes sign-up sheet, taps Post again → sheet reopens',
-      () async {
-        final bloc = _flow(_Repo(), _Storage(loggedIn: false))
-          ..add(
-            const PostRequestFlowStarted(
-              args: PostRequestFlowArgs(text: 'physio'),
-              locale: 'en',
-            ),
-          );
-        await _ready(bloc);
-        final statuses = <PostRequestSubmitStatus>[];
-        final sub = bloc.stream.listen((s) => statuses.add(s.submitStatus));
-        bloc.add(const PostRequestFlowSubmitted());
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        bloc.add(const PostRequestFlowSubmitted());
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        await sub.cancel();
-        // idle → pendingAuth lần 2 để listener của Review mở lại popup.
-        expect(
-          statuses.where((s) => s == PostRequestSubmitStatus.pendingAuth),
-          hasLength(2),
-        );
-        await bloc.close();
-      },
-    );
 
     test(
-      'chosen providers: retry after partial failure skips sent ones',
+      'send to providers: a failed seller is retried, others not resent',
       () async {
         final repo = _Repo()..failSellers.add(502);
         final bloc = _flow(repo, _Storage())
           ..add(
             const PostRequestFlowStarted(
-              args: PostRequestFlowArgs(text: 'physio'),
+              args: PostRequestFlowArgs(
+                prefill: RequestFormValues(description: long),
+                sellerUserIds: [501, 502],
+              ),
               locale: 'en',
             ),
           );
-        await _ready(bloc);
-        bloc
-          ..add(PostRequestFlowProvidersSelected([_p(1), _p(2), _p(3)]))
-          ..add(const PostRequestFlowSubmitted());
-        await bloc.stream.firstWhere(
+        final ready = await _ready(bloc);
+        expect(ready.values.sellerLanguages, isEmpty);
+        bloc.add(const PostRequestFlowSubmitted());
+        await _until(
+          bloc.stream,
+          bloc.state,
           (s) => s.submitStatus == PostRequestSubmitStatus.failure,
         );
-        expect(repo.postedSellers, [501]);
-
         repo.failSellers.clear();
-        bloc
-          ..add(const PostRequestFlowNoticeConsumed())
-          ..add(const PostRequestFlowSubmitted());
-        await bloc.stream.firstWhere(
+        bloc.add(const PostRequestFlowSubmitted());
+        await _until(
+          bloc.stream,
+          bloc.state,
           (s) => s.submitStatus == PostRequestSubmitStatus.success,
         );
-        expect(repo.postedSellers, [501, 502, 503]);
+        expect(repo.postedSellers, [501, 502]);
         await bloc.close();
       },
     );
-
-    test('deselecting the failed provider never posts publicly', () async {
-      final repo = _Repo()..failSellers.add(502);
-      final bloc = _flow(repo, _Storage())
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'physio'),
-            locale: 'en',
-          ),
-        );
-      await _ready(bloc);
-      bloc
-        ..add(PostRequestFlowProvidersSelected([_p(1), _p(2)]))
-        ..add(const PostRequestFlowSubmitted());
-      await bloc.stream.firstWhere(
-        (s) => s.submitStatus == PostRequestSubmitStatus.failure,
-      );
-      final callsBefore = repo.createCalls;
-      bloc
-        ..add(const PostRequestFlowNoticeConsumed())
-        ..add(PostRequestFlowProvidersSelected([_p(1)]))
-        ..add(const PostRequestFlowSubmitted());
-      await bloc.stream.firstWhere(
-        (s) => s.submitStatus == PostRequestSubmitStatus.success,
-      );
-      expect(repo.createCalls, callsBefore);
-      await bloc.close();
-    });
-
-    test('edits made while AI is analysing are not overwritten', () async {
-      final repo = _Repo()..draftGate = Completer<void>();
-      final bloc = _flow(repo, _Storage())
-        ..add(
-          const PostRequestFlowStarted(
-            args: PostRequestFlowArgs(text: 'yoga'),
-            locale: 'en',
-          ),
-        );
-      await bloc.stream.firstWhere((s) => s.isAnalyzing);
-      bloc.add(
-        const PostRequestFlowValuesChanged(
-          RequestFormValues(
-            description: 'Yoga for my back, mornings',
-            budget: '50',
-            deliveryTypes: [RequestDeliveryType.remote],
-          ),
-        ),
-      );
-      await Future<void>.delayed(Duration.zero);
-      repo.draftGate!.complete();
-      final s = await _ready(bloc);
-      expect(s.values.description, 'Yoga for my back, mornings');
-      expect(s.values.budget, '50');
-      expect(s.values.deliveryTypes, [RequestDeliveryType.remote]);
-      await bloc.close();
-    });
   });
 
   group('MatchingProvidersBloc edge cases', () {
@@ -543,7 +557,7 @@ void main() {
     });
 
     test(
-      'active/closed split; offers loaded only when offers_count > 0',
+      'public/private tabs filter on the server; offers only when offers_count > 0',
       () async {
         final repo = _Repo()
           ..myPages = [
@@ -560,10 +574,17 @@ void main() {
           ];
         final bloc = bloc0(repo, _Storage())..add(const MyRequestsStarted());
         final s = await bloc.stream.firstWhere((s) => s.offers.containsKey(1));
-        expect(s.visibleItems.map((r) => r.id), [1, 2]);
+        // Web: request đã đóng vẫn ở cùng danh sách (badge "Closed").
+        expect(s.visibleItems.map((r) => r.id), [1, 2, 3]);
         expect(repo.offersCalls, [1]);
-        bloc.add(const MyRequestsTabChanged(MyRequestsTab.closed));
-        expect((await bloc.stream.first).visibleItems.map((r) => r.id), [3]);
+        expect(repo.myScopes, [false]);
+        bloc.add(const MyRequestsTabChanged(MyRequestsTab.private));
+        await bloc.stream.firstWhere(
+          (s) =>
+              s.tab == MyRequestsTab.private &&
+              s.status == MyRequestsStatus.success,
+        );
+        expect(repo.myScopes, [false, true]);
         await bloc.close();
       },
     );

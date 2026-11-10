@@ -26,8 +26,16 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
   final RequestPasswordResetUseCase _requestPasswordReset;
   final VerifyPasswordResetUseCase _verifyPasswordReset;
   final ResetPasswordUseCase _resetPassword;
+  final VerifyEmailDomainUseCase _verifyEmailDomain;
 
   Timer? _resendTimer;
+  Timer? _domainDebounce;
+
+  /// Email gõ gần nhất ở màn đăng ký — bỏ kết quả kiểm tra domain của email cũ.
+  String _domainEmail = '';
+
+  /// Web cache kết quả theo email (tối đa 50).
+  final _domainCache = <String, AuthMessage?>{};
 
   /// Đăng ký xong nhưng phải xác minh email → đăng nhập sau OTP tính là sign up.
   bool _signUpAwaitingVerify = false;
@@ -41,6 +49,12 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
   );
 
+  /// Web `useEmailDomainValidation`: chỉ kiểm tra khi có dạng `x@domain`.
+  static final _domainCheckable = RegExp(r'^[^\s@]+@([^\s@]+)$');
+
+  /// Web: gõ xong 800ms mới kiểm tra domain.
+  static const domainDebounce = Duration(milliseconds: 800);
+
   AuthBloc({
     required SignUpUseCase signUp,
     required LoginUseCase login,
@@ -50,6 +64,7 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     required RequestPasswordResetUseCase requestPasswordReset,
     required VerifyPasswordResetUseCase verifyPasswordReset,
     required ResetPasswordUseCase resetPassword,
+    required VerifyEmailDomainUseCase verifyEmailDomain,
   }) : _signUp = signUp,
        _login = login,
        _socialLogin = socialLogin,
@@ -58,6 +73,7 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
        _requestPasswordReset = requestPasswordReset,
        _verifyPasswordReset = verifyPasswordReset,
        _resetPassword = resetPassword,
+       _verifyEmailDomain = verifyEmailDomain,
        super(const AuthState()) {
     on<AuthStarted>(
       (event, emit) =>
@@ -71,6 +87,8 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     on<AuthResendRequested>(_onResend);
     on<AuthForgotEmailSubmitted>(_onForgotEmail);
     on<AuthNewPasswordSubmitted>(_onNewPassword);
+    on<AuthEmailChanged>(_onEmailChanged);
+    on<_AuthEmailDomainRequested>(_onEmailDomainRequested);
     on<_AuthResendTicked>(
       (event, emit) => emit(
         state.copyWith(resendIn: state.resendIn > 0 ? state.resendIn - 1 : 0),
@@ -90,6 +108,23 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     return key == null ? null : AuthMessage.key(key);
   }
 
+  /// Bước 1 quên mật khẩu (web `ForgotPasswordDialog`): chỉ bắt buộc + đúng dạng email.
+  static AuthMessage? validateForgotEmail(String email) {
+    final value = email.trim();
+    final key = value.isEmpty
+        ? LocaleKeys.authEmailRequired
+        : !_emailFormat.hasMatch(value)
+        ? LocaleKeys.authEmailInvalid
+        : null;
+    return key == null ? null : AuthMessage.key(key);
+  }
+
+  /// Mật khẩu mới khi đặt lại (web `ForgotPasswordDialog`): chỉ tối thiểu 8 ký tự.
+  static AuthMessage? validateNewPassword(String password) =>
+      password.length < 8
+      ? const AuthMessage.key(LocaleKeys.authPasswordMin)
+      : null;
+
   static AuthMessage? validatePassword(String password) {
     final key = password.isEmpty
         ? LocaleKeys.authPasswordRequired
@@ -108,14 +143,74 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
         email: event.email,
         status: AuthStatus.idle,
         clearErrors: true,
+        clearEmailDomainError: true,
       ),
     );
   }
 
-  /// Lỗi chung của các bước: không mạng / server → hiện dưới form.
-  AuthMessage _message(Failure failure) => failure.message.isEmpty
-      ? const AuthMessage.key(LocaleKeys.authSomethingWrong)
+  /// Lỗi của các bước: message server, rỗng thì [fallback] (web `err?.message || t(...)`).
+  AuthMessage _message(
+    Failure failure, {
+    String fallback = LocaleKeys.authSomethingWrong,
+  }) => failure.message.isEmpty
+      ? AuthMessage.key(fallback)
       : AuthMessage.text(failure.message);
+
+  void _onEmailChanged(AuthEmailChanged event, Emitter<AuthState> emit) {
+    final email = event.email.trim();
+    // Controller báo cả khi chỉ dời con trỏ — email không đổi thì bỏ qua.
+    if (email == _domainEmail) return;
+    _domainDebounce?.cancel();
+    _domainEmail = email;
+    if (state.emailDomainError != null) {
+      emit(state.copyWith(clearEmailDomainError: true));
+    }
+    if (state.screen != AuthScreen.signup ||
+        !_domainCheckable.hasMatch(email)) {
+      return;
+    }
+    if (_domainCache.containsKey(email)) {
+      final cached = _domainCache[email];
+      if (cached != null) emit(state.copyWith(emailDomainError: cached));
+      return;
+    }
+    _domainDebounce = Timer(domainDebounce, () {
+      if (!isClosed) add(_AuthEmailDomainRequested(email));
+    });
+  }
+
+  Future<void> _onEmailDomainRequested(
+    _AuthEmailDomainRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    await callApi(
+      useCase: _verifyEmailDomain,
+      param: event.email,
+      onSuccess: (result) async {
+        // Web: `valid === false` → lỗi server, không có thì câu chung; null = không rõ.
+        final error = result.valid == false
+            ? (result.error?.isNotEmpty ?? false)
+                  ? AuthMessage.text(result.error!)
+                  : const AuthMessage.key(LocaleKeys.authEmailDomainInvalid)
+            : null;
+        if (result.valid != null) {
+          if (_domainCache.length >= 50) {
+            _domainCache.remove(_domainCache.keys.first);
+          }
+          _domainCache[event.email] = error;
+        }
+        if (event.email != _domainEmail || state.screen != AuthScreen.signup) {
+          return;
+        }
+        emit(
+          error == null
+              ? state.copyWith(clearEmailDomainError: true)
+              : state.copyWith(emailDomainError: error),
+        );
+      },
+      onFailure: (_) {},
+    );
+  }
 
   static String _reason(Failure failure) => failure is AuthFailure
       ? failure.reason.name
@@ -161,7 +256,15 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
         AppAnalytics.capture(AnalyticsEvents.signUpCompleted, {
           'method': 'email',
         });
-        emit(state.copyWith(status: AuthStatus.success, session: session));
+        emit(
+          state.copyWith(
+            status: AuthStatus.success,
+            session: session,
+            notice: const AuthNotice.success(
+              AuthMessage.key(LocaleKeys.authRegisterSuccess),
+            ),
+          ),
+        );
       },
       onFailure: (_) {},
       onFailureTyped: (failure) {
@@ -170,8 +273,20 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
             : AuthFailureReason.other;
         switch (reason) {
           case AuthFailureReason.emailExists:
+            // Web: toast "đã có tài khoản" rồi sang thẳng màn đăng nhập, điền sẵn email.
             _trackFailure('sign_up', failure);
-            emit(state.copyWith(status: AuthStatus.idle, emailExists: true));
+            emit(
+              state.copyWith(
+                status: AuthStatus.idle,
+                screen: AuthScreen.login,
+                email: email,
+                clearErrors: true,
+                clearEmailDomainError: true,
+                notice: const AuthNotice.info(
+                  AuthMessage.key(LocaleKeys.authEmailExistsSignIn),
+                ),
+              ),
+            );
           case AuthFailureReason.notVerified:
             // Đăng ký xong nhưng BE yêu cầu xác minh email trước khi đăng nhập.
             _trackVerifyRequired('sign_up');
@@ -215,7 +330,7 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
         AppAnalytics.capture(AnalyticsEvents.loginCompleted, {
           'method': 'email',
         });
-        emit(state.copyWith(status: AuthStatus.success, session: session));
+        emit(_signedIn(session));
       },
       onFailure: (_) {},
       onFailureTyped: (failure) {
@@ -264,7 +379,7 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
         AppAnalytics.capture(AnalyticsEvents.loginCompleted, {
           'method': event.provider.name,
         });
-        emit(state.copyWith(status: AuthStatus.success, session: session));
+        emit(_signedIn(session));
       },
       onFailure: (_) {},
       onFailureTyped: (failure) {
@@ -319,7 +434,10 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
           emit(
             state.copyWith(
               status: AuthStatus.idle,
-              otpError: _message(failure),
+              otpError: _message(
+                failure,
+                fallback: LocaleKeys.authTokenMissing,
+              ),
             ),
           );
         },
@@ -334,9 +452,13 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
       onSuccess: (_) async => verified = true,
       onFailure: (_) {},
       onFailureTyped: (failure) {
+        // Web `ModalVerifyOtp` không hiện message server, chỉ "OTP verification failed".
         _trackFailure('otp', failure);
         emit(
-          state.copyWith(status: AuthStatus.idle, otpError: _message(failure)),
+          state.copyWith(
+            status: AuthStatus.idle,
+            otpError: const AuthMessage.key(LocaleKeys.authOtpFailed),
+          ),
         );
       },
     );
@@ -357,7 +479,15 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
               : AnalyticsEvents.loginCompleted,
           {'method': 'email', 'after_verify': true},
         );
-        emit(state.copyWith(status: AuthStatus.success, session: session));
+        emit(
+          state.copyWith(
+            status: AuthStatus.success,
+            session: session,
+            notice: const AuthNotice.success(
+              AuthMessage.key(LocaleKeys.authOtpVerified),
+            ),
+          ),
+        );
       },
       onFailure: (_) {},
       onFailureTyped: (failure) {
@@ -385,10 +515,24 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
       param: state.email,
       onSuccess: (_) async => sent = true,
       onFailure: (_) {},
-      onFailureTyped: (failure) =>
-          emit(state.copyWith(otpError: _message(failure))),
+      onFailureTyped: (failure) => emit(
+        state.copyWith(
+          otpError: _message(failure, fallback: LocaleKeys.authResendFailed),
+        ),
+      ),
     );
-    if (sent) _startTimer(emit);
+    if (!sent) return;
+    emit(
+      state.copyWith(
+        clearErrors: true,
+        notice: AuthNotice.success(
+          AuthMessage.key(
+            forgot ? LocaleKeys.authCodeResent : LocaleKeys.authOtpResent,
+          ),
+        ),
+      ),
+    );
+    _startTimer(emit);
   }
 
   Future<void> _onForgotEmail(
@@ -396,7 +540,7 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     final email = event.email.trim();
-    final emailError = validateEmail(email);
+    final emailError = validateForgotEmail(email);
     emit(
       state.copyWith(email: email, clearErrors: true, emailError: emailError),
     );
@@ -408,7 +552,10 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
       onSuccess: (_) async => _enterOtp(emit, AuthScreen.forgotOtp),
       onFailure: (_) {},
       onFailureTyped: (failure) => emit(
-        state.copyWith(status: AuthStatus.idle, emailError: _message(failure)),
+        state.copyWith(
+          status: AuthStatus.idle,
+          emailError: _message(failure, fallback: LocaleKeys.authEmailNotExist),
+        ),
       ),
     );
   }
@@ -417,7 +564,7 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
     AuthNewPasswordSubmitted event,
     Emitter<AuthState> emit,
   ) async {
-    final passwordError = validatePassword(event.password);
+    final passwordError = validateNewPassword(event.password);
     final mismatch = event.password != event.confirm
         ? const AuthMessage.key(LocaleKeys.authPasswordMismatch)
         : null;
@@ -442,6 +589,9 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
             status: AuthStatus.idle,
             screen: AuthScreen.forgotDone,
             password: '',
+            notice: const AuthNotice.success(
+              AuthMessage.key(LocaleKeys.authResetSuccess),
+            ),
           ),
         );
       },
@@ -449,11 +599,23 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
       onFailureTyped: (failure) {
         _trackFailure('reset_password', failure);
         emit(
-          state.copyWith(status: AuthStatus.idle, formError: _message(failure)),
+          state.copyWith(
+            status: AuthStatus.idle,
+            formError: _message(failure, fallback: LocaleKeys.authResetFailed),
+          ),
         );
       },
     );
   }
+
+  /// Đăng nhập (email / Google / Apple) xong — web toast "Login successful" (`?login=success`).
+  AuthState _signedIn(AuthSession session) => state.copyWith(
+    status: AuthStatus.success,
+    session: session,
+    notice: const AuthNotice.success(
+      AuthMessage.key(LocaleKeys.authLoginSuccess),
+    ),
+  );
 
   /// Sang màn nhập mã + bắt đầu đếm ngược "Resend" trong cùng một state.
   void _enterOtp(Emitter<AuthState> emit, AuthScreen screen) {
@@ -489,6 +651,7 @@ class AuthBloc extends BlocWithApi<AuthEvent, AuthState> {
   @override
   Future<void> close() {
     _stopTimer();
+    _domainDebounce?.cancel();
     return super.close();
   }
 }
