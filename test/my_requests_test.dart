@@ -31,6 +31,7 @@ class _Repo implements PostRequestRepository {
     required int userId,
     int page = 1,
     int limit = 20,
+    bool? isPrivate,
   }) async => Right(
     PostRequestMapper.myRequests({
       'total_page': 1,
@@ -110,7 +111,7 @@ void main() {
       expect(r.details.endDate?.day, 25);
     });
 
-    test('maps offers: seller name, price, service rating', () {
+    test('maps offers: seller shop name, price, service rating', () {
       final offers = PostRequestMapper.requestOffers({
         'list': [
           {
@@ -121,6 +122,7 @@ void main() {
             'Seller': {
               'first_name': 'Hana',
               'last_name': 'Le',
+              'shop_name': 'Hana Le Physio',
               'profile_picture': '',
             },
             'Service': {'rating': 4.9},
@@ -130,7 +132,7 @@ void main() {
       });
       expect(offers, hasLength(1));
       final o = offers.single;
-      expect(o.sellerName, 'Hana Le');
+      expect(o.sellerName, 'Hana Le Physio');
       expect(o.sellerAvatar, isNull);
       expect(o.price, 80);
       expect(o.rating, 4.9);
@@ -180,7 +182,7 @@ void main() {
   });
 
   test(
-    'MyRequestsBloc splits tabs and loads offers only when offers_count > 0',
+    'MyRequestsBloc lists the tab as returned and loads offers only when offers_count > 0',
     () async {
       final repo = _Repo();
       final bloc = MyRequestsBloc(
@@ -190,14 +192,8 @@ void main() {
       )..add(const MyRequestsStarted());
 
       final loaded = await bloc.stream.firstWhere((s) => s.offers.length == 2);
-      expect(loaded.visibleItems.map((r) => r.id), [1, 2]);
+      expect(loaded.visibleItems.map((r) => r.id), [1, 2, 3]);
       expect(repo.offerCalls..sort(), [1, 3]);
-
-      bloc.add(const MyRequestsTabChanged(MyRequestsTab.closed));
-      final closed = await bloc.stream.firstWhere(
-        (s) => s.tab == MyRequestsTab.closed,
-      );
-      expect(closed.visibleItems.map((r) => r.id), [3]);
       await bloc.close();
     },
   );

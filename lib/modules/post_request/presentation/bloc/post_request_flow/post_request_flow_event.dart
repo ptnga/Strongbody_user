@@ -7,9 +7,11 @@ sealed class PostRequestFlowEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Vào "Here's what I heard": (chuyển chữ nếu cần) → AI phân tích → đếm provider phù hợp.
+/// Mở màn "Post a request" với input vừa gửi (text / bản ghi / bản nháp có sẵn).
 final class PostRequestFlowStarted extends PostRequestFlowEvent {
   final PostRequestFlowArgs args;
+
+  /// Ngôn ngữ giao diện — AI soạn theo ngôn ngữ này, Working language mặc định là nó.
   final String locale;
 
   const PostRequestFlowStarted({required this.args, required this.locale});
@@ -17,14 +19,14 @@ final class PostRequestFlowStarted extends PostRequestFlowEvent {
   @override
   List<Object?> get props => [
     args.text,
-    args.voicePath,
-    args.browseOnly,
+    args.audioPath,
     args.draft,
+    args.prefill,
+    args.sellerUserIds,
     locale,
   ];
 }
 
-/// Người dùng sửa form ở màn Review.
 final class PostRequestFlowValuesChanged extends PostRequestFlowEvent {
   final RequestFormValues values;
 
@@ -34,42 +36,11 @@ final class PostRequestFlowValuesChanged extends PostRequestFlowEvent {
   List<Object?> get props => [values];
 }
 
-final class PostRequestFlowVisibilityChanged extends PostRequestFlowEvent {
-  final RequestVisibility visibility;
-
-  const PostRequestFlowVisibilityChanged(this.visibility);
-
-  @override
-  List<Object?> get props => [visibility];
-}
-
-/// Chọn xong danh sách provider (chế độ "Only providers I choose").
-final class PostRequestFlowProvidersSelected extends PostRequestFlowEvent {
-  final List<ProviderEntity> providers;
-
-  const PostRequestFlowProvidersSelected(this.providers);
-
-  @override
-  List<Object?> get props => [providers];
-}
-
-/// Bỏ voice note khỏi request (nút thùng rác ở màn Review).
-/// Sửa "Category" ngay ở thẻ "I understood".
-final class PostRequestFlowCategoryChanged extends PostRequestFlowEvent {
-  final int categoryId;
-
-  const PostRequestFlowCategoryChanged(this.categoryId);
-
-  @override
-  List<Object?> get props => [categoryId];
-}
-
-/// Thùng rác ở thẻ voice note: bỏ voice khỏi request, thẻ chuyển sang "Undo remove".
+/// Bỏ voice note gửi kèm (vẫn "Undo" được).
 final class PostRequestFlowVoiceRemoved extends PostRequestFlowEvent {
   const PostRequestFlowVoiceRemoved();
 }
 
-/// "Undo remove": gắn lại voice note vừa xoá.
 final class PostRequestFlowVoiceRestored extends PostRequestFlowEvent {
   const PostRequestFlowVoiceRestored();
 }
@@ -80,4 +51,19 @@ final class PostRequestFlowSubmitted extends PostRequestFlowEvent {
 
 final class PostRequestFlowNoticeConsumed extends PostRequestFlowEvent {
   const PostRequestFlowNoticeConsumed();
+}
+
+/// Danh sách tiền tệ tải xong (nội bộ).
+final class _PostRequestFlowCurrenciesLoaded extends PostRequestFlowEvent {
+  final List<CurrencyOption> currencies;
+
+  const _PostRequestFlowCurrenciesLoaded(this.currencies);
+
+  @override
+  List<Object?> get props => [currencies];
+}
+
+/// Nhịp thanh tiến trình (nội bộ).
+final class _PostRequestFlowTicked extends PostRequestFlowEvent {
+  const _PostRequestFlowTicked();
 }

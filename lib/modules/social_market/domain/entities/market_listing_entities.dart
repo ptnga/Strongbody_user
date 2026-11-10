@@ -16,6 +16,28 @@ class MarketPage<T> extends Equatable {
   List<Object?> get props => [items, total, totalPages];
 }
 
+/// 3 mục xác minh công khai của provider (web `ProviderVerifications`): danh tính,
+/// số điện thoại (OTP), bằng cấp. Có ít nhất 1 mục → card hiện trạng thái verified.
+class MarketVerifications extends Equatable {
+  final bool identity;
+  final bool phone;
+  final bool diploma;
+
+  const MarketVerifications({
+    this.identity = false,
+    this.phone = false,
+    this.diploma = false,
+  });
+
+  bool get any => identity || phone || diploma;
+
+  /// Số mục đã xác minh (chấm số trên huy hiệu `VerificationSummary`).
+  int get count => [identity, phone, diploma].where((v) => v).length;
+
+  @override
+  List<Object?> get props => [identity, phone, diploma];
+}
+
 /// Người bán đi kèm service — web `resolveSeller()`: danh tính là TÊN SHOP (hoặc
 /// organization khi là người đại diện), nước/cờ chỉ từ hồ sơ seller.
 class MarketSeller extends Equatable {
@@ -32,6 +54,12 @@ class MarketSeller extends Equatable {
   /// Slug hồ sơ seller (`/{slug}`).
   final String? slug;
 
+  /// Mục đã xác minh (web `seller.verifications`); null = chưa mục nào.
+  final MarketVerifications? verifications;
+
+  /// Ngôn ngữ làm việc của seller (tên đầy đủ: "English").
+  final List<String> languages;
+
   const MarketSeller({
     this.id,
     this.shopName,
@@ -40,7 +68,11 @@ class MarketSeller extends Equatable {
     this.flag,
     this.profession,
     this.slug,
+    this.verifications,
+    this.languages = const [],
   });
+
+  bool get verified => verifications?.any ?? false;
 
   @override
   List<Object?> get props => [
@@ -51,6 +83,8 @@ class MarketSeller extends Equatable {
     flag,
     profession,
     slug,
+    verifications,
+    languages,
   ];
 }
 
@@ -72,7 +106,8 @@ enum MarketDeliveryType {
   }
 }
 
-/// Badge hình thức trên card (web `deliveryBadges`), mỗi loại có giá riêng.
+/// Badge hình thức trên card (web `deliveryBadges`). Hình thức nhận KHÔNG có giá riêng
+/// (giá là của service — [MarketPrice]); [price] chỉ còn là dữ liệu cũ của API.
 class MarketDelivery extends Equatable {
   final MarketDeliveryType type;
   final double? price;
@@ -86,22 +121,37 @@ class MarketDelivery extends Equatable {
   List<Object?> get props => [type, price, coverage];
 }
 
-/// Giá hiển thị (web `servicePrice`): mức thấp nhất, `from` khi nhiều mức khác nhau.
+/// Giá hiển thị (web `servicePrice`) — của SERVICE, không theo hình thức nhận:
+/// Đặt ngay = 1 giá (`price`); Tư vấn (`pricing_mode = consultation`) = khoảng
+/// `price` – `price_max` ("$50 – $200"), không mua được, chỉ inquiry.
 class MarketPrice extends Equatable {
+  /// Giá chung (Đặt ngay) hoặc giá Từ (Tư vấn).
   final double? amount;
+
+  /// Giá Đến — chỉ service Tư vấn.
+  final double? max;
+
+  /// "$80" / "$50 – $200".
   final String text;
+
+  /// Luôn false: giá không còn theo hình thức nhận nên không có "From" (giữ cho tương thích).
   final bool from;
+
+  /// Service Tư vấn: card hiện nhãn "Consultation", CTA chỉ là Send inquiry.
+  final bool consultation;
   final String currency;
 
   const MarketPrice({
     required this.amount,
     required this.text,
-    required this.from,
+    this.from = false,
     required this.currency,
+    this.max,
+    this.consultation = false,
   });
 
   @override
-  List<Object?> get props => [amount, text, from, currency];
+  List<Object?> get props => [amount, max, text, from, consultation, currency];
 }
 
 class MarketServiceEntity extends Equatable {
@@ -140,6 +190,12 @@ class MarketServiceEntity extends Equatable {
   final List<String> coverList;
   final String? rawDescription;
 
+  /// `pricing_mode` thô: 'fixed' (Đặt ngay, mặc định) | 'consultation' (Tư vấn).
+  final String? pricingMode;
+
+  /// `price_max` thô (Giá Đến của service Tư vấn) — gửi kèm card inquiry.
+  final num? priceMax;
+
   const MarketServiceEntity({
     required this.id,
     required this.slug,
@@ -161,9 +217,21 @@ class MarketServiceEntity extends Equatable {
     this.imageList = const [],
     this.coverList = const [],
     this.rawDescription,
+    this.pricingMode,
+    this.priceMax,
   });
 
   String? get previewImage => images.isEmpty ? null : images.first;
+
+  /// Service Tư vấn (web `isConsultationService`): khoảng giá, không Book / View & book.
+  bool get isConsultation => pricingMode == 'consultation';
+
+  /// Ảnh card: CHỈ ảnh bìa (cover), chưa có bìa → ảnh đầu tiên (web `firstImage(cover, image)`).
+  String? get coverImage => coverList.isNotEmpty
+      ? coverList.first
+      : imageList.isNotEmpty
+      ? imageList.first
+      : previewImage;
 
   @override
   List<Object?> get props => [id, slug, title, price, deliveries, seller];
@@ -189,7 +257,15 @@ class MarketExpertEntity extends Equatable {
   final double ratingValue;
   final int ratingCount;
   final int? booked;
+
+  /// Đã xác minh danh tính (`seller_verified`).
   final bool verified;
+
+  /// 3 mục xác minh công khai (ID / phone / bằng cấp) — huy hiệu trên avatar.
+  final MarketVerifications? verifications;
+
+  /// Tổ chức của provider — hiện dưới tên (bỏ khi trùng tên provider).
+  final String? organization;
   final String? about;
   final List<String> languages;
 
@@ -213,6 +289,8 @@ class MarketExpertEntity extends Equatable {
     this.ratingCount = 0,
     this.booked,
     this.verified = false,
+    this.verifications,
+    this.organization,
     this.about,
     this.languages = const [],
     this.representativeOf,
@@ -220,6 +298,11 @@ class MarketExpertEntity extends Equatable {
   });
 
   bool get hasRating => ratingCount > 0 && ratingValue > 0;
+
+  /// Nguồn chỉ có cờ `verified` (danh tính) → coi như 1 mục ID (web `cardVerifications`).
+  MarketVerifications? get cardVerifications =>
+      verifications ??
+      (verified ? const MarketVerifications(identity: true) : null);
 
   @override
   List<Object?> get props => [id, userId, name, slug, ratingValue, ratingCount];

@@ -1,13 +1,14 @@
 part of 'post_request_flow_bloc.dart';
 
-/// analyzing: đang chuyển chữ / AI phân tích; ready: có kết quả (kể cả khi AI lỗi → giữ câu gốc).
-enum PostRequestAnalysisStatus { analyzing, ready }
+/// working: AI đang xử lý (form khoá); ready: form mở cho người dùng sửa & đăng.
+enum PostRequestAnalysisStatus { working, ready }
 
-/// filled: AI đã hiểu; empty: AI coi nội dung rỗng; failed: lỗi AI (form giữ câu gốc).
-enum PostRequestDraftOutcome { filled, empty, failed }
+/// Bước của AI (web `DraftStep`) — chọn câu trạng thái trên thanh tiến trình.
+enum PostRequestDraftStep { transcribing, drafting }
 
-/// Ai thấy request: mọi provider phù hợp (`/buyer/request`) hoặc chỉ người đã chọn (`/to-seller`).
-enum RequestVisibility { allMatching, chosenProviders }
+/// filled: AI đã điền; empty: AI coi nội dung rỗng; failed: lỗi giữa chừng (form giữ
+/// phần còn lại); none: không có input (form trống).
+enum PostRequestDraftOutcome { filled, empty, failed, none }
 
 enum PostRequestSubmitStatus { idle, submitting, success, pendingAuth, failure }
 
@@ -17,80 +18,65 @@ enum PostRequestNotice {
   emptyVoice,
   draftFailed,
   descriptionRequired,
-  deliveryRequired,
-  chooseProviders,
-  requestFailed;
-
-  /// Lỗi ở bước phân tích (màn Heard báo); còn lại là lỗi khi đăng (màn Review báo).
-  bool get isAnalysisNotice =>
-      this == transcribeFailed ||
-      this == rateLimited ||
-      this == emptyVoice ||
-      this == draftFailed;
+  descriptionTooShort,
+  descriptionTooLong,
+  requestFailed,
 }
 
 class PostRequestFlowState extends Equatable {
   final PostRequestAnalysisStatus analysisStatus;
+  final PostRequestDraftStep? step;
 
-  /// Câu người dùng đã nói / gõ (hiện trong ngoặc kép ở "Here's what I heard").
-  final String transcript;
-  final String? languageCode;
+  /// 0–100. Ước lượng: chạy chậm dần về mốc của bước hiện tại, xong thì nhảy tới mốc.
+  final double progress;
   final RequestFormValues values;
   final PostRequestDraftOutcome? outcome;
-  final RequestAssistantMeta? assistant;
 
-  /// Tổng provider khớp từ khoá nghề; null = chưa biết / không tìm được.
-  final int? matchCount;
-  final String? providerKeyword;
-  final RequestVisibility visibility;
-  final List<ProviderEntity> selectedProviders;
+  /// Category / điểm chất lượng / gợi ý của AI — gửi kèm khi đăng, không hiển thị.
+  final RequestAssistantMeta? assistant;
+  final List<CurrencyOption> currencies;
   final PostRequestSubmitStatus submitStatus;
+
+  /// Request vừa đăng (id → trang "Providers for your request").
+  final CreatedRequest? created;
   final PostRequestNotice? notice;
   final String? noticeMessage;
 
-  /// Voice note vừa bấm xoá ở Review — giữ lại để "Undo remove" (không gửi kèm request).
+  /// Voice note vừa bấm xoá — giữ lại để "Undo remove" (không gửi kèm request).
   final String? removedVoicePath;
   final Duration? removedVoiceDuration;
 
   const PostRequestFlowState({
-    this.analysisStatus = PostRequestAnalysisStatus.analyzing,
-    this.transcript = '',
-    this.languageCode,
+    this.analysisStatus = PostRequestAnalysisStatus.working,
+    this.step,
+    this.progress = 0,
     this.values = const RequestFormValues(),
     this.outcome,
     this.assistant,
-    this.matchCount,
-    this.providerKeyword,
-    this.visibility = RequestVisibility.allMatching,
-    this.selectedProviders = const [],
+    this.currencies = const [],
     this.submitStatus = PostRequestSubmitStatus.idle,
+    this.created,
     this.notice,
     this.noticeMessage,
     this.removedVoicePath,
     this.removedVoiceDuration,
   });
 
-  bool get isAnalyzing => analysisStatus == PostRequestAnalysisStatus.analyzing;
+  bool get isWorking => analysisStatus == PostRequestAnalysisStatus.working;
   bool get isSubmitting => submitStatus == PostRequestSubmitStatus.submitting;
   bool get hasRemovedVoice => removedVoicePath != null;
 
-  /// Số provider sẽ nhận request (để hiện ở màn "Request posted").
-  int? get recipientCount => visibility == RequestVisibility.chosenProviders
-      ? selectedProviders.length
-      : matchCount;
-
   PostRequestFlowState copyWith({
     PostRequestAnalysisStatus? analysisStatus,
-    String? transcript,
-    String? languageCode,
+    PostRequestDraftStep? step,
+    bool clearStep = false,
+    double? progress,
     RequestFormValues? values,
     PostRequestDraftOutcome? outcome,
     RequestAssistantMeta? assistant,
-    int? matchCount,
-    String? providerKeyword,
-    RequestVisibility? visibility,
-    List<ProviderEntity>? selectedProviders,
+    List<CurrencyOption>? currencies,
     PostRequestSubmitStatus? submitStatus,
+    CreatedRequest? created,
     PostRequestNotice? notice,
     String? noticeMessage,
     bool clearNotice = false,
@@ -100,16 +86,14 @@ class PostRequestFlowState extends Equatable {
   }) {
     return PostRequestFlowState(
       analysisStatus: analysisStatus ?? this.analysisStatus,
-      transcript: transcript ?? this.transcript,
-      languageCode: languageCode ?? this.languageCode,
+      step: clearStep ? null : (step ?? this.step),
+      progress: progress ?? this.progress,
       values: values ?? this.values,
       outcome: outcome ?? this.outcome,
       assistant: assistant ?? this.assistant,
-      matchCount: matchCount ?? this.matchCount,
-      providerKeyword: providerKeyword ?? this.providerKeyword,
-      visibility: visibility ?? this.visibility,
-      selectedProviders: selectedProviders ?? this.selectedProviders,
+      currencies: currencies ?? this.currencies,
       submitStatus: submitStatus ?? this.submitStatus,
+      created: created ?? this.created,
       notice: clearNotice ? null : (notice ?? this.notice),
       noticeMessage: clearNotice ? null : (noticeMessage ?? this.noticeMessage),
       removedVoicePath: clearRemovedVoice
@@ -124,16 +108,14 @@ class PostRequestFlowState extends Equatable {
   @override
   List<Object?> get props => [
     analysisStatus,
-    transcript,
-    languageCode,
+    step,
+    progress,
     values,
     outcome,
     assistant,
-    matchCount,
-    providerKeyword,
-    visibility,
-    selectedProviders,
+    currencies,
     submitStatus,
+    created,
     notice,
     noticeMessage,
     removedVoicePath,

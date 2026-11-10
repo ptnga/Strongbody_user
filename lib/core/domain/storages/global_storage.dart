@@ -1,5 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../utils/app_locale.dart';
+
 class GlobalStorageKey {
   GlobalStorageKey._();
 
@@ -73,9 +75,12 @@ class GlobalStorageImpl implements GlobalStorage {
   String? get referralCode =>
       _box.get(GlobalStorageKey.referralCode) as String?;
 
+  /// Chưa chọn ngôn ngữ → theo ngôn ngữ thiết bị nếu app hỗ trợ, không thì `en` (như web).
   @override
-  String get locale =>
-      _box.get(GlobalStorageKey.locale, defaultValue: 'en') as String;
+  String get locale => AppLocale.resolve(
+    _box.get(GlobalStorageKey.locale) as String?,
+    AppLocale.deviceLocales,
+  );
 
   @override
   Map<String, dynamic>? get pendingRequest {
@@ -126,7 +131,8 @@ class GlobalStorageImpl implements GlobalStorage {
   Future<void> clearPendingRequest() =>
       _box.delete(GlobalStorageKey.pendingRequest);
 
-  /// Xoá phiên đăng nhập, giữ lại cài đặt thiết bị (locale...) và request đang chờ.
+  /// Xoá phiên đăng nhập + request nháp đang chờ (web `clearUserScopedStorage` xoá cả nháp
+  /// post request), giữ lại cài đặt thiết bị (locale) và mã giới thiệu.
   @override
   Future<void> clearUser() async {
     await _box.deleteAll([
@@ -136,6 +142,7 @@ class GlobalStorageImpl implements GlobalStorage {
       GlobalStorageKey.userId,
       GlobalStorageKey.userName,
       GlobalStorageKey.userEmail,
+      GlobalStorageKey.pendingRequest,
     ]);
   }
 }

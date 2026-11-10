@@ -3,6 +3,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:strongbody_buyer/core/base/failure.dart';
 
 import '../entities/my_request_entity.dart';
+import '../entities/posted_request_entity.dart';
 import '../entities/provider_entity.dart';
 import '../entities/request_draft_entity.dart';
 import '../entities/request_form_values.dart';
@@ -18,8 +19,8 @@ abstract class PostRequestRepository {
   });
 
   /// Đăng request. `sellerUserIds` rỗng → `POST /buyer/request` (mọi provider phù hợp);
-  /// có id → `POST /buyer/request/to-seller` cho từng seller. Trả về status BE (`active` = đã lên).
-  Future<Either<Failure, String?>> createBuyerRequest({
+  /// có id → `POST /buyer/request/to-seller` cho từng seller. Trả về id + status BE.
+  Future<Either<Failure, CreatedRequest>> createBuyerRequest({
     required int userId,
     required RequestFormValues values,
     RequestAssistantMeta? assistant,
@@ -41,15 +42,23 @@ abstract class PostRequestRepository {
     int limit = 20,
   });
 
-  /// Request của buyer (`GET /user/requests`).
+  /// Request của buyer (`GET /user/requests`). [isPrivate]: tab Public / Private
+  /// của web (`is_private`); null = không lọc (vd menu "recent requests").
   Future<Either<Failure, MyRequestPage>> getMyRequests({
     required int userId,
     int page = 1,
     int limit = 20,
+    bool? isPrivate,
   });
 
   /// Offer provider đã gửi cho một request.
   Future<Either<Failure, List<RequestOfferEntity>>> getRequestOffers(
     int requestId,
   );
+
+  /// Request vừa đăng (`GET /user/request/{id}`).
+  Future<Either<Failure, SentRequest>> getSentRequest(int id);
+
+  /// Tiền tệ chọn được ở form request (`GET /admin/currencies`).
+  Future<Either<Failure, List<CurrencyOption>>> getCurrencies();
 }

@@ -53,12 +53,20 @@ class AssistantMapper {
     final near = _map(r['near']);
     final relaxed = _map(r['relaxed']);
     final draft = _map(r['request_draft']);
+    final cards = _groups(r['cards']);
+    // Chỉ tính nhóm đang hiện thẻ: nhóm rỗng nới điều kiện mà vẫn không ra gì thì không
+    // liên quan tới các thẻ khách đang xem.
+    final relaxedSteps = [
+      for (final entry in (relaxed ?? const <String, dynamic>{}).entries)
+        if (cards[AssistantKind.fromApi(entry.key)]?.isNotEmpty ?? false)
+          ..._strings(entry.value),
+    ];
     return AssistantResult(
       branch: _text(r['branch']) ?? '',
       answer: _text(r['answer']),
       understanding: understanding,
       kinds: _strings(r['kinds']).map(AssistantKind.fromApi).nonNulls.toList(),
-      cards: _groups(r['cards']),
+      cards: cards,
       closeMatches: _groups(r['close_matches']),
       totals: {
         for (final entry in (_map(r['totals']) ?? const {}).entries)
@@ -74,16 +82,27 @@ class AssistantMapper {
         final label? => AssistantNear(
           label: label,
           fromGps: near?['source'] == 'gps',
+          soft: near?['soft'] == true,
         ),
         _ => null,
       },
-      nearRelaxed:
-          relaxed?.values.any((v) => v is List && v.contains('near')) ?? false,
+      nearRelaxed: relaxedSteps.contains('near'),
+      relaxed: {
+        for (final step in relaxedSteps) ?_relaxedLabels[step],
+      }.toList(),
       suggestions: _strings(understanding?['suggestions']),
       reason: _text(understanding?['reason']),
       raw: r,
     );
   }
+
+  /// Bộ lọc BE đã bỏ vì không ai khớp → nhãn điều kiện (web `RELAXED_LABELS`).
+  static const _relaxedLabels = {
+    'delivery_types': AssistantMissing.delivery,
+    'languages': AssistantMissing.languages,
+    'gender': AssistantMissing.gender,
+    'price': AssistantMissing.price,
+  };
 
   static Map<AssistantKind, List<AssistantCard>> _groups(Object? raw) {
     final out = <AssistantKind, List<AssistantCard>>{};
@@ -104,8 +123,16 @@ class AssistantMapper {
     final missing = _strings(
       c['missing'],
     ).map(AssistantMissing.fromApi).nonNulls.toList();
+    final km = c['distance_km'];
+    final distance = km is num ? km.toDouble() : null;
     return switch (c['kind']) {
-      'seller' => AssistantCard(ref: ref, seller: _seller(c), missing: missing),
+      'seller' => AssistantCard(
+        ref: ref,
+        seller: _seller(c),
+        missing: missing,
+        distanceKm: distance,
+        address: _text(c['address']),
+      ),
       'offer' => AssistantCard(
         ref: ref,
         offer: MarketMapper.offer(_offerJson(c)),
@@ -115,6 +142,7 @@ class AssistantMapper {
         ref: ref,
         service: MarketMapper.service(_serviceJson(c)),
         missing: missing,
+        distanceKm: distance,
       ),
       _ => null,
     };
@@ -129,6 +157,7 @@ class AssistantMapper {
     final price = c['price_from'];
     final medicalTravel = c['medical_travel'] == true;
     final destinations = _strings(c['destinations']);
+    final consultation = c['pricing_mode'] == 'consultation';
     return {
       'id': _int(c['id']),
       'slug': c['slug'],
@@ -136,6 +165,11 @@ class AssistantMapper {
       'description': c['description'],
       'image': _text(c['image']) == null ? null : [c['image']],
       'price': price,
+      // Tư vấn: khoảng price_from – price_to, card bỏ nút Book (chỉ inquiry).
+      'pricing_mode': consultation && _positive(c['price_to']) != null
+          ? 'consultation'
+          : null,
+      'price_max': consultation ? c['price_to'] : null,
       'currency': c['currency'],
       'is_medical_travel': medicalTravel,
       // Medical Travel: nơi điều trị; còn lại: địa chỉ cơ sở (rỗng → Online / nước seller).
@@ -146,9 +180,10 @@ class AssistantMapper {
         '' => null,
         final s => s,
       },
+      // Hình thức nhận không còn giá riêng: giá nằm ở service (price / price_max).
       'delivery_options': [
         for (final d in _strings(c['delivery']))
-          {'delivery_type': d, 'price': price, 'is_active': true},
+          {'delivery_type': d, 'is_active': true},
       ],
       'user': {
         'id': _int(c['user_id']),
@@ -172,6 +207,9 @@ class AssistantMapper {
       slug: _text(c['slug']),
       avatar: _text(c['image']),
       subtitle: _text(c['subtitle']),
+      // Nước của seller (tên + ảnh cờ flagcdn).
+      country: _text(c['country']),
+      flag: MarketMapper.flagUrl(_text(c['country_flag'])),
       medicalTravel: c['medical_travel'] == true,
       yearsOfExperience: years != null && years > 0 ? years : null,
       ratingValue: reviews > 0 ? (c['rating'] as num?)?.toDouble() ?? 0 : 0,
@@ -232,7 +270,8 @@ class AssistantMapper {
             ? description.substring(0, RequestFormValues.maxDescription)
             : description,
         budget: budget,
-        currency: requestCurrencies.contains(currency) ? currency : 'USD',
+        // Mã ngoài bảng currencies vẫn giữ (ô chọn hiện kèm), như web `isCurrencyCode`.
+        currency: RegExp(r'^[A-Z]{3}$').hasMatch(currency) ? currency : 'USD',
         deliveryTypes: _strings(
           d['delivery_types'],
         ).map(RequestDeliveryType.fromApi).nonNulls.toList(),

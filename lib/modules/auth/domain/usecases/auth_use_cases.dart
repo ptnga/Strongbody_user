@@ -136,3 +136,16 @@ class ResetPasswordUseCase implements UseCase<Unit, ResetPasswordParams> {
         newPassword: params.newPassword,
       );
 }
+
+/// Kiểm tra domain email có nhận thư (MX) — chỉ để cảnh báo dưới ô email, không chặn gửi.
+class VerifyEmailDomainUseCase
+    implements UseCase<({bool? valid, String? error}), String> {
+  final AuthRepository _repository;
+
+  VerifyEmailDomainUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, ({bool? valid, String? error})>> call(
+    String email,
+  ) async => Right(await _repository.verifyEmailDomain(email));
+}

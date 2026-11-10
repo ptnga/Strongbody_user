@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import 'package:strongbody_buyer/core/config/environment.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 import 'package:strongbody_buyer/core/network/api.dart';
@@ -17,7 +19,9 @@ class AccountApiException implements Exception {
 
 abstract class AccountRemoteDataSource {
   Future<Map<String, dynamic>> getMe();
-  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body);
+
+  /// Web `updateBuyerProfile`: `PUT /buyer/auth/profile` dạng multipart (FormData).
+  Future<Map<String, dynamic>> updateProfile(Map<String, String> fields);
   Future<void> logout();
 
   /// Bước 1: yêu cầu xoá → server gửi mã OTP tới email.
@@ -77,17 +81,17 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async =>
-      _map(
-        _unwrap(
-          await _api.request(
-            path: AccountApiConfig.profile,
-            method: ApiType.put,
-            data: body,
-            headers: {'x-api-key': AppConfig.publicApiKey},
-          ),
-        ),
-      );
+  Future<Map<String, dynamic>> updateProfile(
+    Map<String, String> fields,
+  ) async => _map(
+    _unwrap(
+      await _api.request(
+        path: AccountApiConfig.profile,
+        method: ApiType.put,
+        data: FormData.fromMap(fields),
+      ),
+    ),
+  );
 
   @override
   Future<void> logout() async {
@@ -97,7 +101,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
   }
 
   /// Bước 1 (`DELETE /buyer/auth/user/{userId}`): BE kiểm tra email+mật khẩu rồi
-  /// gửi mã OTP. Gửi email+password qua query (giống app Provider đang chạy).
+  /// gửi mã OTP. Body JSON `{email, password}` như web `deleteAccount`.
   @override
   Future<void> requestAccountDeletion({
     required int userId,
@@ -108,7 +112,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
       await _api.request(
         path: '${AccountApiConfig.deleteAccount}/$userId',
         method: ApiType.delete,
-        queryParameters: {'email': email, 'password': password},
+        data: {'email': email, 'password': password},
       ),
     );
   }
@@ -123,6 +127,7 @@ class AccountRemoteDataSourceImpl implements AccountRemoteDataSource {
       await _api.request(
         path: AccountApiConfig.verifyAccountDeletion,
         method: ApiType.post,
+        headers: {'x-api-key': AppConfig.publicApiKey},
         data: {'email': email, 'otp': otp},
       ),
     );

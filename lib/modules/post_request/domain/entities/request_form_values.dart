@@ -1,10 +1,12 @@
 import 'package:equatable/equatable.dart';
 
-/// Cách nhận hỗ trợ (multi-select). Nhiều loại → BE nhận 1 giá trị `all`.
+/// Cách nhận hỗ trợ (multi-select, thứ tự như web `REQUEST_DELIVERY_TYPES`).
+/// Nhiều loại → BE nhận 1 giá trị `all`.
 enum RequestDeliveryType {
   remote('remote'),
-  atHome('at_home'),
-  atClinic('at_clinic');
+  atOffice('at_office'),
+  atClinic('at_clinic'),
+  atHome('at_home');
 
   const RequestDeliveryType(this.apiValue);
   final String apiValue;
@@ -52,8 +54,12 @@ class TimeRange extends Equatable {
 /// Giá trị request (mirror `RequestFormValues` của web `(home-marketplace)/_lib/forms.ts`
 /// + voice note như Multime). Chỉ `description` + cách nhận là bắt buộc trên UI.
 class RequestFormValues extends Equatable {
-  /// Giới hạn mô tả theo thiết kế màn Review.
+  /// Mô tả 50–1000 ký tự (web `REQUEST_DESCRIPTION_MIN/MAX`, đếm sau khi trim).
+  static const minDescription = 50;
   static const maxDescription = 1000;
+
+  /// Mỗi file đính kèm tối đa 20MB (web `REQUEST_ATTACHMENT_MAX_BYTES`).
+  static const maxAttachmentBytes = 20 * 1024 * 1024;
 
   final String description;
 
@@ -69,6 +75,15 @@ class RequestFormValues extends Equatable {
   final DateTime? endDate;
   final Map<WeekDay, List<TimeRange>> schedule;
   final List<String> sellerLanguages;
+
+  /// Id bảng currencies của [currency] (null = BE tự liên kết theo mã).
+  final int? currencyId;
+
+  /// "Post anonymously" — ẩn tên / ảnh người đăng với provider (cột `anonymous`).
+  final bool anonymous;
+
+  /// Đăng từ "Me too" của request này (BE đếm lượt + lưu link).
+  final int? similarToRequestId;
 
   /// Đường dẫn file trên máy — không lưu được khi giữ request chờ đăng nhập.
   final List<String> attachmentPaths;
@@ -86,6 +101,9 @@ class RequestFormValues extends Equatable {
     this.endDate,
     this.schedule = const {},
     this.sellerLanguages = const [],
+    this.currencyId,
+    this.anonymous = false,
+    this.similarToRequestId,
     this.attachmentPaths = const [],
     this.voicePath,
     this.voiceDuration,
@@ -96,14 +114,30 @@ class RequestFormValues extends Equatable {
 
   bool get hasVoice => voicePath != null;
 
-  /// "80" → (80, 80); "60-80" → (60, 80); rỗng/không hợp lệ → (null, null).
-  static final _budgetPattern = RegExp(
-    r'^\s*[$€£]?\s*\d+([.,]\d+)?(\s*[–—-]\s*[$€£]?\s*\d+([.,]\d+)?)?\s*$',
-  );
+  /// Số ký tự mô tả (trim, đếm theo rune như web `Array.from`).
+  static int descriptionLength(String text) => text.trim().runes.length;
 
-  /// Ô ngân sách hợp lệ: trống, một số, hoặc khoảng ("60–80", "$60-$80").
-  static bool isValidBudgetText(String text) =>
-      text.trim().isEmpty || _budgetPattern.hasMatch(text);
+  /// Lỗi mô tả (web `requestDescriptionError`); null = hợp lệ.
+  static DescriptionError? descriptionError(String text) {
+    final n = descriptionLength(text);
+    if (n == 0) return DescriptionError.required;
+    if (n < minDescription) return DescriptionError.tooShort;
+    return n > maxDescription ? DescriptionError.tooLong : null;
+  }
+
+  /// Ô ngân sách (optional, web `budgetError`): số, dấu phân cách và MỘT dấu gạch nối
+  /// khoảng ("100", "1,000", "120 - 150"); rỗng = hợp lệ.
+  static bool isValidBudgetText(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return true;
+    final parts = t.replaceAll(RegExp('[–—]'), '-').split('-');
+    if (parts.length > 2 || !RegExp(r'^[\d\s.,\-–—]+$').hasMatch(t)) {
+      return false;
+    }
+    if (parts.any((p) => !RegExp(r'\d').hasMatch(p))) return false;
+    final max = RequestFormValues(budget: t).parsedBudget.max;
+    return max != null && max > 0;
+  }
 
   ({double? min, double? max}) get parsedBudget {
     final text = budget.trim().replaceAll(RegExp('[–—]'), '-');
@@ -131,6 +165,10 @@ class RequestFormValues extends Equatable {
     bool clearDates = false,
     Map<WeekDay, List<TimeRange>>? schedule,
     List<String>? sellerLanguages,
+    int? currencyId,
+    bool clearCurrencyId = false,
+    bool? anonymous,
+    int? similarToRequestId,
     List<String>? attachmentPaths,
     String? voicePath,
     Duration? voiceDuration,
@@ -145,6 +183,9 @@ class RequestFormValues extends Equatable {
       endDate: clearDates ? null : (endDate ?? this.endDate),
       schedule: schedule ?? this.schedule,
       sellerLanguages: sellerLanguages ?? this.sellerLanguages,
+      currencyId: clearCurrencyId ? null : (currencyId ?? this.currencyId),
+      anonymous: anonymous ?? this.anonymous,
+      similarToRequestId: similarToRequestId ?? this.similarToRequestId,
       attachmentPaths: attachmentPaths ?? this.attachmentPaths,
       voicePath: clearVoice ? null : (voicePath ?? this.voicePath),
       voiceDuration: clearVoice ? null : (voiceDuration ?? this.voiceDuration),
@@ -203,6 +244,9 @@ class RequestFormValues extends Equatable {
         entry.key.key: entry.value.map((r) => r.toJson()).toList(),
     },
     'sellerLanguages': sellerLanguages,
+    'currencyId': currencyId,
+    'anonymous': anonymous,
+    'similarToRequestId': similarToRequestId,
   };
 
   @override
@@ -215,8 +259,13 @@ class RequestFormValues extends Equatable {
     endDate,
     schedule,
     sellerLanguages,
+    currencyId,
+    anonymous,
+    similarToRequestId,
     attachmentPaths,
     voicePath,
     voiceDuration,
   ];
 }
+
+enum DescriptionError { required, tooShort, tooLong }

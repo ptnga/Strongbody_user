@@ -34,6 +34,7 @@ void registerAuthModule(GetIt getIt) {
     )
     ..registerFactory(() => VerifyPasswordResetUseCase(getIt<AuthRepository>()))
     ..registerFactory(() => ResetPasswordUseCase(getIt<AuthRepository>()))
+    ..registerFactory(() => VerifyEmailDomainUseCase(getIt<AuthRepository>()))
     ..registerFactory(
       () => AuthBloc(
         signUp: getIt<SignUpUseCase>(),
@@ -44,6 +45,7 @@ void registerAuthModule(GetIt getIt) {
         requestPasswordReset: getIt<RequestPasswordResetUseCase>(),
         verifyPasswordReset: getIt<VerifyPasswordResetUseCase>(),
         resetPassword: getIt<ResetPasswordUseCase>(),
+        verifyEmailDomain: getIt<VerifyEmailDomainUseCase>(),
       ),
     );
 }

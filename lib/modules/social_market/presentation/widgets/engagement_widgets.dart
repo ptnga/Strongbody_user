@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
 
 import '../../domain/entities/market_feed_entities.dart';
@@ -87,4 +89,26 @@ class MarketEngagementLine extends StatelessWidget {
           style: style,
         ),
       );
+}
+
+/// "N saved" ở chân card lưới (web `EngagementSaved`) — luôn hiện, kể cả 0.
+class MarketSavedCount extends StatelessWidget {
+  final int? id;
+  final TextStyle style;
+
+  const MarketSavedCount({super.key, required this.id, required this.style});
+
+  @override
+  Widget build(BuildContext context) {
+    if (id == null) return const SizedBox.shrink();
+    return BlocBuilder<EngagementCubit, EngagementCubitState>(
+      buildWhen: (a, b) => a.of(id).saves != b.of(id).saves,
+      builder: (context, state) => Text(
+        LocaleKeys.marketSaved.tr(
+          namedArgs: {'count': '${state.of(id).saves}'},
+        ),
+        style: style,
+      ),
+    );
+  }
 }

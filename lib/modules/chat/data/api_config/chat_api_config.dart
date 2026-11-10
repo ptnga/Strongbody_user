@@ -13,8 +13,10 @@ class ChatApiConfig {
   static const String searchUsers = '/buyer/auth/users/search';
   static const String markRead = '/user/mark-read-and-status';
   static const String aiConsents = '/user/ai-consents';
+
+  /// Web `batchLoadVoiceTranslations` (Voice Translation V3).
   static const String voiceTranslationBatch =
-      '/user/vertex-ai/v2/voice-translation/batch';
+      '/user/vertex-ai/v3/voice-translation/batch-for-user';
 
   /// Offer provider gửi cho request của mình (như My requests / web `useOffers`).
   static const String requestOffers = '/buyer/offer/sent-offers-by-my-requests';

@@ -5,6 +5,7 @@ import 'package:strongbody_buyer/core/base/failure.dart';
 import 'package:strongbody_buyer/core/network/exception.dart';
 
 import '../../domain/entities/my_request_entity.dart';
+import '../../domain/entities/posted_request_entity.dart';
 import '../../domain/entities/post_request_failure.dart';
 import '../../domain/entities/provider_entity.dart';
 import '../../domain/entities/request_draft_entity.dart';
@@ -55,7 +56,7 @@ class PostRequestRepositoryImpl implements PostRequestRepository {
   }
 
   @override
-  Future<Either<Failure, String?>> createBuyerRequest({
+  Future<Either<Failure, CreatedRequest>> createBuyerRequest({
     required int userId,
     required RequestFormValues values,
     RequestAssistantMeta? assistant,
@@ -70,10 +71,10 @@ class PostRequestRepositoryImpl implements PostRequestRepository {
           assistant: assistant,
         );
         final body = _ensureSuccess(await _remote.createBuyerRequest(formData));
-        return Right(PostRequestMapper.createdStatus(body));
+        return Right(PostRequestMapper.createdRequest(body));
       }
       // BE nhận 1 `seller_id` mỗi lần → gửi lần lượt cho từng provider đã chọn.
-      String? status;
+      CreatedRequest? created;
       for (final sellerUserId in sellerUserIds) {
         final formData = await PostRequestMapper.createRequestFormData(
           userId: userId,
@@ -84,10 +85,10 @@ class PostRequestRepositoryImpl implements PostRequestRepository {
         final body = _ensureSuccess(
           await _remote.createBuyerRequestToSeller(formData),
         );
-        status ??= PostRequestMapper.createdStatus(body);
+        created ??= PostRequestMapper.createdRequest(body);
         onSellerPosted?.call(sellerUserId);
       }
-      return Right(status);
+      return Right(created ?? const CreatedRequest());
     } catch (e) {
       return Left(_toFailure(e, 'Failed to submit request'));
     }
@@ -139,12 +140,14 @@ class PostRequestRepositoryImpl implements PostRequestRepository {
     required int userId,
     int page = 1,
     int limit = 20,
+    bool? isPrivate,
   }) async {
     try {
       final data = await _remote.getMyRequests(
         userId: userId,
         page: page,
         limit: limit,
+        isPrivate: isPrivate,
       );
       return Right(PostRequestMapper.myRequests(data));
     } catch (e) {
@@ -161,6 +164,29 @@ class PostRequestRepositoryImpl implements PostRequestRepository {
       return Right(PostRequestMapper.requestOffers(data));
     } catch (e) {
       return Left(_toFailure(e, 'Cannot load offers'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, SentRequest>> getSentRequest(int id) async {
+    try {
+      final request = PostRequestMapper.sentRequest(
+        _ensureSuccess(await _remote.getRequest(id)),
+      );
+      return request == null
+          ? Left(NotFoundFailure('Request not found'))
+          : Right(request);
+    } catch (e) {
+      return Left(_toFailure(e, 'Cannot load request'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<CurrencyOption>>> getCurrencies() async {
+    try {
+      return Right(PostRequestMapper.currencies(await _remote.getCurrencies()));
+    } catch (e) {
+      return Left(_toFailure(e, 'Cannot load currencies'));
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -12,7 +13,7 @@ import '../market_formatters.dart';
 import 'engagement_widgets.dart';
 import 'market_ui.dart';
 
-/// Card service (web `ServiceCard`, trang category không có ảnh): tiêu đề + lưu →
+/// Card service (web `ServiceCard`): tiêu đề + lưu →
 /// badge hình thức → seller → mô tả → meta → số engagement → giá + "Send Inquiry".
 /// Service Medical Travel: ẩn giá (badge), nút "View & book".
 class MarketServiceCard extends StatelessWidget {
@@ -149,7 +150,8 @@ class MarketServiceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _ImageStrip(images: s.images, deliveries: s.deliveries),
+          // Chỉ ảnh bìa (cover), không carousel (web `firstImage(cover_image, image)`).
+          _ImageStrip(images: [?s.coverImage], deliveries: s.deliveries),
           Padding(padding: EdgeInsets.all(20.r), child: content),
         ],
       ),
@@ -260,10 +262,10 @@ class _Price extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Nhiều cách cung cấp = nhiều mức giá → nói rõ đây là giá thấp nhất.
-        if (price.from) ...[
+        // Tư vấn: khoảng giá tham khảo, giá chốt sau inquiry (web `card.consultation`).
+        if (price.consultation) ...[
           Text(
-            LocaleKeys.marketPriceFrom.tr(),
+            LocaleKeys.marketCardConsultation.tr(),
             style: AppTextStyle.lightBodySmallMedium.copyWith(
               color: Colour.textSecondary,
             ),
@@ -275,6 +277,317 @@ class _Price extends StatelessWidget {
           style: AppTextStyle.lightBodyXLargeSemiBold.copyWith(
             color: Colour.textPrimary,
             height: 1,
+          ),
+        ),
+        if (service.strikePrice != null)
+          Text(
+            service.strikePrice!,
+            style: AppTextStyle.lightBodyMediumRegular.copyWith(
+              color: Colour.textSecondary,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Card service của lưới trang category + listing (web `ServiceCard` với
+/// `deliveryFooter compact showSeller={false} showEngagement={false}`): ảnh bìa 16:9
+/// (nút lưu ở góc) → tiêu đề 2 dòng → mô tả 2 dòng → người cung cấp (avatar viền
+/// xác minh, tên, cờ + nước · ngôn ngữ) → giá (Tư vấn: nhãn "Consultation" + khoảng
+/// giá; Medical Travel: nhãn thay giá) · số lượt lưu. Cả card bấm được.
+class MarketServiceGridCard extends StatelessWidget {
+  final MarketServiceEntity service;
+  final VoidCallback? onTap;
+
+  const MarketServiceGridCard({super.key, required this.service, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = service;
+    final seller = s.seller;
+    final metaStyle = AppTextStyle.lightBodyMediumRegular.copyWith(
+      color: Colour.textSecondary,
+    );
+    final image = s.coverImage;
+    return MarketCard(
+      onTap: onTap,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (image == null)
+                  const ColoredBox(
+                    color: Colour.subtle,
+                    child: Icon(
+                      Icons.medical_services_outlined,
+                      color: Colour.textTertiary,
+                    ),
+                  )
+                else
+                  Image.network(
+                    image,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        const ColoredBox(color: Colour.subtle),
+                  ),
+                Positioned(
+                  top: 4.h,
+                  right: 4.w,
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(
+                      color: Colour.surface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: MarketEngagementButtons(id: s.id),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(16.r),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyle.lightBodyLargeSemiBold.copyWith(
+                    color: Colour.textPrimary,
+                  ),
+                ),
+                Gap(8.h),
+                // Mô tả luôn giữ chỗ 2 dòng để các card thẳng hàng.
+                Text(
+                  '${s.description}\n',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                    color: Colour.textSecondary,
+                  ),
+                ),
+                Gap(12.h),
+                const Divider(height: 1, color: Colour.lineSubtle),
+                Gap(12.h),
+                MarketProviderLine(seller: seller),
+                Gap(12.h),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: s.isMedicalTravel
+                          // Medical Travel: không giá - chi phí báo sau qua yêu cầu khám.
+                          ? Row(
+                              children: [
+                                Icon(
+                                  Icons.flight,
+                                  size: 16.r,
+                                  color: Colour.buttonPrimary,
+                                ),
+                                Gap(6.w),
+                                Flexible(
+                                  child: Text(
+                                    LocaleKeys.marketMedicalTravelBadge.tr(),
+                                    style: AppTextStyle.lightBodyMediumMedium
+                                        .copyWith(color: Colour.buttonPrimary),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : _GridPrice(service: s),
+                    ),
+                    Gap(8.w),
+                    MarketSavedCount(id: s.id, style: metaStyle),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Người cung cấp ở card lưới: avatar 44 (đã xác minh: viền + dấu tick ở góc), tên, cờ +
+/// nước · ngôn ngữ trên MỘT dòng (web `deliveryFooter` row).
+class MarketProviderLine extends StatelessWidget {
+  final MarketSeller seller;
+
+  const MarketProviderLine({super.key, required this.seller});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = seller.shopName ?? LocaleKeys.marketFallbackSeller.tr();
+    final metaStyle = AppTextStyle.lightBodyMediumRegular.copyWith(
+      color: Colour.textSecondary,
+    );
+    final languages = seller.languages.join(', ');
+    return Row(
+      children: [
+        MarketVerifiedAvatar(
+          name: name,
+          avatar: seller.avatar,
+          size: 44,
+          verified: seller.verified,
+        ),
+        Gap(12.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyle.lightBodyMediumMedium.copyWith(
+                  color: Colour.textPrimary,
+                ),
+              ),
+              if (seller.country != null || languages.isNotEmpty) ...[
+                Gap(2.h),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      if (seller.country != null) ...[
+                        if (seller.flag != null)
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: EdgeInsets.only(right: 6.w),
+                              child: CountryFlag(seller.flag),
+                            ),
+                          ),
+                        TextSpan(text: seller.country),
+                      ],
+                      if (seller.country != null && languages.isNotEmpty)
+                        const TextSpan(text: '\u00a0· '),
+                      if (languages.isNotEmpty) ...[
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Padding(
+                            padding: EdgeInsets.only(right: 4.w),
+                            child: Icon(
+                              Icons.language,
+                              size: 16.r,
+                              color: Colour.textSecondary,
+                            ),
+                          ),
+                        ),
+                        TextSpan(text: languages),
+                      ],
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: metaStyle,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Avatar tròn; đã xác minh → viền xanh (cách 2px) + dấu tick trắng nền ở góc dưới phải.
+class MarketVerifiedAvatar extends StatelessWidget {
+  final String name;
+  final String? avatar;
+  final double size;
+  final bool verified;
+
+  /// Thay dấu tick mặc định (vd. huy hiệu đếm số mục xác minh của card chuyên gia).
+  final Widget? badge;
+
+  const MarketVerifiedAvatar({
+    super.key,
+    required this.name,
+    required this.avatar,
+    required this.size,
+    required this.verified,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final image = InitialsAvatar(
+      name: name,
+      imageUrl: avatar,
+      colorSeed: name.hashCode,
+      size: size.r,
+    );
+    if (!verified) return image;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: EdgeInsets.all(2.r),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colour.buttonPrimary, width: 2.r),
+          ),
+          child: image,
+        ),
+        Positioned(
+          right: -6.r,
+          bottom: -4.r,
+          child:
+              badge ??
+              Container(
+                width: 20.r,
+                height: 20.r,
+                decoration: const BoxDecoration(
+                  color: Colour.surface,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.verified,
+                  size: 16.r,
+                  color: Colour.buttonPrimary,
+                  semanticLabel: LocaleKeys.marketCardVerified.tr(),
+                ),
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Giá ở chân card lưới: Tư vấn → "Consultation" cùng dòng với khoảng giá.
+class _GridPrice extends StatelessWidget {
+  final MarketServiceEntity service;
+
+  const _GridPrice({required this.service});
+
+  @override
+  Widget build(BuildContext context) {
+    final price = service.price;
+    if (price == null) return const SizedBox.shrink();
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.end,
+      spacing: 4.w,
+      children: [
+        if (price.consultation)
+          Text(
+            LocaleKeys.marketCardConsultation.tr(),
+            style: AppTextStyle.lightBodySmallMedium.copyWith(
+              color: Colour.textSecondary,
+            ),
+          ),
+        Text(
+          price.text,
+          style: AppTextStyle.lightBodyLargeSemiBold.copyWith(
+            color: Colour.textPrimary,
           ),
         ),
         if (service.strikePrice != null)

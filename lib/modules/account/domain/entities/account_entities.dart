@@ -49,14 +49,28 @@ class LionWallet extends Equatable {
   final int points;
   final int expiringPoints;
 
+  /// Hạn của [expiringPoints] (`expiresAt`) — null thì không hiện dòng hết hạn (web
+  /// `PointCard` không tự bịa ngày).
+  final DateTime? expiresAt;
+
   const LionWallet({
     required this.id,
     required this.points,
     this.expiringPoints = 0,
+    this.expiresAt,
   });
 
+  /// Point service trả 404 "Customer not found" = user chưa có ví (web `EMPTY_WALLET`).
+  static const empty = LionWallet(id: 0, points: 0);
+
+  /// Chưa có ví thật → không có lịch sử để tải.
+  bool get exists => id > 0;
+
+  /// Web `PointCard`: chỉ hiện "N points will expire on …" khi có ngày thật và N > 0.
+  bool get showsExpiry => expiresAt != null && expiringPoints > 0;
+
   @override
-  List<Object?> get props => [id, points, expiringPoints];
+  List<Object?> get props => [id, points, expiringPoints, expiresAt];
 }
 
 enum LionLedgerType {
@@ -71,6 +85,9 @@ enum LionLedgerType {
   };
 }
 
+/// referral / purchase / redemption có tiêu đề + mô tả riêng; other = `idempotencyKey` + `reason`.
+enum LionLedgerKind { referral, purchase, redemption, other }
+
 /// Một dòng lịch sử điểm (`/v1/transactions/wallets/{walletId}/ledger`).
 class LionLedgerItem extends Equatable {
   final int id;
@@ -82,6 +99,9 @@ class LionLedgerItem extends Equatable {
   /// invite | purchase | …
   final String source;
   final String reason;
+
+  /// Web dùng làm tiêu đề dự phòng khi không khớp loại/nguồn nào.
+  final String idempotencyKey;
   final DateTime? at;
 
   const LionLedgerItem({
@@ -90,9 +110,26 @@ class LionLedgerItem extends Equatable {
     required this.amount,
     this.source = '',
     this.reason = '',
+    this.idempotencyKey = '',
     this.at,
   });
 
+  /// Loại hiển thị theo web `HistoryItemList.getHistoryItemDisplay`.
+  LionLedgerKind get kind => switch (type) {
+    LionLedgerType.earn when source == 'invite' => LionLedgerKind.referral,
+    LionLedgerType.earn when source == 'purchase' => LionLedgerKind.purchase,
+    LionLedgerType.spend => LionLedgerKind.redemption,
+    _ => LionLedgerKind.other,
+  };
+
   @override
-  List<Object?> get props => [id, type, amount, source, reason, at];
+  List<Object?> get props => [
+    id,
+    type,
+    amount,
+    source,
+    reason,
+    idempotencyKey,
+    at,
+  ];
 }

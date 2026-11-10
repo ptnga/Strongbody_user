@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 import 'package:strongbody_buyer/core/domain/storages/user_preferences.dart';
 import 'package:strongbody_buyer/core/network/api.dart';
+import 'package:strongbody_buyer/core/services/last_visit_service.dart';
 import 'package:strongbody_buyer/core/services/microphone_permission_service.dart';
 import 'package:strongbody_buyer/core/services/speech_recognition_service.dart';
 import 'package:strongbody_buyer/core/services/voice_note_recorder.dart';
@@ -36,6 +37,9 @@ class ServiceLocator {
     getIt.registerFactory<VoiceNoteRecorder>(VoiceNoteRecorderImpl.new);
     getIt.registerLazySingleton<MicrophonePermissionService>(
       MicrophonePermissionServiceImpl.new,
+    );
+    getIt.registerLazySingleton<LastVisitService>(
+      () => LastVisitService(getIt<ApiClient>(), storage),
     );
 
     //-----------------MODULES---------------

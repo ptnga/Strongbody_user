@@ -12,6 +12,7 @@ import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 import '../../domain/entities/chat_message_entity.dart';
 import '../../domain/entities/chat_session_entity.dart';
 import '../chat_formatters.dart';
+import 'chat_card_view.dart';
 import 'chat_offer_strip.dart';
 
 /// Bong bóng tin: của mình (nền tối, bên phải) / của partner (nền trắng, bên trái).
@@ -27,6 +28,9 @@ class ChatMessageBubble extends StatelessWidget {
   /// Provider của hội thoại (thanh toán offer trong chat).
   final ChatPartner? partner;
 
+  /// Thẻ gửi ngay trước tin chữ này (web `pairCardWithText`) — hiện ở đầu bong bóng.
+  final ChatMessageEntity? attachedCard;
+
   const ChatMessageBubble({
     super.key,
     required this.message,
@@ -36,6 +40,7 @@ class ChatMessageBubble extends StatelessWidget {
     this.showOriginal = false,
     this.read = false,
     this.partner,
+    this.attachedCard,
   });
 
   @override
@@ -58,7 +63,12 @@ class ChatMessageBubble extends StatelessWidget {
       locale,
     );
 
+    final attached = attachedCard;
     final content = <Widget>[
+      if (attached != null) ...[
+        _CardOf(message: attached, mine: mine, partner: partner),
+        Gap(8.h),
+      ],
       if (message.type == ChatMessageType.voice && audio != null)
         VoiceNotePlayer(
           key: ValueKey(audio),
@@ -66,8 +76,9 @@ class ChatMessageBubble extends StatelessWidget {
           duration: voice?.duration,
           onDark: mine,
         ),
-      if (message.type == ChatMessageType.offer && message.offer != null)
-        _OfferContent(offer: message.offer!, mine: mine, partner: partner)
+      if (message.card != null ||
+          (message.type == ChatMessageType.offer && message.offer != null))
+        _CardOf(message: message, mine: mine, partner: partner)
       else if (message.type == ChatMessageType.image ||
           message.type == ChatMessageType.file)
         Row(
@@ -103,9 +114,11 @@ class ChatMessageBubble extends StatelessWidget {
             color: foreground,
           ),
         ),
-      ] else if (message.type == ChatMessageType.other)
+      ] else if (message.type != ChatMessageType.voice)
         Text(
-          LocaleKeys.messagesOtherType.tr(),
+          message.type == ChatMessageType.sticker
+              ? LocaleKeys.chatSticker.tr()
+              : LocaleKeys.messagesOtherType.tr(),
           style: AppTextStyle.lightBodyMediumRegular.copyWith(
             fontStyle: FontStyle.italic,
             color: foreground,
@@ -183,6 +196,28 @@ class ChatMessageBubble extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// Thẻ của tin: offer có thanh toán ([_OfferContent]) hoặc thẻ trích dẫn ([ChatCardView]).
+class _CardOf extends StatelessWidget {
+  final ChatMessageEntity message;
+  final bool mine;
+  final ChatPartner? partner;
+
+  const _CardOf({required this.message, required this.mine, this.partner});
+
+  @override
+  Widget build(BuildContext context) {
+    final card = message.card;
+    if (card != null) {
+      return ChatCardView(
+        key: ValueKey('card-${message.id}'),
+        card: card,
+        mine: mine,
+      );
+    }
+    return _OfferContent(offer: message.offer!, mine: mine, partner: partner);
   }
 }
 

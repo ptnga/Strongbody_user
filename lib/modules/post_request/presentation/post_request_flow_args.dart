@@ -1,44 +1,56 @@
 import '../domain/entities/request_draft_entity.dart';
-import 'matching_providers_page_args.dart';
+import '../domain/entities/request_form_values.dart';
 
-/// Args vào luồng Post Request (màn "Here's what I heard") — truyền qua `extra`.
+/// Args vào màn "Post a request" (web `/request-assistant`) — truyền qua `extra`.
+///
+/// - Có [text] hoặc [audioPath] → AI soạn form (giọng nói → text → LLM), form khoá kèm
+///   thanh tiến trình trong lúc chờ.
+/// - Có [draft] (chat trợ lý đã điền) hoặc [prefill] ("Me too") → mở form ngay, không gọi AI.
+/// - Không có gì → form trống để tự nhập.
 class PostRequestFlowArgs {
-  /// Câu đã nói (transcript trên máy) hoặc đã gõ ở Home. Rỗng + có voice → BE chuyển chữ.
+  /// Câu đã gõ.
   final String text;
-  final String? voicePath;
+
+  /// Bản ghi âm từ nút "Get help" — BE chuyển chữ (`/speech-to-text`).
+  final String? audioPath;
+
+  /// Giữ bản ghi làm voice note của request (Account › Attach my voice to requests).
+  final bool attachVoice;
   final Duration? voiceDuration;
 
-  /// Mã ngôn ngữ đã nói (app code, vd `en`).
-  final String? languageCode;
-
-  /// File đính kèm chọn ở ô "Ask StrongBody".
+  /// File đính kèm có sẵn (vd chọn ở ô hỏi trợ lý).
   final List<String> attachmentPaths;
 
-  /// "Browse providers" (menu / Account): chỉ duyệt, không có request để AI phân tích.
-  final bool browseOnly;
+  /// Bản nháp chat trợ lý AI đã điền.
+  final RequestDraftEntity? draft;
+
+  /// Request mới điền sẵn vài trường ("Me too": mô tả + hình thức + id request gốc).
+  final RequestFormValues? prefill;
+
+  /// Gửi riêng cho các provider này (`/buyer/request/to-seller`) — web form `variant="send"`:
+  /// không có Working language / Post anonymously.
+  final List<int> sellerUserIds;
+  final String? sellerName;
 
   /// Gọi sau khi request đăng xong (vd Social Market › Health Solution: báo provider
   /// phù hợp qua API matching, như web `SolutionComposer`).
   final Future<void> Function(String description)? onPosted;
 
-  /// Bản nháp có sẵn (chat trợ lý AI đã điền form): bỏ bước AI phân tích, mở thẳng Review.
-  final RequestDraftEntity? draft;
-
   const PostRequestFlowArgs({
     this.text = '',
-    this.voicePath,
+    this.audioPath,
+    this.attachVoice = false,
     this.voiceDuration,
-    this.languageCode,
     this.attachmentPaths = const [],
-    this.browseOnly = false,
-    this.onPosted,
     this.draft,
+    this.prefill,
+    this.sellerUserIds = const [],
+    this.sellerName,
+    this.onPosted,
   });
 
-  /// `extra` của route trong ShellRoute: args trực tiếp, hoặc `start` của trang provider.
-  static PostRequestFlowArgs fromExtra(Object? extra) => switch (extra) {
-    PostRequestFlowArgs args => args,
-    MatchingProvidersPageArgs(:final start?) => start,
-    _ => const PostRequestFlowArgs(),
-  };
+  bool get isSend => sellerUserIds.isNotEmpty;
+
+  static PostRequestFlowArgs fromExtra(Object? extra) =>
+      extra is PostRequestFlowArgs ? extra : const PostRequestFlowArgs();
 }

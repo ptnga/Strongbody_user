@@ -59,9 +59,24 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<Either<Failure, ({List<ConversationEntity> items, bool hasMore})>>
   getConversations({required int page, int limit = 10}) => _guard(() async {
-    final raw = await _remote.getConversations(page, limit);
-    final items = raw.map(ChatMapper.conversation).nonNulls.toList();
-    return (items: items, hasMore: raw.length >= limit);
+    final data = await _remote.getConversations(page, limit);
+    final list = data['data'];
+    final raw = list is List
+        ? list.whereType<Map>().map(Map<String, dynamic>.from).toList()
+        : const <Map<String, dynamic>>[];
+    final items = raw
+        .map((e) => ChatMapper.conversation(e, myUserId: _me))
+        .nonNulls
+        .toList();
+    return (
+      items: items,
+      hasMore: ChatMapper.conversationsHasMore(
+        data,
+        page: page,
+        limit: limit,
+        received: raw.length,
+      ),
+    );
   }, 'Cannot load conversations');
 
   @override

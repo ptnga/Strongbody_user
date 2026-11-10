@@ -27,6 +27,9 @@ void registerCheckoutModule(GetIt getIt) {
     ..registerFactory(() => GetPaymentCardsUseCase(getIt<CheckoutRepository>()))
     ..registerFactory(() => AddPaymentCardUseCase(getIt<CheckoutRepository>()))
     ..registerFactory(() => PayOfferUseCase(getIt<CheckoutRepository>()))
+    ..registerFactory(
+      () => GetCheckoutOfferUseCase(getIt<CheckoutRepository>()),
+    )
     ..registerFactoryParam<OfferCheckoutBloc, RequestOfferEntity, void>(
       (offer, _) => OfferCheckoutBloc(
         offer: offer,
@@ -34,6 +37,7 @@ void registerCheckoutModule(GetIt getIt) {
         addCard: getIt<AddPaymentCardUseCase>(),
         payOffer: getIt<PayOfferUseCase>(),
         getLionPoints: getIt<GetLionPointsUseCase>(),
+        getOffer: getIt<GetCheckoutOfferUseCase>(),
       ),
     );
 }

@@ -13,6 +13,9 @@ import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 /// Ô "Message Minh..." + nút đỏ: mic (trống) / gửi (có chữ) / gửi voice (đang ghi).
 class ChatComposer extends StatefulWidget {
+  /// Giới hạn độ dài tin chữ như web.
+  static const maxLength = 2500;
+
   final String hint;
   final String footer;
   final bool enabled;
@@ -139,12 +142,15 @@ class _ChatComposerState extends State<ChatComposer> {
                               enabled: widget.enabled,
                               minLines: 1,
                               maxLines: 4,
+                              // Web `ChatForm` INPUT_MAX_LENGTH.
+                              maxLength: ChatComposer.maxLength,
                               textCapitalization: TextCapitalization.sentences,
                               style: AppTextStyle.lightBodyMediumRegular
                                   .copyWith(color: theme.textPrimary(context)),
                               decoration: InputDecoration(
                                 isDense: true,
                                 border: InputBorder.none,
+                                counterText: '',
                                 hintText: widget.hint,
                                 hintStyle: AppTextStyle.lightBodyMediumRegular
                                     .copyWith(

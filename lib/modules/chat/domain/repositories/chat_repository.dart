@@ -46,7 +46,7 @@ abstract class ChatRepository {
     List<String> messageIds,
   );
 
-  /// Bản dịch audio đã có (`/user/vertex-ai/v2/voice-translation/batch`).
+  /// Bản dịch audio đã có (`/user/vertex-ai/v3/voice-translation/batch-for-user`).
   Future<Either<Failure, List<ChatTranslation>>> getVoiceTranslations(
     List<String> messageIds,
   );

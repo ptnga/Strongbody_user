@@ -116,6 +116,9 @@ class _OfferCheckoutSheet extends StatelessWidget {
                 padding: EdgeInsets.symmetric(vertical: 48.h),
                 child: const Center(child: CupertinoActivityIndicator()),
               ),
+              OfferCheckoutStatus.unavailable => _BlockedView(
+                reason: state.blocked ?? OfferCheckoutBlocked.cancelled,
+              ),
               OfferCheckoutStatus.paid ||
               OfferCheckoutStatus.pending => _ResultView(
                 offer: offer,
@@ -275,11 +278,7 @@ class _QuoteView extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppIcon(
-                AppSvg.verified,
-                size: 18.r,
-                color: Colour.success,
-              ),
+              AppIcon(AppSvg.verified, size: 18.r, color: Colour.success),
               Gap(8.w),
               Expanded(
                 child: Text(
@@ -434,6 +433,56 @@ class _PaymentMethods extends StatelessWidget {
               padding: EdgeInsets.zero,
               textStyle: AppTextStyle.lightBodyMediumSemiBold,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Offer đã trả / đã huỷ (web `offer_already_paid` / `offer_cancelled`).
+class _BlockedView extends StatelessWidget {
+  final OfferCheckoutBlocked reason;
+
+  const _BlockedView({required this.reason});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final paid = reason == OfferCheckoutBlocked.alreadyPaid;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Gap(8.h),
+        Icon(
+          paid ? Icons.check_circle_outline_rounded : Icons.info_outline,
+          size: 40.r,
+          color: paid ? Colour.success : theme.textSecondary(context),
+        ),
+        Gap(12.h),
+        Text(
+          paid
+              ? LocaleKeys.checkoutOfferAlreadyPaid.tr()
+              : LocaleKeys.checkoutOfferCancelled.tr(),
+          textAlign: TextAlign.center,
+          style: AppTextStyle.lightBodyLargeSemiBold.copyWith(
+            color: theme.textPrimary(context),
+          ),
+        ),
+        Gap(18.h),
+        SizedBox(
+          height: 48.h,
+          child: OutlinedButton(
+            // Đã trả → báo nơi gọi làm mới như vừa trả xong.
+            onPressed: () => Navigator.of(context).pop(paid),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.textPrimary(context),
+              side: BorderSide(color: theme.border(context)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
+            child: Text(LocaleKeys.checkoutDone.tr()),
           ),
         ),
       ],

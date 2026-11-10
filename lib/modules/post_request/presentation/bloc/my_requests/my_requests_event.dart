@@ -16,7 +16,7 @@ final class MyRequestsLoadMore extends MyRequestsEvent {
   const MyRequestsLoadMore();
 }
 
-/// Đổi tab Active / Closed.
+/// Đổi tab Public / Private → tải lại trang đầu của tab đó.
 final class MyRequestsTabChanged extends MyRequestsEvent {
   final MyRequestsTab tab;
 

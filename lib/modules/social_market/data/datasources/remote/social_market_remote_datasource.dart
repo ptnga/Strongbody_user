@@ -181,7 +181,12 @@ class SocialMarketRemoteDataSourceImpl implements SocialMarketRemoteDataSource {
     final body = await _apiClient.request(
       path: SocialMarketApiConfig.engagementSummary,
       method: ApiType.post,
-      data: {'target_type': targetType, 'target_ids': targetIds},
+      data: {
+        'target_type': targetType,
+        'target_ids': targetIds,
+        // Board request: vài người vừa trả lời (avatar ở dải hoạt động).
+        if (targetType == 'request') 'recent_contacts': 3,
+      },
       // Optional JWT: khách vẫn có số đếm (my_state = false).
       skipAuth: !withAuth,
     );

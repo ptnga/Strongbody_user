@@ -79,7 +79,13 @@ class ChatFormatters {
       ),
       ChatMessageType.text =>
         c.lastText.isEmpty ? LocaleKeys.messagesOtherType.tr() : c.lastText,
-      ChatMessageType.other => LocaleKeys.messagesOtherType.tr(),
+      // Thẻ request / service / product, sticker: web hiện `content` (thường rỗng).
+      ChatMessageType.request ||
+      ChatMessageType.service ||
+      ChatMessageType.product ||
+      ChatMessageType.sticker ||
+      ChatMessageType.other =>
+        c.lastText.isEmpty ? LocaleKeys.messagesOtherType.tr() : c.lastText,
     };
     return c.lastSenderId == myUserId && c.lastType == ChatMessageType.text
         ? LocaleKeys.messagesYou.tr(args: [body])

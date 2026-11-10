@@ -19,42 +19,42 @@ import '../widgets/market_expert_card.dart';
 import '../widgets/market_service_card.dart';
 import '../widgets/market_ui.dart';
 
-/// "View selling list" → service của category, mới nhất trước (web `/services/{category}`).
+/// "View all services" → service của category, mới nhất trước (web `/services/{category}`,
+/// cùng lưới + card với trang category).
 class MarketServicesListingPage extends StatelessWidget {
-  final MarketCategory category;
+  final MarketPageScope scope;
 
-  const MarketServicesListingPage({super.key, required this.category});
+  const MarketServicesListingPage({super.key, required this.scope});
 
   @override
   Widget build(BuildContext context) => _MarketListingView<MarketServiceEntity>(
     title: LocaleKeys.marketListingServicesTitle.tr(
-      namedArgs: {'category': MarketFormatters.categoryLabel(category)},
+      namedArgs: {'category': MarketFormatters.scopeLabel(scope)},
     ),
     description: LocaleKeys.marketListingServicesDesc.tr(),
     idOf: (s) => s.id,
-    itemBuilder: (context, s) => MarketServiceCard(
+    itemBuilder: (context, s) => MarketServiceGridCard(
       service: s,
-      onInquiry: () => MarketNavigation.inquireService(context, s),
-      onViewAndBook: () => MarketNavigation.viewAndBook(context, s),
-      onTap: () => MarketNavigation.openService(context, s),
+      onTap: () => MarketNavigation.openServiceCard(context, s),
     ),
   );
 }
 
-/// "View profile list" → provider của category, xếp score_rank (web `/providers/{category}`).
+/// "View all experts" → provider của category, xếp score_rank (web `/providers/{category}`,
+/// card chân dung `spotlight`).
 class MarketProvidersListingPage extends StatelessWidget {
-  final MarketCategory category;
+  final MarketPageScope scope;
 
-  const MarketProvidersListingPage({super.key, required this.category});
+  const MarketProvidersListingPage({super.key, required this.scope});
 
   @override
   Widget build(BuildContext context) => _MarketListingView<MarketExpertEntity>(
     title: LocaleKeys.marketListingProvidersTitle.tr(
-      namedArgs: {'category': MarketFormatters.categoryLabel(category)},
+      namedArgs: {'category': MarketFormatters.scopeLabel(scope)},
     ),
     description: LocaleKeys.marketListingProvidersDesc.tr(),
     idOf: (e) => e.id,
-    itemBuilder: (context, e) => MarketExpertCard(expert: e),
+    itemBuilder: (context, e) => MarketExpertSpotlightCard(expert: e),
   );
 }
 
@@ -180,7 +180,7 @@ class _MarketListingViewState<T> extends State<_MarketListingView<T>> {
               body = [
                 for (final item in state.items) ...[
                   widget.itemBuilder(context, item),
-                  Gap(16.h),
+                  Gap(8.h),
                 ],
                 if (state.loadingMore) ...[
                   const MarketCardSkeleton(),

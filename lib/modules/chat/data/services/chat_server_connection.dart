@@ -63,17 +63,32 @@ class ChatServerConnection implements ChatConnection {
   void _onMessage(MessageEvent e) {
     if (e.channel == _textChannel || e.channel == _voiceChannel) {
       final json = _asMap(e.message);
-      final isVoice =
-          e.channel == _voiceChannel ||
-          json['type'] == 'voice_translation' ||
-          json.containsKey('voice');
-      // Bản dịch chỉ dành cho mình (Multime bỏ qua field này).
+      final isVoice = e.channel == _voiceChannel;
+      // Web `shouldApplyText/VoiceTranslation`: bỏ sự kiện loại khác trên kênh dịch.
+      final type = json['type'];
+      if (type != null &&
+          type != (isVoice ? 'voice_translation' : 'text_translation')) {
+        return;
+      }
+      // Sự kiện mới có `recipient_user_id` → chỉ áp bản dịch dành cho mình.
       final recipient = json['recipient_user_id'];
-      if (recipient is num && recipient.toInt() != session.myUserId) return;
+      if (recipient is num &&
+          recipient > 0 &&
+          recipient.toInt() != session.myUserId) {
+        return;
+      }
       final translation = isVoice
           ? ChatMapper.voiceTranslation(json)
           : ChatMapper.textTranslation(json);
-      if (translation != null) _events.add(ChatTranslationArrived(translation));
+      if (translation != null) {
+        _events.add(
+          ChatTranslationArrived(
+            translation,
+            // Sự kiện cũ (không có người nhận) → bloc lọc theo `target_lang`.
+            legacy: !(recipient is num && recipient > 0),
+          ),
+        );
+      }
       return;
     }
     if (e.channel != session.channelId) return;
@@ -89,13 +104,15 @@ class ChatServerConnection implements ChatConnection {
   @override
   Stream<ChatRealtimeEvent> get events => _events.stream;
 
+  /// Web `SettingContext`: kênh bản dịch giọng nói luôn nghe (không phụ thuộc
+  /// auto-translate); kênh bản dịch chữ chỉ khi bật auto-translate.
   @override
   void subscribe({required bool withTranslations}) {
-    _pubnub.subscribe(channels: {session.channelId});
+    _pubnub.subscribe(channels: {session.channelId, _voiceChannel});
     if (withTranslations && !_translations) {
-      _pubnub.subscribe(channels: {_textChannel, _voiceChannel});
+      _pubnub.subscribe(channels: {_textChannel});
     } else if (!withTranslations && _translations) {
-      _pubnub.unsubscribe(channels: {_textChannel, _voiceChannel});
+      _pubnub.unsubscribe(channels: {_textChannel});
     }
     _translations = withTranslations;
   }
@@ -165,16 +182,19 @@ class ChatServerUpdatesConnection implements ChatUpdatesConnection {
   }) : _pubnub = _client('$userId', token) {
     _subscription = _pubnub.messages.listen((e) {
       final json = _asMap(e.message);
+      final data = _asMap(json['data']);
       switch (json['type']) {
         case 'channel_list_update':
           final conversation = ChatMapper.conversationUpdate(
-            _asMap(json['data']),
+            data,
+            myUserId: userId,
           );
           if (conversation != null) {
             _updates.add(ConversationChanged(conversation));
           }
         case 'global_unread_update':
-          _updates.add(const UnreadChanged());
+          final total = data['total_unread_count'];
+          _updates.add(UnreadChanged(total is num ? total.toInt() : null));
       }
     });
     _statusSubscription = _pubnub.status.listen((e) {

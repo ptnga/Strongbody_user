@@ -15,16 +15,17 @@ import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
+import 'package:strongbody_buyer/modules/chat/presentation/chat_page_args.dart';
 import 'package:strongbody_buyer/modules/home/presentation/new_offers_badge_notifier.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
+import '../widgets/voice/get_help_sheet.dart';
 
 import '../bloc/my_requests/my_requests_bloc.dart';
 import '../request_offers_page_args.dart';
 import '../widgets/my_requests/my_request_card.dart';
-import '../voice_request_page_args.dart';
 
-/// "My requests" — tab Active / Closed (Multime `ManageRequest`, `GET /user/requests`)
-/// + thanh điều hướng dưới (Home về trang đầu).
+/// "My requests" — tab Public / Private như web `/buyer/request/management`
+/// (`GET /user/requests?is_private=`) + thanh điều hướng dưới (Home về trang đầu).
 class MyRequestsPage extends StatefulWidget {
   const MyRequestsPage({super.key});
 
@@ -81,7 +82,7 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                     BlocBuilder<MyRequestsBloc, MyRequestsState>(
                       buildWhen: (a, b) =>
                           a.tab != b.tab || a.showTabs != b.showTabs,
-                      // Chưa có request nào / chưa đăng nhập → bỏ Active | Closed (mockup).
+                      // Chưa đăng nhập → bỏ Public | Private.
                       builder: (context, state) => state.showTabs
                           ? Padding(
                               padding: EdgeInsets.only(top: 12.h),
@@ -140,6 +141,21 @@ class _MyRequestsPageState extends State<MyRequestsPage> {
                               offers: offers,
                               onOpen: () async {
                                 final bloc = context.read<MyRequestsBloc>();
+                                // Request gửi riêng qua inquiry: web "Open chat" với
+                                // provider nhận (họ trả lời trong chat, không gửi offer).
+                                final recipient = request.inquiry?.recipientId;
+                                if (recipient != null && recipient > 0) {
+                                  context.push(
+                                    RouteName.chat,
+                                    extra: ChatPageArgs(
+                                      partnerId: recipient,
+                                      name: request.inquiry!.recipientName,
+                                      avatar: request.inquiry!.recipientAvatar,
+                                      source: 'my_requests',
+                                    ),
+                                  );
+                                  return;
+                                }
                                 AppAnalytics.capture(
                                   AnalyticsEvents.requestCardTapped,
                                   {
@@ -226,8 +242,8 @@ class _TabSwitch extends StatelessWidget {
       ),
       child: Row(
         children: [
-          option(MyRequestsTab.active, LocaleKeys.myRequestsTabActive.tr()),
-          option(MyRequestsTab.closed, LocaleKeys.myRequestsTabClosed.tr()),
+          option(MyRequestsTab.public, LocaleKeys.myRequestsTabPublic.tr()),
+          option(MyRequestsTab.private, LocaleKeys.myRequestsTabPrivate.tr()),
         ],
       ),
     );
@@ -243,10 +259,7 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<MyRequestsBloc>();
-    void speak() => context.push(
-      RouteName.voiceRequest,
-      extra: const VoiceRequestPageArgs(source: 'my_requests'),
-    );
+    void speak() => showGetHelpSheet(context, source: 'my_requests');
     return switch (state.status) {
       MyRequestsStatus.signedOut => EmptyStateView(
         iconAsset: AppSvg.user,
@@ -268,19 +281,15 @@ class _EmptyState extends StatelessWidget {
         actionIconAsset: AppSvg.refresh,
         onAction: () => bloc.add(const MyRequestsStarted()),
       ),
-      _ when state.tab == MyRequestsTab.closed => EmptyStateView(
-        iconAsset: AppSvg.box,
-        title: LocaleKeys.myRequestsNoClosedTitle.tr(),
-        message: LocaleKeys.myRequestsNoClosedMessage.tr(),
-        actionLabel: LocaleKeys.myRequestsSpeakRequest.tr(),
-        actionIconAsset: AppSvg.microphone,
-        onAction: speak,
+      // Web: tab Private trống → chỉ thông báo, không có nút đăng request.
+      _ when state.tab == MyRequestsTab.private => EmptyStateView(
+        icon: Icons.lock_outline_rounded,
+        title: LocaleKeys.myRequestsNoPrivateTitle.tr(),
+        message: LocaleKeys.myRequestsNoPrivateMessage.tr(),
       ),
       _ => EmptyStateView(
         iconAsset: AppSvg.microphone,
-        title: state.hasAnyRequest
-            ? LocaleKeys.myRequestsNoOpenTitle.tr()
-            : LocaleKeys.myRequestsNoneTitle.tr(),
+        title: LocaleKeys.myRequestsNoneTitle.tr(),
         message: LocaleKeys.myRequestsNoneMessage.tr(),
         actionLabel: LocaleKeys.myRequestsSpeakRequest.tr(),
         actionIconAsset: AppSvg.microphone,

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -57,6 +58,12 @@ abstract class AuthRemoteDataSource {
   Future<void> claimOffer(String email);
 
   Future<String?> publicIp();
+
+  /// Web `submitApplyJob('', email)`: ghi lead sau đăng ký / đăng nhập (fire-and-forget).
+  Future<void> applyJob(String email);
+
+  /// Web `/api/verify-email-domain` → `valid` (true / false / null = chưa rõ) + `error`.
+  Future<({bool? valid, String? error})> verifyEmailDomain(String email);
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -146,6 +153,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> resendVerifyEmail(String email) => _call(
     path: AuthApiConfig.resendVerifyEmail,
     method: ApiType.post,
+    headers: _apiKey,
     data: {'email': email},
   );
 
@@ -169,7 +177,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       data: {'email': email, 'otp': otp},
     );
     final token = (data['secret_token'] ?? data['secretToken'])?.toString();
-    if (token == null || token.isEmpty) throw AuthApiException('Invalid code');
+    // Web: thiếu `secret_token` → "Verification failed. Please request a new code." (bloc).
+    if (token == null || token.isEmpty) throw AuthApiException('');
     return token;
   }
 
@@ -188,7 +197,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<Map<String, dynamic>> loginGoogle(String idToken) => _call(
     path: AuthApiConfig.loginGoogleIdToken,
     method: ApiType.post,
-    data: {'id_token': idToken, 'platform': _platform, 'role_signup': 'user'},
+    data: {
+      'id_token': idToken,
+      'platform': _platform,
+      'role_signup': 'user',
+      // Web gửi `attribution` vì social login lần đầu cũng là đăng ký; app không có UTM.
+      'attribution': const <String, dynamic>{},
+    },
   );
 
   @override
@@ -199,6 +214,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       'id_token': authorizationCode,
       'platform': _platform,
       'role_signup': 'user',
+      'attribution': const <String, dynamic>{},
     },
   );
 
@@ -206,8 +222,49 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> claimOffer(String email) => _call(
     path: AuthApiConfig.claimOffer,
     method: ApiType.post,
+    headers: _apiKey,
     data: {'email': email},
   );
+
+  /// Body giống web `sendApplyJob`: `contactRequest` là JSON string; app không có URL /
+  /// cookie `http_refer`, `start_page` → để rỗng.
+  @override
+  Future<void> applyJob(String email) async {
+    await _apiClient.request(
+      path: AuthApiConfig.applyJob,
+      method: ApiType.post,
+      skipAuth: true,
+      data: {
+        'fullName': '',
+        'email': email,
+        'area': '',
+        'workPreference': '',
+        'contactRequest': jsonEncode({
+          'contact': '',
+          'url': '',
+          'http_refer': '',
+          'start_page': '',
+        }),
+      },
+    );
+  }
+
+  @override
+  Future<({bool? valid, String? error})> verifyEmailDomain(String email) async {
+    final body = await _apiClient.request(
+      path: AuthApiConfig.verifyEmailDomain,
+      method: ApiType.post,
+      skipAuth: true,
+      timeout: const Duration(seconds: 6),
+      data: {'email': email},
+    );
+    if (body is! Map) return (valid: null, error: null);
+    final valid = body['valid'];
+    return (
+      valid: valid is bool ? valid : null,
+      error: valid == false ? body['error']?.toString() : null,
+    );
+  }
 
   @override
   Future<String?> publicIp() async {

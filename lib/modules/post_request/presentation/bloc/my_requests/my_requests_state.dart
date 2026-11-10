@@ -3,8 +3,9 @@ part of 'my_requests_bloc.dart';
 /// signedOut: chưa đăng nhập → hiện lời nhắc đăng nhập thay cho danh sách.
 enum MyRequestsStatus { initial, loading, success, failure, signedOut }
 
-/// Active = pending + active; Closed = closed / expired / canceled.
-enum MyRequestsTab { active, closed }
+/// Tab như web `/buyer/request/management`: request công khai / request gửi riêng
+/// một provider — BE lọc bằng `is_private` (không lọc phía app).
+enum MyRequestsTab { public, private }
 
 class MyRequestsState extends Equatable {
   final MyRequestsStatus status;
@@ -21,7 +22,7 @@ class MyRequestsState extends Equatable {
 
   const MyRequestsState({
     this.status = MyRequestsStatus.initial,
-    this.tab = MyRequestsTab.active,
+    this.tab = MyRequestsTab.public,
     this.items = const [],
     this.offers = const {},
     this.page = 1,
@@ -34,18 +35,17 @@ class MyRequestsState extends Equatable {
   bool get isFirstLoad =>
       status == MyRequestsStatus.initial || status == MyRequestsStatus.loading;
 
-  /// Đã có ít nhất một request (tab nào cũng được).
+  /// Tab đang chọn đã có ít nhất một request.
   bool get hasAnyRequest => items.isNotEmpty || hasMore;
 
-  /// Tab Active | Closed chỉ hiện khi đã đăng nhập và có request (hoặc đang tải).
-  bool get showTabs =>
-      status != MyRequestsStatus.signedOut &&
-      status != MyRequestsStatus.failure &&
-      (isFirstLoad || hasAnyRequest);
+  /// Web luôn hiện thanh Public | Private cho người đã đăng nhập (kể cả khi trống).
+  bool get showTabs => status != MyRequestsStatus.signedOut;
 
-  /// Request của tab đang chọn (giữ thứ tự mới nhất trước của API).
-  List<MyRequestEntity> get visibleItems =>
-      items.where((r) => r.isClosed == (tab == MyRequestsTab.closed)).toList();
+  /// `is_private` gửi lên BE cho tab đang chọn.
+  bool get isPrivate => tab == MyRequestsTab.private;
+
+  /// Request của tab đang chọn (thứ tự của API).
+  List<MyRequestEntity> get visibleItems => items;
 
   MyRequestsState copyWith({
     MyRequestsStatus? status,

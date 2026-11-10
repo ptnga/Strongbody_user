@@ -50,7 +50,7 @@ class OfferCard extends StatelessWidget {
     return switch (type) {
       RequestDeliveryType.atHome => LocaleKeys.offersWhereHome.tr(),
       RequestDeliveryType.remote => LocaleKeys.requestDeliveryOnline.tr(),
-      RequestDeliveryType.atClinic => [
+      RequestDeliveryType.atClinic || RequestDeliveryType.atOffice => [
         LocaleKeys.offersWhereClinic.tr(),
         ?address,
       ].join(', '),
@@ -111,7 +111,7 @@ class OfferCard extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              offer.sellerName.isEmpty ? '—' : offer.sellerName,
+                              MyRequestFormatters.sellerName(offer),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyle.lightBodyMediumBold.copyWith(
@@ -277,13 +277,18 @@ class _Actions extends StatelessWidget {
       borderRadius: BorderRadius.circular(10.r),
     );
     final textStyle = AppTextStyle.lightBodyMediumBold;
+    // Web: chỉ offer `pending` mới có "Accept & Pay"; còn lại hiện nhãn trạng thái
+    // (`StatusConfig`: Accepted & Paid / Provided / Completed / Cancelled).
     final closedLabel = switch (offer.status) {
       'completed' => LocaleKeys.myRequestsStatusCompleted.tr(),
-      'accepted' || 'delivered' => LocaleKeys.myRequestsStatusBooked.tr(),
+      'accepted' => LocaleKeys.offersStatusAcceptedPaid.tr(),
+      'delivered' => LocaleKeys.offersStatusProvided.tr(),
       'cancelled' || 'canceled' => LocaleKeys.myRequestsOfferCancelled.tr(),
       // Đã trả / đang xác nhận (BE chưa kịp đổi status) → không cho trả lần nữa.
       _ when offer.isPaid || OfferPaymentGuard.isSubmitted(offer.id) =>
         LocaleKeys.checkoutPendingTitle.tr(),
+      _ when !offer.canPay && offer.status.isNotEmpty =>
+        offer.status[0].toUpperCase() + offer.status.substring(1),
       _ => null,
     };
     return SizedBox(

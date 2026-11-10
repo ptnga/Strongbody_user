@@ -34,6 +34,17 @@ class _AuthCredentialsViewState extends State<AuthCredentialsView> {
   final _password = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Web `useEmailDomainValidation`: kiểm tra domain email khi đang gõ ở màn đăng ký.
+    if (widget.signUp) {
+      _email.addListener(
+        () => context.read<AuthBloc>().add(AuthEmailChanged(_email.text)),
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _email.dispose();
     _password.dispose();
@@ -77,22 +88,13 @@ class _AuthCredentialsViewState extends State<AuthCredentialsView> {
                 color: theme.textSecondary(context),
               ),
             ),
-            if (widget.signUp && state.emailExists) ...[
-              Gap(14.h),
-              _EmailExistsBanner(
-                onSignIn: () => bloc.add(
-                  AuthScreenChanged(
-                    AuthScreen.login,
-                    email: _email.text.trim(),
-                  ),
-                ),
-              ),
-            ],
             Gap(20.h),
             AuthTextField(
               label: LocaleKeys.authEmailLabel.tr(),
               controller: _email,
-              error: state.emailError,
+              error:
+                  state.emailError ??
+                  (widget.signUp ? state.emailDomainError : null),
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
             ),
@@ -174,59 +176,6 @@ class _AuthCredentialsViewState extends State<AuthCredentialsView> {
                   ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Web: alert "Sign up failed" + "You can sign in now".
-class _EmailExistsBanner extends StatelessWidget {
-  final VoidCallback onSignIn;
-
-  const _EmailExistsBanner({required this.onSignIn});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: EdgeInsets.fromLTRB(14.w, 12.h, 6.w, 12.h),
-      decoration: BoxDecoration(
-        color: theme.primaryLight(context),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  LocaleKeys.authEmailExistsTitle.tr(),
-                  style: AppTextStyle.lightBodyMediumBold.copyWith(
-                    color: theme.primary(context),
-                  ),
-                ),
-                Gap(2.h),
-                Text(
-                  LocaleKeys.authEmailExistsMessage.tr(),
-                  style: AppTextStyle.lightBodySmallRegular.copyWith(
-                    color: theme.textPrimary(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: onSignIn,
-            child: Text(
-              LocaleKeys.authSignIn.tr(),
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: theme.primary(context),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

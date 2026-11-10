@@ -12,14 +12,18 @@ class GetMyRequestsParams extends Equatable {
   final int page;
   final int limit;
 
+  /// Tab Public (`false`) / Private (`true`) — web `is_private`; null = không lọc.
+  final bool? isPrivate;
+
   const GetMyRequestsParams({
     required this.userId,
     this.page = 1,
     this.limit = 20,
+    this.isPrivate,
   });
 
   @override
-  List<Object?> get props => [userId, page, limit];
+  List<Object?> get props => [userId, page, limit, isPrivate];
 }
 
 class GetMyRequestsUseCase
@@ -34,5 +38,6 @@ class GetMyRequestsUseCase
         userId: params.userId,
         page: params.page,
         limit: params.limit,
+        isPrivate: params.isPrivate,
       );
 }

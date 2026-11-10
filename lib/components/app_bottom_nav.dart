@@ -10,11 +10,14 @@ import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
+import 'package:strongbody_buyer/core/services/last_visit_service.dart';
+import 'package:strongbody_buyer/core/streams/auth_event_bus.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_badge_notifier.dart';
 import 'package:strongbody_buyer/modules/home/presentation/new_offers_badge_notifier.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
+import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
+import 'package:strongbody_buyer/modules/post_request/presentation/widgets/voice/get_help_sheet.dart';
 
 import 'app_nav_icons.dart';
 
@@ -56,10 +59,30 @@ class _AppTabShellState extends State<AppTabShell> {
     AppTab.account: Color(0xFFF4F6F9),
   };
 
+  StreamSubscription<AuthEvent>? _auth;
+
   @override
   void initState() {
     super.initState();
     _activate(_tab);
+    _auth = AuthEventBus.stream.listen(_onAuthEvent);
+  }
+
+  @override
+  void dispose() {
+    _auth?.cancel();
+    super.dispose();
+  }
+
+  /// Hết phiên (BE từ chối refresh token) → mở lại đăng nhập, như web `RefreshTokenGuard`
+  /// (`signOut({ callbackUrl: '/login' })`). Tự bấm Log out thì không.
+  void _onAuthEvent(AuthEvent event) {
+    if (event is! UserLoggedOut || !event.expired || !mounted) return;
+    showAuthSheet(
+      context,
+      source: 'session_expired',
+      subtitle: LocaleKeys.authSessionExpired.tr(),
+    );
   }
 
   @override
@@ -74,6 +97,10 @@ class _AppTabShellState extends State<AppTabShell> {
     // Không báo listener giữa lúc build.
     scheduleMicrotask(() => AppTabShell.active.value = tab);
     AppAnalytics.screen(tab == AppTab.home ? 'home' : tab.location);
+    // Web `BuyerLastVisitTracker`: mỗi lần đổi trang (đã đăng nhập) báo last-visit.
+    if (getIt.isRegistered<LastVisitService>()) {
+      getIt<LastVisitService>().touch();
+    }
     if (tab != AppTab.home) {
       getIt<NewOffersBadgeNotifier>().refresh();
       getIt<ChatBadgeNotifier>().refresh();
@@ -86,9 +113,9 @@ class _AppTabShellState extends State<AppTabShell> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tab = _tab;
-    final showBar = tab != AppTab.home;
+    // Như fly-bar của web: thanh dưới có ở mọi tab (kể cả Home = các board).
     return PopScope(
-      canPop: !showBar,
+      canPop: tab == AppTab.home,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _select(AppTab.home);
       },
@@ -97,17 +124,10 @@ class _AppTabShellState extends State<AppTabShell> {
         resizeToAvoidBottomInset: false,
         body: widget.shell,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        floatingActionButton: showBar
-            ? _SpeakButton(
-                onTap: () => context.push(
-                  RouteName.voiceRequest,
-                  extra: const VoiceRequestPageArgs(source: 'bottom_nav'),
-                ),
-              )
-            : null,
-        bottomNavigationBar: showBar
-            ? AppBottomNav(current: tab, onSelect: _select)
-            : null,
+        floatingActionButton: _SpeakButton(
+          onTap: () => showGetHelpSheet(context, source: 'bottom_nav'),
+        ),
+        bottomNavigationBar: AppBottomNav(current: tab, onSelect: _select),
       ),
     );
   }
@@ -209,7 +229,7 @@ class AppBottomNav extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.only(bottom: 9.h),
                 child: Text(
-                  LocaleKeys.navSpeak.tr(),
+                  LocaleKeys.navGetHelp.tr(),
                   maxLines: 1,
                   style: AppTextStyle.lightBodyXSmallSemiBold.copyWith(
                     color: _SpeakButton.labelColor,

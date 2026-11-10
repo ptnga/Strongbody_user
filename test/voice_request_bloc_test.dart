@@ -64,10 +64,13 @@ class _FakeRecorder implements VoiceNoteRecorder {
   int discards = 0;
 
   @override
-  Future<bool> start() async {
+  Future<bool> start({bool standalone = false}) async {
     starts++;
     return works;
   }
+
+  @override
+  Stream<double> get levels => const Stream.empty();
 
   @override
   Future<void> pause() async => pauses++;

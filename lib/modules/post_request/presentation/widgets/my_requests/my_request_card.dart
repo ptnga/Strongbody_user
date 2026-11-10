@@ -14,8 +14,9 @@ import '../../request_formatters.dart';
 import 'my_request_formatters.dart';
 import 'offer_avatar.dart';
 
-/// Thẻ request — tab Active: số offer mới, ngày đăng, chip, dải provider + "Compare";
-/// bấm thẻ → trang Offers. Tab Closed: "Completed" / "Booked with …" hoặc trạng thái đóng.
+/// Thẻ request — đang mở: số offer mới, ngày đăng, chip, dải provider + "Compare";
+/// bấm thẻ → trang Offers (request riêng từ inquiry → chat). Đã đóng: "Completed" /
+/// "Booked with …" hoặc nhãn trạng thái của web (Closed / Not approved).
 class MyRequestCard extends StatelessWidget {
   final MyRequestEntity request;
 
@@ -54,6 +55,12 @@ class MyRequestCard extends StatelessWidget {
     final subtitle = closed
         ? _closedSubtitle(locale, booking)
         : [
+            if (request.inquiry case final inquiry?)
+              inquiry.recipientName.isNotEmpty
+                  ? LocaleKeys.myRequestsSentTo.tr(
+                      args: [inquiry.recipientName],
+                    )
+                  : LocaleKeys.myRequestsSentToProvider.tr(),
             if (request.createdAt != null)
               MyRequestFormatters.posted(request.createdAt!, locale),
             MyRequestFormatters.responded(request.respondersCount),
@@ -137,6 +144,21 @@ class MyRequestCard extends StatelessWidget {
                   onCompare: onOpen,
                 ),
               ],
+              // Request riêng (inquiry): web nút "Open chat" với provider nhận.
+              if ((request.inquiry?.recipientId ?? 0) > 0) ...[
+                Gap(12.h),
+                Divider(height: 1, color: theme.border(context)),
+                Gap(10.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    LocaleKeys.myRequestsOpenChat.tr(),
+                    style: AppTextStyle.lightBodyMediumBold.copyWith(
+                      color: theme.textPrimary(context),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -149,23 +171,19 @@ class MyRequestCard extends StatelessWidget {
     if (booking != null) {
       final date = booking.paidAt ?? booking.createdAt;
       return [
-        LocaleKeys.myRequestsBookedWith.tr(args: [booking.sellerName]),
+        LocaleKeys.myRequestsBookedWith.tr(
+          args: [MyRequestFormatters.sellerName(booking)],
+        ),
         if (date != null) MyRequestFormatters.shortDate(date, locale),
       ].join(' · ');
     }
     final date = request.updatedAt ?? request.createdAt;
     return [
-      _closedStatusLabel(request.status),
+      MyRequestFormatters.status(request),
       if (date != null) MyRequestFormatters.shortDate(date, locale),
     ].join(' · ');
   }
 }
-
-String _closedStatusLabel(String status) => switch (status) {
-  'expired' => LocaleKeys.myRequestsStatusExpired.tr(),
-  'canceled' || 'cancelled' => LocaleKeys.myRequestsStatusCanceled.tr(),
-  _ => LocaleKeys.myRequestsStatusClosed.tr(),
-};
 
 class _StatusBadge extends StatelessWidget {
   final MyRequestEntity request;
@@ -188,7 +206,7 @@ class _StatusBadge extends StatelessWidget {
       'completed' => (LocaleKeys.myRequestsStatusCompleted.tr(), true),
       'accepted' ||
       'delivered' => (LocaleKeys.myRequestsStatusBooked.tr(), true),
-      _ when request.isClosed => (_closedStatusLabel(request.status), false),
+      _ when request.isClosed => (MyRequestFormatters.status(request), false),
       _ => (_activeLabel(), false),
     };
     return Container(
@@ -206,8 +224,10 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 
-  /// "3 new offers" → "3 offers" → "In review" (chờ duyệt) → "Waiting for offers".
+  /// "3 new offers" → "3 offers" → nhãn trạng thái web ("In review" / "Open").
   String _activeLabel() {
+    // Request riêng (inquiry): không có offer — chỉ nhãn trạng thái.
+    if (request.inquiry != null) return MyRequestFormatters.status(request);
     final loaded = offers;
     final fresh = loaded?.where((o) => o.isNew).length ?? 0;
     if (fresh > 0) {
@@ -221,10 +241,7 @@ class _StatusBadge extends StatelessWidget {
           ? LocaleKeys.myRequestsOffersOne.tr()
           : LocaleKeys.myRequestsOffersMany.tr(args: ['$total']);
     }
-    if (request.status == 'pending') {
-      return LocaleKeys.myRequestsStatusPending.tr();
-    }
-    return LocaleKeys.myRequestsWaiting.tr();
+    return MyRequestFormatters.status(request);
   }
 }
 

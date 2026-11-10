@@ -27,6 +27,40 @@ class MarketFormatters {
     MarketCategory.personalHelper => LocaleKeys.marketBrandPersonalHelper.tr(),
   };
 
+  /// Tên category (gồm Medical Travel) trong tiêu đề listing.
+  static String scopeLabel(MarketPageScope scope) => switch (scope.category) {
+    final c? => categoryLabel(c),
+    null => LocaleKeys.marketMedicalTravel.tr(),
+  };
+
+  /// Tên trên header của trang category (gồm Medical Travel).
+  static String scopeBrand(MarketPageScope scope) => switch (scope.category) {
+    final c? => brand(c),
+    null => LocaleKeys.marketBrandMedicalTravel.tr(),
+  };
+
+  /// Hero 2 dòng của trang category (web `homeMarketplace.categoryPage.hero.<key>`).
+  static ({String title, String subtitle}) categoryHero(
+    MarketPageScope scope,
+  ) => switch (scope.category) {
+    MarketCategory.longevity => (
+      title: LocaleKeys.marketCategoryHeroLongevityTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroLongevitySubtitle.tr(),
+    ),
+    MarketCategory.healthProAdvisory => (
+      title: LocaleKeys.marketCategoryHeroHealthProAdvisoryTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroHealthProAdvisorySubtitle.tr(),
+    ),
+    MarketCategory.personalHelper => (
+      title: LocaleKeys.marketCategoryHeroPersonalHelperTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroPersonalHelperSubtitle.tr(),
+    ),
+    null => (
+      title: LocaleKeys.marketCategoryHeroMedicalTravelTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroMedicalTravelSubtitle.tr(),
+    ),
+  };
+
   /// Hero riêng của category; thiếu thì dùng copy trang chủ (web `categoryHero`).
   static ({String tagline, String title, String? subtitle}) hero(
     MarketCategory c,

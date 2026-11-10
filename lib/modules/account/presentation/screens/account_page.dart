@@ -24,7 +24,6 @@ import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.da
 import 'package:strongbody_buyer/modules/chat/presentation/chat_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/request_options.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/matching_providers_page_args.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/post_request_flow_args.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/account/account_bloc.dart';
@@ -55,7 +54,11 @@ class AccountPage extends StatelessWidget {
           title: Text(label, style: AppTextStyle.lightBodyMediumRegular),
           subtitle: hint == null ? null : Text(hint),
           trailing: current == code
-              ? AppIcon(AppSvg.check, size: 24.r, color: theme.textPrimary(context))
+              ? AppIcon(
+                  AppSvg.check,
+                  size: 24.r,
+                  color: theme.textPrimary(context),
+                )
               : null,
           onTap: () => Navigator.of(context).pop((code: code)),
         );
@@ -166,10 +169,8 @@ class AccountPage extends StatelessWidget {
       showDragHandle: true,
       useSafeArea: true,
       backgroundColor: Theme.of(context).surface(context),
-      builder: (_) => BlocProvider.value(
-        value: bloc,
-        child: const _VerifyDeletionSheet(),
-      ),
+      builder: (_) =>
+          BlocProvider.value(value: bloc, child: const _VerifyDeletionSheet()),
     );
   }
 
@@ -210,11 +211,13 @@ class AccountPage extends StatelessWidget {
                     ToastUtil.showInfo(LocaleKeys.accountLoggedOut.tr());
                     context.go(RouteName.rootScreen);
                   case AccountNotice.deletionCodeSent:
+                    // Web `AccountDeletionForm`: toast "Deletion request submitted!" rồi mở OTP.
+                    ToastUtil.showSuccess(
+                      LocaleKeys.accountDeleteRequestSubmitted.tr(),
+                    );
                     _openVerifyDeletionSheet(context);
                   case AccountNotice.deletionCodeResent:
-                    ToastUtil.showInfo(
-                      LocaleKeys.accountDeleteCodeResent.tr(),
-                    );
+                    ToastUtil.showInfo(LocaleKeys.accountDeleteCodeResent.tr());
                   case AccountNotice.accountDeleted:
                     ToastUtil.showInfo(LocaleKeys.accountDeleted.tr());
                     context.go(RouteName.rootScreen);
@@ -320,9 +323,7 @@ class AccountPage extends StatelessWidget {
                             // Prototype: mở danh sách provider (chưa có API "đã lưu").
                             onTap: () => context.push(
                               RouteName.matchingProviders,
-                              extra: const MatchingProvidersPageArgs(
-                                start: PostRequestFlowArgs(browseOnly: true),
-                              ),
+                              extra: const MatchingProvidersPageArgs(),
                             ),
                           ),
                           AccountNavRow(
@@ -650,9 +651,6 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   );
   late final _city = TextEditingController(text: widget.state.profile?.city);
 
-  /// Tên trống → Account hiện "—" và Home vẫn chào tên cũ → bắt nhập.
-  bool _firstMissing = false;
-
   @override
   void dispose() {
     _first.dispose();
@@ -687,9 +685,6 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               AuthTextField(
                 label: LocaleKeys.accountFirstName.tr(),
                 controller: _first,
-                error: _firstMissing
-                    ? const AuthMessage.key(LocaleKeys.accountFirstNameRequired)
-                    : null,
                 autofillHints: const [AutofillHints.givenName],
               ),
               Gap(12.h),
@@ -709,11 +704,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               AuthPrimaryButton(
                 label: LocaleKeys.accountSave.tr(),
                 loading: state.savingProfile,
+                // Web `EditProfileForm` không bắt buộc tên; tên trống thì không gửi (giữ tên cũ).
                 onPressed: () {
-                  if (_first.text.trim().isEmpty) {
-                    setState(() => _firstMissing = true);
-                    return;
-                  }
                   context.read<AccountBloc>().add(
                     AccountProfileSaved(
                       firstName: _first.text.trim(),
@@ -762,7 +754,9 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 24.h),
         child: Column(

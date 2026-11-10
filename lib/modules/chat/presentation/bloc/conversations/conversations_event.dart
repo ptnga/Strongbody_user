@@ -43,3 +43,13 @@ final class _ConversationsUpdated extends ConversationsEvent {
   @override
   List<Object?> get props => [update];
 }
+
+/// Dòng mới từ realtime thiếu tên / ảnh partner → lấy lại trang đầu (web `backfillPartner`).
+final class _ConversationsBackfillRequested extends ConversationsEvent {
+  final String channelId;
+
+  const _ConversationsBackfillRequested(this.channelId);
+
+  @override
+  List<Object?> get props => [channelId];
+}

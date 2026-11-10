@@ -52,6 +52,7 @@ class ConversationsBloc
     on<ConversationsQueryChanged>(_onQueryChanged);
     on<_ConversationsSearchRequested>(_onSearch);
     on<_ConversationsUpdated>(_onUpdated);
+    on<_ConversationsBackfillRequested>(_onBackfill);
     // Tab Messages được giữ sống: đổi tài khoản → bỏ dữ liệu + socket của người cũ.
     _auth = AuthEventBus.stream.listen((event) {
       if (event is UserProfileUpdated || isClosed) return;
@@ -154,8 +155,13 @@ class ConversationsBloc
         _reconnectTimer = Timer(const Duration(seconds: 10), () {
           if (!isClosed && _storage.isLoggedIn) unawaited(_listenUpdates());
         });
-      case UnreadChanged():
-        _badge.refresh();
+      case UnreadChanged(:final total):
+        // Web: `global_unread_update` mang sẵn `total_unread_count`.
+        if (total != null) {
+          _badge.value = total;
+        } else {
+          _badge.refresh();
+        }
       case ConversationChanged(:final conversation):
         final items = [...state.items];
         final index = items.indexWhere(
@@ -172,6 +178,12 @@ class ConversationsBloc
           );
         } else {
           items.add(conversation);
+          // Sự kiện realtime không kèm tên / ảnh partner → lấy lại từ REST (web
+          // `backfillPartner`).
+          if (conversation.partnerName.isEmpty ||
+              conversation.partnerAvatar == null) {
+            add(_ConversationsBackfillRequested(conversation.channelId));
+          }
         }
         items.sort((a, b) => b.lastTimetoken.compareTo(a.lastTimetoken));
         emit(state.copyWith(items: items));
@@ -179,22 +191,53 @@ class ConversationsBloc
     }
   }
 
+  Future<void> _onBackfill(
+    _ConversationsBackfillRequested event,
+    Emitter<ConversationsState> emit,
+  ) => callApi(
+    useCase: _getConversations,
+    param: 1,
+    onSuccess: (result) async {
+      final fresh = result.items
+          .where((c) => c.channelId == event.channelId)
+          .firstOrNull;
+      if (fresh == null) return;
+      emit(
+        state.copyWith(
+          items: [
+            for (final c in state.items)
+              c.channelId == event.channelId
+                  ? c.copyWith(
+                      partnerName: fresh.partnerName.isEmpty
+                          ? null
+                          : fresh.partnerName,
+                      partnerAvatar: fresh.partnerAvatar,
+                    )
+                  : c,
+          ],
+        ),
+      );
+    },
+    onFailure: (_) {},
+  );
+
   void _onQueryChanged(
     ConversationsQueryChanged event,
     Emitter<ConversationsState> emit,
   ) {
+    // Web `MessageHeader`: tìm người với mọi chuỗi khác rỗng, debounce 500 ms.
     final query = event.query.trim();
     emit(
       state.copyWith(
         query: event.query,
-        people: query.length < 2 ? const [] : null,
-        isSearching: query.length >= 2,
+        people: query.isEmpty ? const [] : null,
+        isSearching: query.isNotEmpty,
       ),
     );
     _searchDebounce?.cancel();
-    if (query.length < 2) return;
+    if (query.isEmpty) return;
     _searchDebounce = Timer(
-      const Duration(milliseconds: 400),
+      const Duration(milliseconds: 500),
       () => add(_ConversationsSearchRequested(query)),
     );
   }

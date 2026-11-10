@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../config/environment.dart';
 import '../constants/app_constants.dart';
@@ -12,28 +15,40 @@ import 'exception.dart';
 /// `response.data` đã decode.
 ///
 /// - Tự gắn `Authorization: Bearer <accessToken>` nếu đã đăng nhập.
-/// - Tự gắn `Scope: strongbody-ai` nếu caller chưa set.
+/// - Tự gắn `Scope: strongbody-ai`, `locale` + `Accept-Language` (web `apiFetch`) nếu caller chưa set.
 /// - Lỗi không có response → [NetworkException]; lỗi HTTP → rethrow [DioException]
 ///   để repository tự lấy `message` từ body.
 /// - `path` tuyệt đối (`https://...`) thì Dio bỏ qua baseUrl — dùng cho API route của web.
-/// - 401 (HTTP hoặc body `code` 401/403) khi đã đăng nhập → refresh 1 lần (`GET /auth/refresh-token`, Bearer refreshToken,
-///   như web `refreshAccessToken`) rồi gửi lại; refresh hỏng → xoá phiên.
+/// - Access token (JWT) đã hết hạn → refresh TRƯỚC khi gửi (web next-auth `jwt` callback:
+///   `Date.now() >= accessTokenExpires` → `refreshAccessToken`).
+/// - 401 (HTTP hoặc body `code` 401/403) khi đã đăng nhập → refresh 1 lần (`GET /auth/refresh-token`,
+///   Bearer refreshToken, như web `refreshAccessToken`) rồi gửi lại; BE từ chối refresh → xoá phiên
+///   + [UserLoggedOut] `expired` (web `RefreshTokenGuard` → đăng xuất, mở trang đăng nhập).
 class ApiClient {
   final Dio _dio;
   final GlobalStorage _storage;
 
   /// Dio riêng cho refresh — không qua interceptor (tránh vòng lặp 401).
-  final Dio _refreshDio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-    ),
-  );
+  final Dio _refreshDio;
   Future<String?>? _refreshing;
 
   static const _refreshPath = '/auth/refresh-token';
 
-  ApiClient(this._dio, this._storage) {
+  /// Logout chủ động: BE từ chối token lúc này không phải "hết phiên" (không mở lại đăng nhập).
+  static const _logoutPath = '/auth/logout';
+
+  /// Refresh sớm hơn `exp` một chút để token không hết hạn giữa đường.
+  static const expirySkew = Duration(seconds: 10);
+
+  ApiClient(this._dio, this._storage, {Dio? refreshDio})
+    : _refreshDio =
+          refreshDio ??
+          Dio(
+            BaseOptions(
+              connectTimeout: const Duration(seconds: 15),
+              receiveTimeout: const Duration(seconds: 15),
+            ),
+          ) {
     _dio.options
       ..baseUrl = AppConfig.baseUrl
       ..connectTimeout = const Duration(seconds: 30)
@@ -42,16 +57,27 @@ class ApiClient {
 
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          final token = _storage.accessToken;
+        onRequest: (options, handler) async {
           if (options.extra['skip_auth'] != true &&
-              token != null &&
-              token.isNotEmpty &&
               options.headers['Authorization'] == null) {
-            options.headers['Authorization'] = 'Bearer $token';
+            var token = _storage.accessToken;
+            if (token != null &&
+                token.isNotEmpty &&
+                (_storage.refreshToken?.isNotEmpty ?? false) &&
+                isTokenExpired(token, DateTime.now())) {
+              // Đã thử refresh cho request này → 401 sau đó không refresh lần nữa.
+              options.extra['auth_retried'] = true;
+              token = await _refreshOnce(options.path) ?? _storage.accessToken;
+            }
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
           }
-          options.headers.putIfAbsent('Scope', () => AppConstants.strongbodyAi);
-          options.headers.putIfAbsent('locale', () => _storage.locale);
+          final locale = _storage.locale;
+          options.headers
+            ..putIfAbsent('Scope', () => AppConstants.strongbodyAi)
+            ..putIfAbsent('locale', () => locale)
+            ..putIfAbsent('Accept-Language', () => locale);
           handler.next(options);
         },
         // BE trả HTTP 200 kèm `code` 401/403 khi token hết hạn → đổi thành lỗi 401
@@ -84,8 +110,16 @@ class ApiClient {
               options.extra['auth_retried'] != true &&
               (_storage.refreshToken?.isNotEmpty ?? false);
           if (!canRefresh) return handler.next(error);
-          final token = await (_refreshing ??= _refreshAccessToken());
-          _refreshing = null;
+          // Request khác đã refresh xong trong lúc request này bay → dùng luôn token mới,
+          // không refresh lần nữa (refresh token có thể đã bị xoay vòng).
+          final sent = options.headers['Authorization'];
+          final current = _storage.accessToken;
+          final token =
+              (current != null &&
+                  current.isNotEmpty &&
+                  sent != 'Bearer $current')
+              ? current
+              : await _refreshOnce(options.path);
           if (token == null) return handler.next(error);
           try {
             options
@@ -114,7 +148,49 @@ class ApiClient {
     }
   }
 
-  Future<String?> _refreshAccessToken() async {
+  /// `exp` (giây) trong payload JWT → thời điểm hết hạn. Không phải JWT / không có `exp` → null.
+  @visibleForTesting
+  static DateTime? tokenExpiry(String token) {
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    try {
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final exp = payload is Map ? payload['exp'] : null;
+      if (exp is! num) return null;
+      return DateTime.fromMillisecondsSinceEpoch((exp * 1000).toInt());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Token đã (sắp) hết hạn. Không đọc được `exp` → coi là còn hạn (để 401 quyết định).
+  @visibleForTesting
+  static bool isTokenExpired(String token, DateTime now) {
+    final expiry = tokenExpiry(token);
+    return expiry != null && !now.add(expirySkew).isBefore(expiry);
+  }
+
+  /// Body của `GET /auth/refresh-token` → access token mới. Như web: chỉ nhận khi
+  /// `code === 0` (`data.data?.accessToken ?? data.accessToken`), còn lại là bị từ chối.
+  @visibleForTesting
+  static ({String accessToken, String? refreshToken})? parseRefreshResponse(
+    dynamic body,
+  ) {
+    if (body is! Map || '${body['code']}' != '0') return null;
+    final data = body['data'] is Map ? body['data'] as Map : const {};
+    final token = (data['accessToken'] ?? body['accessToken'])?.toString();
+    if (token == null || token.isEmpty) return null;
+    final refresh = (data['refreshToken'] ?? body['refreshToken'])?.toString();
+    return (accessToken: token, refreshToken: refresh);
+  }
+
+  /// Mọi request 401 cùng lúc chờ chung một lần refresh.
+  Future<String?> _refreshOnce(String triggerPath) => _refreshing ??=
+      _refreshAccessToken(triggerPath).whenComplete(() => _refreshing = null);
+
+  Future<String?> _refreshAccessToken(String triggerPath) async {
     try {
       final response = await _refreshDio.get(
         '${AppConfig.baseUrl}$_refreshPath',
@@ -125,32 +201,35 @@ class ApiClient {
           },
         ),
       );
-      final body = response.data;
-      final data = body is Map ? (body['data'] ?? body) : null;
-      final token = data is Map ? data['accessToken']?.toString() : null;
-      if (token == null || token.isEmpty) throw Exception('No access token');
+      final result = parseRefreshResponse(response.data);
+      if (result == null) throw Exception('Refresh token failed');
       await _storage.saveAccessToken(
-        token,
-        refreshToken: data is Map ? data['refreshToken']?.toString() : null,
+        result.accessToken,
+        refreshToken: result.refreshToken,
       );
-      return token;
+      return result.accessToken;
     } on DioException catch (e) {
       // Mạng yếu / timeout / 5xx: giữ phiên, chỉ request này lỗi. Chỉ đăng xuất khi BE
       // từ chối chính refresh token.
       final status = e.response?.statusCode;
-      if (status == 401 || status == 403) return _signOut(e);
+      // 4xx (401/403/400 token sai…) = BE từ chối refresh token (web: `!res.ok` → đăng xuất).
+      if (status != null && status >= 400 && status < 500) {
+        return _signOut(e, triggerPath);
+      }
       AppLogger.w('Refresh token failed (kept session)', e);
       return null;
     } catch (e) {
-      return _signOut(e);
+      return _signOut(e, triggerPath);
     }
   }
 
-  Future<String?> _signOut(Object reason) async {
+  Future<String?> _signOut(Object reason, String triggerPath) async {
     AppLogger.w('Refresh token rejected — signing out', reason);
     if (!_storage.isLoggedIn) return null;
     await _storage.clearUser();
-    AuthEventBus.emit(const UserLoggedOut());
+    AuthEventBus.emit(
+      UserLoggedOut(expired: !triggerPath.endsWith(_logoutPath)),
+    );
     return null;
   }
 
