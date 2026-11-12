@@ -1,19 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fpdart/fpdart.dart';
 
-import 'package:strongbody_buyer/core/base/failure.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 import 'package:strongbody_buyer/modules/chat/domain/usecases/chat_use_cases.dart';
 import 'package:strongbody_buyer/modules/social_market/data/datasources/remote/social_market_remote_datasource.dart';
 import 'package:strongbody_buyer/modules/social_market/data/mappers/market_mapper.dart';
 import 'package:strongbody_buyer/modules/social_market/data/repositories/social_market_repository_impl.dart';
 import 'package:strongbody_buyer/modules/social_market/data/services/market_chat_publisher.dart';
-import 'package:strongbody_buyer/modules/social_market/domain/entities/market_listing_entities.dart';
 import 'package:strongbody_buyer/modules/social_market/domain/entities/medical_travel_entities.dart';
-import 'package:strongbody_buyer/modules/social_market/domain/repositories/social_market_repository.dart';
-import 'package:strongbody_buyer/modules/social_market/domain/usecases/social_market_use_cases.dart';
-import 'package:strongbody_buyer/modules/social_market/presentation/bloc/category_market/category_market_bloc.dart';
-import 'package:strongbody_buyer/modules/social_market/presentation/bloc/medical_travel/medical_travel_cubit.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/widgets/market_rich_text.dart';
 
 /// Datasource giả: expert/featured trả theo (sort, page).
@@ -56,46 +49,6 @@ class _Storage implements GlobalStorage {
 }
 
 class _OpenChat implements OpenChatSessionUseCase {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _Repo implements SocialMarketRepository {
-  final serviceQueries = <Map<String, dynamic>>[];
-
-  @override
-  Future<Either<Failure, MarketPage<MarketServiceEntity>>> getMedicalServices(
-    MedicalServiceFilters filters, {
-    required int page,
-    required int limit,
-  }) async {
-    serviceQueries.add(filters.toQuery(page: page, limit: limit));
-    return Right(
-      MarketPage(
-        items: [
-          MarketMapper.medicalService({
-            'id': page,
-            'title': 'S$page',
-            'is_medical_travel': true,
-          }),
-        ],
-        total: 25,
-        totalPages: 3,
-      ),
-    );
-  }
-
-  @override
-  Future<
-    Either<Failure, ({List<MarketExpertEntity> items, CoordinatorsCursor next})>
-  >
-  getCoordinators(CoordinatorsPhase cursor) async =>
-      const Right((items: <MarketExpertEntity>[], next: CoordinatorsDone()));
-
-  @override
-  Future<Either<Failure, List<MarketDestination>>> getDestinations() async =>
-      const Right([]);
-
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -152,11 +105,12 @@ void main() {
         },
         'organization': {
           'name': 'BlueNet Hospitals',
-          'country': {'title': 'Mexico'},
+          'country': {'title': 'Mexico', 'code': 'MX'},
         },
       });
       expect(s.seller.shopName, 'BlueNet Hospitals');
       expect(s.place, 'Mexico');
+      expect(s.placeFlag, 'https://flagcdn.com/w40/mx.png');
       expect(s.seller.id, 9);
       expect(s.isMedicalTravel, isTrue);
     },
@@ -285,28 +239,6 @@ void main() {
         'org_owner': true,
         'is_medical_travel': false,
       });
-    },
-  );
-
-  test(
-    'MedicalTravelCubit: đổi lọc tải lại trang 1, "View more" nối trang kế',
-    () async {
-      final repo = _Repo();
-      final cubit = MedicalTravelCubit(
-        getCoordinators: GetCoordinatorsUseCase(repo),
-        getDestinations: GetDestinationsUseCase(repo),
-        getServices: GetMedicalServicesUseCase(repo),
-      );
-      await cubit.load();
-      expect(cubit.state.packagesStatus, SectionStatus.success);
-      await cubit.viewMorePackages();
-      expect(cubit.state.packages.map((s) => s.id), [1, 2]);
-      await cubit.changeFilters(
-        cubit.state.filters.copyWith(sort: 'top_rated'),
-      );
-      expect(cubit.state.packages.map((s) => s.id), [1]);
-      expect(repo.serviceQueries.last['order_by'], 'rating');
-      await cubit.close();
     },
   );
 

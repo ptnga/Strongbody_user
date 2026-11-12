@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 
 import '../../domain/entities/my_request_entity.dart';
+import '../../domain/entities/posted_request_entity.dart';
 import '../../domain/entities/provider_entity.dart';
 import '../../domain/entities/request_draft_entity.dart';
 import '../../domain/entities/request_form_values.dart';
@@ -112,13 +113,18 @@ class PostRequestMapper {
       else if (budget.min != null)
         MapEntry('budget', _num(budget.min!)),
       if (hasBudget) MapEntry('currency', values.currency),
+      if (hasBudget && values.currencyId != null)
+        MapEntry('currency_id', '${values.currencyId}'),
       if (deliveryType != null) MapEntry('delivery_type', deliveryType),
       if (!values.isScheduleEmpty)
         MapEntry('schedule', jsonEncode(_scheduleJson(values.schedule))),
-      if (values.sellerLanguages.isNotEmpty)
+      // Gửi riêng (web form `variant="send"`): không có Working language / Post
+      // anonymously → không gửi hai field này.
+      if (sellerUserId == null && values.sellerLanguages.isNotEmpty)
         MapEntry('seller_languages', jsonEncode(values.sellerLanguages)),
       if (values.deadline != null)
         MapEntry('deadline', values.deadline!.toUtc().toIso8601String()),
+      if (sellerUserId == null) MapEntry('anonymous', '${values.anonymous}'),
       if (assistant != null && assistant.categoryIds.isNotEmpty) ...[
         MapEntry('category_ids', jsonEncode(assistant.categoryIds)),
         MapEntry('category_id', '${assistant.categoryIds.first}'),
@@ -127,6 +133,8 @@ class PostRequestMapper {
         MapEntry('quality_score', '${assistant!.qualityScore}'),
       if (assistant != null && assistant.suggestion.isNotEmpty)
         MapEntry('ai_suggestion', assistant.suggestion),
+      if (values.similarToRequestId != null)
+        MapEntry('similar_to_request_id', '${values.similarToRequestId}'),
     ];
 
     final formData = FormData()..fields.addAll(fields);
@@ -177,18 +185,125 @@ class PostRequestMapper {
   static String _num(double value) =>
       value == value.roundToDouble() ? value.toInt().toString() : '$value';
 
-  /// Status của request vừa tạo (`active` = đã lên, còn lại = chờ duyệt).
-  static String? createdStatus(dynamic body) {
-    if (body is! Map) return null;
-    final data = body['data'];
-    if (data is Map) {
-      final nested = data['data'];
-      if (nested is Map && nested['status'] != null) {
-        return nested['status'].toString();
+  /// Request vừa tạo: id (sang trang "Providers for your request") + status
+  /// (`active` = đã lên, còn lại = chờ duyệt) — web đọc `data.data` → `data` → gốc.
+  static CreatedRequest createdRequest(dynamic body) {
+    Object? pick(String key) {
+      if (body is! Map) return null;
+      final data = body['data'];
+      if (data is Map) {
+        final nested = data['data'];
+        if (nested is Map && nested[key] != null) return nested[key];
+        if (data[key] != null) return data[key];
       }
-      if (data['status'] != null) return data['status'].toString();
+      return body[key];
     }
-    return body['status']?.toString();
+
+    final id = pick('id');
+    return CreatedRequest(
+      id: id is num ? id.toInt() : int.tryParse('${id ?? ''}'),
+      status: pick('status')?.toString(),
+    );
+  }
+
+  /// Bảng `currencies` → ô chọn tiền (web `toOptions`): đang bật, tiền ưu tiên lên
+  /// đầu, rồi theo `ordering`, cuối cùng theo mã.
+  static List<CurrencyOption> currencies(dynamic body) {
+    final data = body is Map ? body['data'] : null;
+    final list = data is Map ? data['list'] : null;
+    if (list is! List) return const [];
+    final rows = list
+        .whereType<Map>()
+        .where(
+          (c) =>
+              c['is_active'] != false && '${c['name'] ?? ''}'.trim().isNotEmpty,
+        )
+        .toList();
+    int ordering(Map c) =>
+        c['ordering'] is num ? (c['ordering'] as num).toInt() : 1 << 31;
+    rows.sort((a, b) {
+      final fa = a['is_featured'] == true;
+      final fb = b['is_featured'] == true;
+      if (fa != fb) return fa ? -1 : 1;
+      final byOrder = ordering(a).compareTo(ordering(b));
+      if (byOrder != 0) return byOrder;
+      return '${a['name']}'.compareTo('${b['name']}');
+    });
+    return [
+      for (final c in rows)
+        if (c['id'] is num)
+          CurrencyOption(
+            id: (c['id'] as num).toInt(),
+            code: '${c['name']}'.trim().toUpperCase(),
+          ),
+    ];
+  }
+
+  /// `GET /user/request/{id}` → [SentRequest] (web `toSentRequest`).
+  static SentRequest? sentRequest(dynamic body) {
+    final data = body is Map ? body['data'] : null;
+    if (data is! Map) return null;
+    final r = Map<String, dynamic>.from(data);
+    final id = r['id'] is num ? (r['id'] as num).toInt() : null;
+    final description = '${r['description'] ?? ''}'.trim();
+    if (id == null || description.isEmpty) return null;
+
+    num? number(Object? v) => v is num ? v : num.tryParse('${v ?? ''}');
+    final min = number(r['min_budget']);
+    final max = number(r['max_budget']) ?? number(r['budget']);
+    final budget = min != null && max != null && min != max
+        ? '${_num(min.toDouble())}-${_num(max.toDouble())}'
+        : max != null
+        ? _num(max.toDouble())
+        : min != null
+        ? _num(min.toDouble())
+        : '';
+
+    Object? json(Object? v) {
+      if (v is! String) return v;
+      try {
+        return jsonDecode(v);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final delivery = '${r['delivery_type'] ?? ''}';
+    final languages = json(r['seller_languages']);
+    final categories = json(r['category_ids']);
+    final categoryIds = categories is List
+        ? categories.map((c) => int.tryParse('$c')).whereType<int>().toList()
+        : [?number(r['category_id'])?.toInt()];
+    return SentRequest(
+      id: id,
+      description: description,
+      budget: budget,
+      currency: '${r['currency'] ?? ''}'.trim().isEmpty
+          ? 'USD'
+          : '${r['currency']}'.trim(),
+      // 'all' = mọi hình thức → không lọc theo nơi nhận dịch vụ.
+      deliveryTypes: delivery == 'all'
+          ? const []
+          : [?RequestDeliveryType.fromApi(delivery)],
+      sellerLanguages: languages is List
+          ? languages.map(_languageCode).whereType<String>().toSet().toList()
+          : const [],
+      categoryIds: categoryIds.where((c) => c > 0).toList(),
+      status: r['status']?.toString(),
+    );
+  }
+
+  /// Ngôn ngữ cũ có thể lưu tên ("English") thay vì mã → đổi về mã (web `toLanguageCodes`).
+  static String? _languageCode(Object? value) {
+    final v = '${value ?? ''}'.trim();
+    if (v.isEmpty) return null;
+    final key = v.toLowerCase();
+    for (final l in requestLanguages) {
+      if (l.code.toLowerCase() == key || l.name.toLowerCase() == key) {
+        return l.code;
+      }
+    }
+    return v;
   }
 
   /// `expert/balanced` (`list`) hoặc `/public/profiles` (`data`) → trang provider.
@@ -200,19 +315,13 @@ class PostRequestMapper {
       if (item is! Map) continue;
       final dto = ProviderDto.fromJson(Map<String, dynamic>.from(item));
       if (dto.id == null || dto.userId == null) continue;
-      final fullName = [
-        dto.firstName,
-        dto.lastName,
-      ].where((p) => p != null && p.trim().isNotEmpty).join(' ').trim();
-      final name = (dto.shopName?.trim().isNotEmpty ?? false)
-          ? dto.shopName!.trim()
-          : fullName;
       items.add(
         ProviderEntity(
           id: dto.id!,
           userId: dto.userId!,
           slug: dto.slug ?? '',
-          name: name.isEmpty ? 'Provider' : name,
+          // Web: tên shop / organization; rỗng → UI hiện "StrongBody Provider".
+          name: dto.shopName ?? '',
           avatarUrl: _validImage(dto.profilePicture),
           profession: dto.profession,
           country: (dto.country?.isNotEmpty ?? false) ? dto.country : null,
@@ -322,12 +431,26 @@ class PostRequestMapper {
           updatedAt: DateTime.tryParse(dto.updatedAt ?? '')?.toLocal(),
           hasVoice: dto.voiceUrl?.isNotEmpty ?? false,
           details: _requestDetails(dto),
+          isPrivate: dto.isPrivate ?? dto.inquiry != null,
+          inquiry: _inquiry(dto.inquiry),
         ),
       );
     }
     return MyRequestPage(
       items: items,
       totalPage: (data['total_page'] as num?)?.toInt() ?? 1,
+    );
+  }
+
+  static RequestInquiryInfo? _inquiry(Map<String, dynamic>? raw) {
+    if (raw == null) return null;
+    final avatar = _nonEmpty(raw['recipient_avatar']?.toString());
+    return RequestInquiryInfo(
+      recipientId: _int(raw['recipient_id']),
+      recipientName: '${raw['recipient_name'] ?? ''}'.trim(),
+      recipientAvatar: avatar,
+      targetType: '${raw['target_type'] ?? ''}',
+      title: '${raw['title'] ?? ''}'.trim(),
     );
   }
 
@@ -393,13 +516,8 @@ class PostRequestMapper {
             RequestOfferEntity(
               id: dto.id!,
               status: dto.status ?? 'pending',
-              sellerName: [
-                dto.sellerFirstName,
-                dto.sellerLastName,
-              ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' '),
-              sellerAvatar: (dto.sellerAvatar?.isNotEmpty ?? false)
-                  ? dto.sellerAvatar
-                  : null,
+              sellerName: dto.sellerDisplayName ?? '',
+              sellerAvatar: dto.sellerAvatar,
               sellerId: dto.sellerId,
               requestId: dto.requestId ?? _int(dto.request?['id']),
               request: dto.request == null
@@ -412,7 +530,7 @@ class PostRequestMapper {
               description: dto.description?.trim() ?? '',
               price: dto.price?.toDouble(),
               currency: dto.currency,
-              rating: dto.serviceRating?.toDouble(),
+              rating: (dto.sellerRating ?? dto.serviceRating)?.toDouble(),
               reviewCount: dto.serviceReviewCount?.toInt(),
               profession: _nonEmpty(dto.serviceCategory),
               address: _nonEmpty(dto.serviceAddress),

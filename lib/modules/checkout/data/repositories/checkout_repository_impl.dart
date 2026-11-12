@@ -78,6 +78,32 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     }
   }
 
+  static CheckoutOfferSnapshot snapshot(Map<String, dynamic> json) {
+    double d(Object? v) => v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
+    final price = json['price'];
+    final code = json['voucher_code']?.toString();
+    return CheckoutOfferSnapshot(
+      status: '${json['status'] ?? ''}',
+      paymentStatus: '${json['payment_status'] ?? ''}',
+      price: price == null ? null : d(price),
+      pointsUsed: d(json['points_used']).toInt(),
+      pointsValue: d(json['points_value']),
+      voucherValue: d(json['voucher_value']),
+      voucherCode: code == null || code.isEmpty || code == 'null' ? null : code,
+    );
+  }
+
+  @override
+  Future<Either<Failure, CheckoutOfferSnapshot>> getOffer(int offerId) async {
+    try {
+      final data = await _remote.getOffer(offerId);
+      if (data.isEmpty) return Left(NotFoundFailure('Offer not found'));
+      return Right(snapshot(data));
+    } catch (e) {
+      return Left(_toFailure(e, 'Cannot load this offer'));
+    }
+  }
+
   @override
   Future<Either<Failure, OfferPaymentResult>> payOffer(
     OfferPaymentRequest request,
@@ -96,10 +122,17 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       }
       final secret = data['client_secret']?.toString();
       final card = request.paymentMethodId;
-      // Chưa paid mà không có client_secret / thẻ → chưa trừ tiền: báo lỗi, không "đang xử lý".
-      if (secret == null || secret.isEmpty || card == null) {
-        return const Right(OfferPaymentResult.failed);
+      // Web: không có client_secret → chờ xác nhận rồi đọc lại offer; chưa paid = thất bại
+      // (app chưa trừ tiền qua Stripe nên không báo "đang xử lý").
+      if (secret == null || secret.isEmpty) {
+        final result = await _waitUntilPaid(request.offerId);
+        return Right(
+          result == OfferPaymentResult.paid
+              ? OfferPaymentResult.paid
+              : OfferPaymentResult.failed,
+        );
       }
+      if (card == null) return const Right(OfferPaymentResult.failed);
       final stripe = await _stripe.confirmWithCard(
         clientSecret: secret,
         paymentMethodId: card,

@@ -1,7 +1,9 @@
 import 'package:easy_localization/easy_localization.dart';
 
+import 'package:strongbody_buyer/core/utils/language_names.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 
+import '../../../domain/entities/provider_entity.dart';
 import '../../../domain/entities/request_form_values.dart';
 import '../../../domain/entities/request_options.dart';
 import '../../bloc/matching_providers/matching_providers_bloc.dart';
@@ -11,10 +13,17 @@ import '../../request_formatters.dart';
 class ProviderFormatters {
   ProviderFormatters._();
 
+  /// Tên shop / organization; provider chưa đặt tên → "StrongBody Provider" (web
+  /// `card.fallbackSeller`).
+  static String name(ProviderEntity provider) => provider.name.trim().isEmpty
+      ? LocaleKeys.providersFallbackName.tr()
+      : provider.name;
+
   static String delivery(RequestDeliveryType type) => switch (type) {
     RequestDeliveryType.remote => LocaleKeys.providersChipOnline.tr(),
     RequestDeliveryType.atHome => LocaleKeys.providersChipAtHome.tr(),
     RequestDeliveryType.atClinic => LocaleKeys.providersChipAtClinic.tr(),
+    RequestDeliveryType.atOffice => LocaleKeys.postRequestDeliveryAtOffice.tr(),
   };
 
   /// Tên ngôn ngữ theo giao diện: tiếng Anh dùng tên tiếng Anh, còn lại dùng tên bản địa.
@@ -24,7 +33,7 @@ class ProviderFormatters {
         requestLanguages
             .where((l) => code.toLowerCase().startsWith(l.code.toLowerCase()))
             .firstOrNull;
-    if (option == null) return code;
+    if (option == null) return languageLabel(code);
     return uiLocale == 'en' ? option.name : option.nativeName;
   }
 

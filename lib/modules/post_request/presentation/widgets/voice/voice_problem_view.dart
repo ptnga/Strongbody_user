@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -118,7 +119,7 @@ class VoiceProblemView extends StatelessWidget {
                 child: FilledButton(
                   onPressed: primary.$3,
                   style: FilledButton.styleFrom(
-                    backgroundColor: theme.primary(context),
+                    backgroundColor: Colour.buttonPrimary,
                     shape: shape,
                     textStyle: AppTextStyle.lightBodyMediumBold,
                   ),

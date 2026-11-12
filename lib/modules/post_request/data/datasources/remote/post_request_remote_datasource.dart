@@ -42,15 +42,23 @@ abstract class PostRequestRemoteDataSource {
   /// `GET /seller/profile/slug/{slug}` → profile (`data`).
   Future<Map<String, dynamic>> getSellerProfile(String slug);
 
-  /// `GET /user/requests` → `{ list, total, total_page }`.
+  /// `GET /user/requests` → `{ list, total, total_page }`. [isPrivate] = tab
+  /// Public (`false`) / Private (`true`) như web `getAllRequests`; null = không lọc.
   Future<Map<String, dynamic>> getMyRequests({
     required int userId,
     required int page,
     required int limit,
+    bool? isPrivate,
   });
 
   /// `GET /buyer/offer/sent-offers-by-my-requests?request_id=` → `{ list, total, total_page }`.
   Future<Map<String, dynamic>> getRequestOffers(int requestId);
+
+  /// `GET /user/request/{id}` → body JSON.
+  Future<dynamic> getRequest(int id);
+
+  /// `GET /admin/currencies` → body JSON (`data.list`).
+  Future<dynamic> getCurrencies();
 }
 
 class PostRequestRemoteDataSourceImpl implements PostRequestRemoteDataSource {
@@ -151,6 +159,21 @@ class PostRequestRemoteDataSourceImpl implements PostRequestRemoteDataSource {
   }
 
   @override
+  Future<dynamic> getRequest(int id) => _apiClient.request(
+    path: PostRequestApiConfig.request(id),
+    method: ApiType.get,
+    headers: {'Accept': 'application/json'},
+  );
+
+  @override
+  Future<dynamic> getCurrencies() => _apiClient.request(
+    path: PostRequestApiConfig.currencies,
+    method: ApiType.get,
+    headers: {'Accept': 'application/json'},
+    skipAuth: true,
+  );
+
+  @override
   Future<dynamic> createBuyerRequestToSeller(FormData formData) {
     return _apiClient.request(
       path: PostRequestApiConfig.buyerRequestToSeller,
@@ -208,7 +231,9 @@ class PostRequestRemoteDataSourceImpl implements PostRequestRemoteDataSource {
     required int userId,
     required int page,
     required int limit,
+    bool? isPrivate,
   }) async {
+    // Web `getAllRequests`: user_id, page, is_private — thứ tự theo mặc định của BE.
     final body = await _apiClient.request(
       path: PostRequestApiConfig.myRequests,
       method: ApiType.get,
@@ -216,8 +241,7 @@ class PostRequestRemoteDataSourceImpl implements PostRequestRemoteDataSource {
         'user_id': userId,
         'page': page,
         'limit': limit,
-        'sort_by': 'created_at',
-        'sort_order': 'desc',
+        'is_private': ?isPrivate,
       },
     );
     return _dataMap(body);
@@ -225,12 +249,12 @@ class PostRequestRemoteDataSourceImpl implements PostRequestRemoteDataSource {
 
   @override
   Future<Map<String, dynamic>> getRequestOffers(int requestId) async {
+    // Cùng query với web `BuyerListOffer` (requestId): không gửi `include_pending`.
     final body = await _apiClient.request(
       path: PostRequestApiConfig.requestOffers,
       method: ApiType.get,
       queryParameters: {
         'request_id': requestId,
-        'include_pending': true,
         'source': 'request,chat',
         'order_by': 'created_at',
         'order_dir': 'desc',

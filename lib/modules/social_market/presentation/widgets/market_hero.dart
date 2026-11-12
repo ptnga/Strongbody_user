@@ -9,14 +9,31 @@ import 'package:strongbody_buyer/core/constants/app_spacings.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/assistant_page_args.dart';
 import 'package:strongbody_buyer/modules/home/presentation/widgets/home_request_composer.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/post_request_flow_args.dart';
 
-/// Gửi từ Hero / khối cuối mục Requests → trợ lý AI soạn request ("Here's what I
-/// heard"), như web gửi sang `/request-assistant`.
+/// Gửi từ hero → chat trợ lý AI (web hero → `/ai-assistant`).
+void openMarketAssistant(
+  BuildContext context,
+  String text,
+  List<String> files,
+) {
+  context.push(
+    RouteName.assistant,
+    extra: AssistantPageArgs(
+      text: text,
+      attachmentPaths: files,
+      source: 'social_market',
+    ),
+  );
+}
+
+/// Gửi từ khối cuối mục Requests / "Request similar" → AI soạn form "Post a request",
+/// như web gửi sang `/request-assistant`.
 void openMarketRequest(BuildContext context, String text, List<String> files) {
   context.push(
-    RouteName.requestHeard,
+    RouteName.postRequest,
     extra: PostRequestFlowArgs(text: text, attachmentPaths: files),
   );
 }
@@ -111,16 +128,25 @@ class MarketAskHeading extends StatelessWidget {
 }
 
 /// Ô nhập yêu cầu (text / giọng nói) — composer của Home.
+/// Hero → chat trợ lý AI; khối "Share your request" (`toAssistant: false`) → soạn request.
 class MarketHeroComposer extends StatelessWidget {
   final Color? background;
+  final bool toAssistant;
 
-  const MarketHeroComposer({super.key, this.background});
+  const MarketHeroComposer({
+    super.key,
+    this.background,
+    this.toAssistant = true,
+  });
 
   @override
   Widget build(BuildContext context) => HomeRequestComposer(
     hintText: LocaleKeys.marketHeroPlaceholder.tr(),
     source: 'social_market',
     background: background,
-    onSend: (text, files) => openMarketRequest(context, text, files),
+    voiceToAssistant: toAssistant,
+    onSend: (text, files) => toAssistant
+        ? openMarketAssistant(context, text, files)
+        : openMarketRequest(context, text, files),
   );
 }

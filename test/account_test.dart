@@ -55,6 +55,10 @@ class _Prefs implements UserPreferences {
   Future<void> addRecentSearch(String text) async {}
   @override
   Future<void> clearRecentSearches() async {}
+  @override
+  String? get assistantChat => null;
+  @override
+  Future<void> setAssistantChat(String? json) async {}
 }
 
 class _Repo implements AccountRepository {
@@ -101,6 +105,16 @@ class _Repo implements AccountRepository {
     storage.loggedIn = false;
     return const Right(unit);
   }
+
+  @override
+  Future<Either<Failure, Unit>> requestAccountDeletion({
+    required String password,
+  }) async => const Right(unit);
+
+  @override
+  Future<Either<Failure, Unit>> verifyAccountDeletion({
+    required String otp,
+  }) async => const Right(unit);
 }
 
 AccountBloc _bloc(_Repo repo, _Storage storage, _Prefs prefs) => AccountBloc(
@@ -108,6 +122,8 @@ AccountBloc _bloc(_Repo repo, _Storage storage, _Prefs prefs) => AccountBloc(
   updateProfile: UpdateAccountProfileUseCase(repo),
   getLionPoints: GetLionPointsUseCase(repo),
   logout: LogoutUseCase(repo),
+  requestAccountDeletion: RequestAccountDeletionUseCase(repo),
+  verifyAccountDeletion: VerifyAccountDeletionUseCase(repo),
   storage: storage,
   preferences: prefs,
 );

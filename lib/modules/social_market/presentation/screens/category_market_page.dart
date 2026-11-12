@@ -14,133 +14,150 @@ import 'package:strongbody_buyer/core/utils/toast_util.dart';
 import '../../domain/entities/market_category.dart';
 import '../../domain/entities/market_feed_entities.dart';
 import '../../domain/entities/market_listing_entities.dart';
+import '../../domain/entities/medical_travel_entities.dart';
 import '../bloc/category_market/category_market_bloc.dart';
 import '../bloc/engagement/engagement_cubit.dart';
 import '../market_formatters.dart';
 import '../market_navigation.dart';
 import '../widgets/market_expert_card.dart';
 import '../widgets/market_hero.dart';
-import '../widgets/market_offer_card.dart';
-import '../widgets/market_request_card.dart';
 import '../widgets/market_service_card.dart';
-import '../widgets/market_solution_card.dart';
 import '../widgets/market_ui.dart';
+import '../widgets/medical_travel_widgets.dart';
 
-/// Trang Social Market của một category (web `/longevity`, `/health-pro-advisory`,
-/// `/personal-helper` = `MarketplacePage` lọc category): Hero chiếm trọn màn hình
-/// với ô nhập yêu cầu, cuộn xuống là Selling · Profiles · Offers · Requests · Solutions.
+/// Trang category (web `CategoryPage` — `/longevity`, `/health-pro-advisory`,
+/// `/personal-helper`, `/medical-travel`): hero 2 dòng truyền cảm hứng → [Medical
+/// Travel: Destinations] → In the spotlight → Services → services theo ngôn ngữ →
+/// Experts. Mục rỗng thì ẩn; tìm kiếm ở listing mà "View all" của mỗi mục dẫn tới.
 class CategoryMarketPage extends StatelessWidget {
-  final MarketCategory category;
+  final MarketPageScope scope;
 
-  const CategoryMarketPage({super.key, required this.category});
+  const CategoryMarketPage({super.key, required this.scope});
 
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<CategoryMarketBloc>();
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        // Cùng bố cục màn Home: nền trắng, thanh trên không kẻ, ô nhập ghim đáy.
-        backgroundColor: Colour.surface,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              MarketTopBar(title: MarketFormatters.brand(category)),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async {
-                    bloc.add(const CategoryMarketRefreshed());
-                    await bloc.stream.firstWhere(
-                      (s) => MarketSectionKind.values.every(
-                        (k) => !s.isLoading(k),
-                      ),
-                    );
-                  },
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => CustomScrollView(
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: _Hero(
-                            category: category,
-                            height: constraints.maxHeight,
-                          ),
-                        ),
-                        _ServicesSection(category: category),
-                        _SellersSection(category: category),
-                        const _OffersSection(),
-                        const _RequestsSection(),
-                        const _SolutionsSection(),
-                        SliverGap(24.h + MediaQuery.paddingOf(context).bottom),
-                      ],
+    return Scaffold(
+      backgroundColor: Colour.surface,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            MarketTopBar(title: MarketFormatters.scopeBrand(scope)),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  bloc.add(const CategoryMarketRefreshed());
+                  await bloc.stream.firstWhere(
+                    (s) => s.sections.every((k) => !s.isLoading(k)),
+                  );
+                },
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(child: _Hero(scope: scope)),
+                    if (scope.isMedicalTravel) const _DestinationsSection(),
+                    _ServicesSection(
+                      kind: MarketSectionKind.spotlight,
+                      title: LocaleKeys.marketCategorySpotlightTitle.tr(),
+                      viewAllLabel: LocaleKeys.marketCategorySpotlightViewAll
+                          .tr(),
+                      onViewAll: (c) =>
+                          c.push(MarketRoutes.scopeServices(scope)),
+                      select: (s) => s.spotlight,
                     ),
-                  ),
+                    _ServicesSection(
+                      kind: MarketSectionKind.services,
+                      title: LocaleKeys.marketCategoryServicesTitle.tr(),
+                      viewAllLabel: LocaleKeys.marketCategoryServicesViewAll
+                          .tr(),
+                      onViewAll: (c) =>
+                          c.push(MarketRoutes.scopeServices(scope)),
+                      select: (s) => s.services,
+                      showError: true,
+                    ),
+                    _ServicesSection(
+                      kind: MarketSectionKind.language,
+                      title: LocaleKeys.marketCategoryLanguageTitle.tr(),
+                      viewAllLabel: LocaleKeys.marketCategoryLanguageViewAll.tr(
+                        namedArgs: {
+                          'language': LocaleKeys.marketCategoryLanguageName
+                              .tr(),
+                        },
+                      ),
+                      onViewAll: (c) => c.push(
+                        MarketRoutes.scopeServices(
+                          scope,
+                          language: c.read<CategoryMarketBloc>().state.language,
+                        ),
+                      ),
+                      select: (s) => s.languageServices,
+                    ),
+                    _ExpertsSection(scope: scope),
+                    SliverGap(24.h + MediaQuery.paddingOf(context).bottom),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Hero = màn đầu tiên, bố cục như Home: tagline + câu hỏi căn giữa khoảng trống,
-/// ô nhập ghim ở đáy; cuộn xuống mới thấy các mục.
+/// Hero ngắn căn giữa: 2 dòng truyền cảm hứng riêng cho từng category (web `CategoryHero`).
 class _Hero extends StatelessWidget {
-  final MarketCategory category;
-  final double height;
+  final MarketPageScope scope;
 
-  const _Hero({required this.category, required this.height});
+  const _Hero({required this.scope});
 
   @override
   Widget build(BuildContext context) {
-    final hero = MarketFormatters.hero(category);
-    return SizedBox(
-      height: height,
+    final hero = MarketFormatters.categoryHero(scope);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 32.h, 16.w, 16.h),
       child: Column(
         children: [
-          Expanded(
-            child: Center(
-              child: MarketAskHeading(
-                tagline: hero.tagline,
-                title: hero.title,
-                subtitle: hero.subtitle,
-              ),
+          Text(
+            hero.title,
+            textAlign: TextAlign.center,
+            style: AppTextStyle.lightHeadingMedium.copyWith(
+              color: Colour.textPrimary,
             ),
           ),
-          const MarketHeroComposer(),
-          // SafeArea không bọc đáy (các mục cuộn tràn xuống) → tự chừa home indicator.
-          SizedBox(height: MediaQuery.paddingOf(context).bottom),
+          Gap(8.h),
+          Text(
+            hero.subtitle,
+            textAlign: TextAlign.center,
+            style: AppTextStyle.lightBodyLargeRegular.copyWith(
+              color: Colour.textSecondary,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Khung một mục: padding web `py-10` + tiêu đề; tải → skeleton, lỗi → khối thử lại,
-/// rỗng → ẩn mục (trừ khi [showWhenEmpty]).
+/// Khung một mục (web `SectionShell` + `CATEGORY_SECTION` `py-5`): tải → skeleton,
+/// lỗi → khối thử lại (chỉ khi [showError], còn lại ẩn), rỗng → ẩn.
 class _Section<T> extends StatelessWidget {
   final MarketSectionKind kind;
   final String title;
-  final String? description;
-  final VoidCallback? onViewAll;
   final String? viewAllLabel;
+  final void Function(BuildContext context)? onViewAll;
   final List<T> Function(CategoryMarketState state) select;
   final Widget Function(BuildContext context, List<T> items) builder;
-  final bool showWhenEmpty;
-  final int skeletons;
+  final bool showError;
 
   const _Section({
     required this.kind,
     required this.title,
     required this.select,
     required this.builder,
-    this.description,
-    this.onViewAll,
     this.viewAllLabel,
-    this.showWhenEmpty = false,
-    this.skeletons = 2,
+    this.onViewAll,
+    this.showError = false,
   });
 
   @override
@@ -153,34 +170,36 @@ class _Section<T> extends StatelessWidget {
         final status = state.status(kind);
         Widget? body;
         if (status == SectionStatus.failure && items.isEmpty) {
-          body = MarketSectionError(
-            title: title,
-            onRetry: () => context.read<CategoryMarketBloc>().add(
-              CategoryMarketSectionRetried(kind),
-            ),
-          );
+          if (showError) {
+            body = MarketSectionError(
+              title: title,
+              onRetry: () => context.read<CategoryMarketBloc>().add(
+                CategoryMarketSectionRetried(kind),
+              ),
+            );
+          }
         } else if (state.isLoading(kind) && items.isEmpty) {
           body = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              MarketSectionHeading(title: title, description: description),
-              for (var i = 0; i < skeletons; i++) ...[
-                Gap(16.h),
-                const MarketCardSkeleton(),
+              MarketSectionHeading(title: title, compact: true),
+              for (var i = 0; i < 2; i++) ...[
+                Gap(i == 0 ? 20.h : 8.h),
+                const MarketCardSkeleton(height: 280),
               ],
             ],
           );
-        } else if (items.isNotEmpty || showWhenEmpty) {
+        } else if (items.isNotEmpty) {
           body = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               MarketSectionHeading(
                 title: title,
-                description: description,
-                onViewAll: onViewAll,
+                compact: true,
                 viewAllLabel: viewAllLabel,
+                onViewAll: onViewAll == null ? null : () => onViewAll!(context),
               ),
-              Gap(24.h),
+              Gap(20.h),
               builder(context, items),
             ],
           );
@@ -191,7 +210,7 @@ class _Section<T> extends StatelessWidget {
               : Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: 16.w,
-                    vertical: 40.h,
+                    vertical: 20.h,
                   ),
                   child: body,
                 ),
@@ -236,206 +255,120 @@ class _EngagementScope extends StatelessWidget {
   }
 }
 
-Widget _list(List<Widget> children) => Column(
+/// Lưới 1 cột trên mobile, khoảng cách 8 (web `categoryRail` `gap-2`).
+Widget _grid(List<Widget> children) => Column(
   crossAxisAlignment: CrossAxisAlignment.stretch,
   children: [
-    for (final (i, child) in children.indexed) ...[if (i > 0) Gap(16.h), child],
+    for (final (i, child) in children.indexed) ...[if (i > 0) Gap(8.h), child],
   ],
 );
 
 class _ServicesSection extends StatelessWidget {
-  final MarketCategory category;
+  final MarketSectionKind kind;
+  final String title;
+  final String viewAllLabel;
+  final void Function(BuildContext context) onViewAll;
+  final List<MarketServiceEntity> Function(CategoryMarketState state) select;
+  final bool showError;
 
-  const _ServicesSection({required this.category});
+  const _ServicesSection({
+    required this.kind,
+    required this.title,
+    required this.viewAllLabel,
+    required this.onViewAll,
+    required this.select,
+    this.showError = false,
+  });
 
   @override
   Widget build(BuildContext context) => _EngagementScope(
     target: EngagementTarget.service,
-    ids: (s) => s.services.map((e) => e.id),
+    ids: (s) => select(s).map((e) => e.id),
     child: _Section<MarketServiceEntity>(
-      kind: MarketSectionKind.services,
-      title: LocaleKeys.marketServicesTitle.tr(),
-      description: LocaleKeys.marketServicesDesc.tr(),
-      viewAllLabel: LocaleKeys.marketServicesViewAll.tr(),
-      onViewAll: () => context.push(MarketRoutes.services(category)),
-      select: (s) => s.services,
-      builder: (context, items) => _list([
+      kind: kind,
+      title: title,
+      viewAllLabel: viewAllLabel,
+      onViewAll: onViewAll,
+      select: select,
+      showError: showError,
+      builder: (context, items) => _grid([
         for (final s in items)
-          MarketServiceCard(
+          MarketServiceGridCard(
             service: s,
-            onInquiry: () => MarketNavigation.inquireService(context, s),
-            onViewAndBook: () => MarketNavigation.viewAndBook(context, s),
-            onTap: () => MarketNavigation.openService(context, s),
+            onTap: () => MarketNavigation.openServiceCard(context, s),
           ),
       ]),
     ),
   );
 }
 
-class _SellersSection extends StatelessWidget {
-  final MarketCategory category;
+class _ExpertsSection extends StatelessWidget {
+  final MarketPageScope scope;
 
-  const _SellersSection({required this.category});
+  const _ExpertsSection({required this.scope});
 
   @override
   Widget build(BuildContext context) => _EngagementScope(
     target: EngagementTarget.sellerProfile,
-    ids: (s) => s.sellers.map((e) => e.id),
+    ids: (s) => s.experts.map((e) => e.id),
     child: _Section<MarketExpertEntity>(
-      kind: MarketSectionKind.sellers,
-      title: LocaleKeys.marketSellersTitle.tr(),
-      description: LocaleKeys.marketSellersDesc.tr(),
-      viewAllLabel: LocaleKeys.marketSellersViewAll.tr(),
-      onViewAll: () => context.push(MarketRoutes.providers(category)),
-      select: (s) => s.sellers,
+      kind: MarketSectionKind.experts,
+      title: LocaleKeys.marketCategoryExpertsTitle.tr(),
+      viewAllLabel: LocaleKeys.marketCategoryExpertsViewAll.tr(),
+      onViewAll: (c) => c.push(MarketRoutes.scopeProviders(scope)),
+      select: (s) => s.experts,
+      showError: true,
       builder: (context, items) =>
-          _list([for (final e in items) MarketExpertCard(expert: e)]),
+          _grid([for (final e in items) MarketExpertSpotlightCard(expert: e)]),
     ),
   );
 }
 
-class _OffersSection extends StatelessWidget {
-  const _OffersSection();
+/// Medical Travel: chọn điểm đến là bước đầu → ngay dưới hero (web `DestinationsSection`):
+/// >3 nước cuộn ngang, ít hơn lưới 2 cột; rỗng / lỗi → ẩn.
+class _DestinationsSection extends StatelessWidget {
+  const _DestinationsSection();
 
   @override
-  Widget build(BuildContext context) => _EngagementScope(
-    target: EngagementTarget.offer,
-    ids: (s) => s.offers.map((e) => e.id),
-    child: _Section<MarketOfferEntity>(
-      kind: MarketSectionKind.offers,
-      title: LocaleKeys.marketOffersTitle.tr(),
-      description: LocaleKeys.marketOffersDesc.tr(),
-      // Mục này luôn hiện (web: rỗng → "No offers yet").
-      showWhenEmpty: true,
-      select: (s) => s.offers,
-      builder: (context, items) => items.isEmpty
-          ? Text(
-              LocaleKeys.marketOffersEmpty.tr(),
-              textAlign: TextAlign.center,
-              style: AppTextStyle.lightBodyMediumRegular.copyWith(
-                color: Colour.textSecondary,
-              ),
-            )
-          : _list([
-              for (final (i, o) in items.indexed)
-                MarketOfferCard(
-                  offer: o,
-                  index: i,
-                  onWantThis: () => MarketNavigation.inquireOffer(context, o),
-                ),
-            ]),
-    ),
-  );
-}
-
-class _RequestsSection extends StatelessWidget {
-  const _RequestsSection();
-
-  @override
-  Widget build(BuildContext context) => _Section<MarketRequestEntity>(
-    kind: MarketSectionKind.requests,
-    title: LocaleKeys.marketRequestsTitle.tr(),
-    description: LocaleKeys.marketRequestsDesc.tr(),
-    showWhenEmpty: true,
-    skeletons: 3,
-    select: (s) => s.requests,
-    builder: (context, items) => _list([
-      for (final r in items)
-        MarketRequestCard(
-          request: r,
-          // "I have similar request": soạn request mới từ nội dung đó.
-          onSimilar: (text) => openMarketRequest(context, text, const []),
-        ),
-      // Khối cuối mục: cùng nội dung với Hero (web `ShareRequest`).
-      Container(
-        margin: EdgeInsets.only(top: 24.h),
-        padding: EdgeInsets.only(top: 32.h, bottom: 4.h),
-        decoration: BoxDecoration(
-          color: Colour.subtle,
-          borderRadius: BorderRadius.circular(16.r),
-        ),
-        child: Column(
-          children: [
-            MarketAskHeading(
-              tagline: LocaleKeys.marketHeroTagline.tr(),
-              title: LocaleKeys.marketHeroTitle.tr(),
-            ),
-            Gap(16.h),
-            const MarketHeroComposer(background: Colour.surface),
-          ],
-        ),
-      ),
-    ]),
-  );
-}
-
-class _SolutionsSection extends StatelessWidget {
-  const _SolutionsSection();
-
-  /// Gom theo category (1 solution có thể ở nhiều nhóm); chưa gán → "Other".
-  /// Không solution nào có category → trả rỗng để hiện danh sách phẳng (web `groupByCategory`).
-  static List<({String name, List<HealthSolutionEntity> items})> _group(
-    List<HealthSolutionEntity> items,
-  ) {
-    final byId = <int, ({String name, List<HealthSolutionEntity> items})>{};
-    final other = <HealthSolutionEntity>[];
-    for (final s in items) {
-      if (s.categories.isEmpty) {
-        other.add(s);
-        continue;
-      }
-      for (final c in s.categories) {
-        byId.putIfAbsent(c.id, () => (name: c.name, items: [])).items.add(s);
-      }
-    }
-    if (byId.isEmpty) return const [];
-    final groups = byId.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-    return [
-      ...groups,
-      if (other.isNotEmpty)
-        (name: LocaleKeys.marketSolutionsOther.tr(), items: other),
-    ];
-  }
-
-  @override
-  Widget build(BuildContext context) => _Section<HealthSolutionEntity>(
-    kind: MarketSectionKind.solutions,
-    title: LocaleKeys.marketSolutionsTitle.tr(),
-    description:
-        '${LocaleKeys.marketSolutionsDesc.tr()} ${LocaleKeys.marketSolutionsDisclaimer.tr()}',
-    select: (s) => s.solutions,
+  Widget build(BuildContext context) => _Section<MarketDestination>(
+    kind: MarketSectionKind.destinations,
+    title: LocaleKeys.marketMtDestinationsTitle.tr(),
+    select: (s) => s.destinations,
     builder: (context, items) {
-      Widget card(HealthSolutionEntity s) => MarketSolutionCard(
-        solution: s,
-        onWant: (s) => MarketNavigation.wantSolution(context, s),
-      );
-      final groups = _group(items);
-      if (groups.isEmpty) return _list([for (final s in items) card(s)]);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (i, g) in groups.indexed) ...[
-            if (i > 0) Gap(32.h),
-            Center(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: Colour.primary),
-                ),
-                child: Text(
-                  g.name.trim().toUpperCase(),
-                  style: AppTextStyle.lightBodySmallMedium.copyWith(
-                    color: Colour.textPrimary,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+      final screen = MediaQuery.sizeOf(context).width;
+      void open(MarketDestination d) {
+        if (d.code != null) context.push(MarketRoutes.destination(d.code!));
+      }
+
+      if (items.length > 3) {
+        return SizedBox(
+          height: screen * 0.62 * 1.25,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            itemCount: items.length,
+            separatorBuilder: (_, _) => Gap(12.w),
+            itemBuilder: (context, i) => SizedBox(
+              width: screen * 0.62,
+              child: DestinationCard(
+                destination: items[i],
+                onTap: () => open(items[i]),
               ),
             ),
-            Gap(12.h),
-            _list([for (final s in g.items) card(s)]),
-          ],
+          ),
+        );
+      }
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 12.r,
+        crossAxisSpacing: 12.r,
+        childAspectRatio: 4 / 5,
+        children: [
+          for (final d in items)
+            DestinationCard(destination: d, onTap: () => open(d)),
         ],
       );
     },

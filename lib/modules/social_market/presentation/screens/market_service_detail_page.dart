@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
@@ -64,7 +65,10 @@ class MarketServiceDetailPage extends StatelessWidget {
                   return Column(
                     children: [
                       Expanded(child: _DetailBody(detail: detail)),
-                      _BookingBar(detail: detail),
+                      _BookingBar(
+                        detail: detail,
+                        ownerBlocked: isOwnService(detail),
+                      ),
                     ],
                   );
                 },
@@ -102,9 +106,21 @@ String _duration(MarketServiceDetail d) {
   final n = d.duration;
   if (n == null) return '';
   return switch (d.durationUnit) {
-    'minute' => LocaleKeys.marketSvcDurationMinute.plural(n),
-    'hour' => LocaleKeys.marketSvcDurationHour.plural(n),
-    _ => LocaleKeys.marketSvcDurationDay.plural(n),
+    'minute' => pluralTr(
+      n,
+      one: LocaleKeys.marketSvcDurationMinuteOne,
+      other: LocaleKeys.marketSvcDurationMinuteOther,
+    ),
+    'hour' => pluralTr(
+      n,
+      one: LocaleKeys.marketSvcDurationHourOne,
+      other: LocaleKeys.marketSvcDurationHourOther,
+    ),
+    _ => pluralTr(
+      n,
+      one: LocaleKeys.marketSvcDurationDayOne,
+      other: LocaleKeys.marketSvcDurationDayOther,
+    ),
   };
 }
 
@@ -334,7 +350,7 @@ class _DetailBody extends StatelessWidget {
                 MarketRichText(d.roadmapSteps!),
                 Gap(32.h),
               ],
-              _CrossSell(detail: d),
+              _CrossSell(detail: d, ownerBlocked: isOwnService(d)),
             ],
           ),
           border: d.faqs.isNotEmpty,
@@ -424,7 +440,10 @@ class _ItemList extends StatelessWidget {
 class _CrossSell extends StatelessWidget {
   final MarketServiceDetail detail;
 
-  const _CrossSell({required this.detail});
+  /// Seller xem chương trình của chính mình → nút chat tắt + lời giải thích.
+  final bool ownerBlocked;
+
+  const _CrossSell({required this.detail, required this.ownerBlocked});
 
   @override
   Widget build(BuildContext context) {
@@ -459,12 +478,17 @@ class _CrossSell extends StatelessWidget {
           ),
           if (detail.userId > 0) ...[
             Gap(16.h),
-            MarketButton(
-              label: LocaleKeys.marketMtDetailCrossSellChat.tr(
-                namedArgs: {'name': name},
+            _OwnerBlocked(
+              blocked: ownerBlocked,
+              child: MarketButton(
+                label: LocaleKeys.marketMtDetailCrossSellChat.tr(
+                  namedArgs: {'name': name},
+                ),
+                variant: MarketButtonVariant.outline,
+                onPressed: ownerBlocked
+                    ? null
+                    : () => _openChat(context, detail, name: name),
               ),
-              variant: MarketButtonVariant.outline,
-              onPressed: () => _openChat(context, detail, name: name),
             ),
           ],
         ],
@@ -593,7 +617,11 @@ class _Gallery extends StatelessWidget {
 class _BookingBar extends StatelessWidget {
   final MarketServiceDetail detail;
 
-  const _BookingBar({required this.detail});
+  /// Seller xem chương trình của chính mình: Chat / Request appointment tắt (web
+  /// `ownerBlockedLabel`).
+  final bool ownerBlocked;
+
+  const _BookingBar({required this.detail, required this.ownerBlocked});
 
   @override
   Widget build(BuildContext context) {
@@ -648,29 +676,39 @@ class _BookingBar extends StatelessWidget {
             Gap(8.w),
           ],
           Expanded(
-            child: MarketButton(
-              label: LocaleKeys.marketMtDetailChatFacility.tr(),
-              variant: MarketButtonVariant.outline,
-              large: true,
-              dense: true,
-              onPressed: d.userId > 0 ? () => _openChat(context, d) : null,
+            child: _OwnerBlocked(
+              blocked: ownerBlocked,
+              child: MarketButton(
+                label: LocaleKeys.marketMtDetailChatFacility.tr(),
+                variant: MarketButtonVariant.outline,
+                large: true,
+                dense: true,
+                onPressed: d.userId > 0 && !ownerBlocked
+                    ? () => _openChat(context, d)
+                    : null,
+              ),
             ),
           ),
           Gap(8.w),
           Expanded(
-            child: MarketButton(
-              label: LocaleKeys.marketMtDetailRequestAppointment.tr(),
-              large: true,
-              dense: true,
-              onPressed: () => showAppointmentSheet(
-                context,
-                AppointmentSeed(
-                  serviceId: d.id,
-                  title: d.title,
-                  organization: d.organizationName,
-                  location: d.locationTitle,
-                  detail: d,
-                ),
+            child: _OwnerBlocked(
+              blocked: ownerBlocked,
+              child: MarketButton(
+                label: LocaleKeys.marketMtDetailRequestAppointment.tr(),
+                large: true,
+                dense: true,
+                onPressed: ownerBlocked
+                    ? null
+                    : () => showAppointmentSheet(
+                        context,
+                        AppointmentSeed(
+                          serviceId: d.id,
+                          title: d.title,
+                          organization: d.organizationName,
+                          location: d.locationTitle,
+                          detail: d,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -678,4 +716,29 @@ class _BookingBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Seller đang xem chương trình của CHÍNH mình (web 797986a93, so `session.user.id` với
+/// `service.user_id`); không xác định được người xem → không chặn.
+bool isOwnService(MarketServiceDetail d) {
+  final storage = getIt<GlobalStorage>();
+  final viewer = storage.isLoggedIn ? storage.userId ?? 0 : 0;
+  return viewer > 0 && viewer == d.userId;
+}
+
+/// Nút đã tắt vẫn hiện, chạm → lời giải thích (web `wrapBlocked` + tooltip OwnerView).
+class _OwnerBlocked extends StatelessWidget {
+  final bool blocked;
+  final Widget child;
+
+  const _OwnerBlocked({required this.blocked, required this.child});
+
+  @override
+  Widget build(BuildContext context) => blocked
+      ? Tooltip(
+          message: LocaleKeys.marketOwnerBlocked.tr(),
+          triggerMode: TooltipTriggerMode.tap,
+          child: child,
+        )
+      : child;
 }

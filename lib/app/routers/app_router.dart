@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,6 +13,9 @@ import 'package:strongbody_buyer/modules/account/presentation/bloc/account/accou
 import 'package:strongbody_buyer/modules/account/presentation/bloc/lion_points/lion_points_bloc.dart';
 import 'package:strongbody_buyer/modules/account/presentation/screens/account_page.dart';
 import 'package:strongbody_buyer/modules/account/presentation/screens/lion_points_page.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/assistant_page_args.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/bloc/assistant_chat_cubit.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/screens/assistant_chat_page.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/bloc/chat/chat_bloc.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/bloc/conversations/conversations_bloc.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_page_args.dart';
@@ -28,15 +32,13 @@ import 'package:strongbody_buyer/modules/post_request/presentation/bloc/voice_re
 import 'package:strongbody_buyer/modules/post_request/presentation/matching_providers_page_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/post_request_flow_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_offers_page_args.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/request_posted_page_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/screens/matching_providers_page.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/screens/my_requests_page.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/screens/request_heard_page.dart';
+import 'package:strongbody_buyer/modules/post_request/presentation/bloc/request_matches/request_matches_cubit.dart';
+import 'package:strongbody_buyer/modules/post_request/presentation/screens/post_request_page.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/screens/request_offers_page.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/screens/request_posted_page.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/screens/request_review_page.dart';
+import 'package:strongbody_buyer/modules/post_request/presentation/screens/request_matches_page.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/screens/voice_request_page.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
 import 'package:strongbody_buyer/modules/social_market/domain/entities/market_category.dart';
 import 'package:strongbody_buyer/modules/social_market/domain/entities/market_feed_entities.dart';
@@ -46,13 +48,11 @@ import 'package:strongbody_buyer/modules/social_market/presentation/bloc/engagem
 import 'package:strongbody_buyer/modules/social_market/presentation/bloc/market_listing/market_listing_bloc.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/screens/category_market_page.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/screens/market_listing_page.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/market_navigation.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/bloc/medical_travel/destination_cubit.dart';
-import 'package:strongbody_buyer/modules/social_market/presentation/bloc/medical_travel/medical_travel_cubit.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/bloc/medical_travel/service_detail_cubit.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/screens/destination_page.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/screens/market_service_detail_page.dart';
-import 'package:strongbody_buyer/modules/social_market/presentation/screens/medical_travel_page.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/widgets/providers/provider_formatters.dart';
 import 'package:strongbody_buyer/modules/splash/presentation/screens/splash_page.dart';
 import 'package:strongbody_buyer/modules/user_block/presentation/bloc/blocked_users_bloc.dart';
 import 'package:strongbody_buyer/modules/user_block/presentation/screens/blocked_users_page.dart';
@@ -158,11 +158,27 @@ class AppRoutes {
                 VoiceRequestStarted(
                   recordVoiceNote:
                       !args.refine &&
+                      !args.toAssistant &&
                       getIt<UserPreferences>().attachVoiceToRequests,
                   initialLanguage: getIt<UserPreferences>().speakingLanguage,
                 ),
               ),
             child: VoiceRequestPage(args: args),
+          );
+        },
+      ),
+      GoRoute(
+        path: RouteName.assistant,
+        builder: (context, state) {
+          final args = AssistantPageArgs.fromExtra(state.extra);
+          return BlocProvider(
+            create: (_) => getIt<AssistantChatCubit>()
+              ..start(
+                language: context.locale.languageCode,
+                text: args.text,
+                source: args.source,
+              ),
+            child: AssistantChatPage(args: args),
           );
         },
       ),
@@ -213,15 +229,15 @@ class AppRoutes {
           );
         },
       ),
-      // Medical Travel (Social Market): landing riêng + chi tiết service + destination.
+      // Medical Travel (Social Market): trang category chung (web `CategoryPage`) +
+      // listing + chi tiết service + destination.
       // Khai TRƯỚC `/socialMarket/:category` để không bị bắt nhầm làm category.
       GoRoute(
         path: '${RouteName.socialMarket}/medical-travel',
-        builder: (context, state) => BlocProvider(
-          create: (_) => getIt<MedicalTravelCubit>()..load(),
-          child: const MedicalTravelPage(),
-        ),
+        builder: (context, state) =>
+            _categoryPage(context, MarketPageScope.medicalTravel),
         routes: [
+          ..._listingRoutes((_) => MarketPageScope.medicalTravel),
           GoRoute(
             path: 'service/:id',
             redirect: (context, state) =>
@@ -255,150 +271,124 @@ class AppRoutes {
             MarketCategory.fromRoute(state.pathParameters['category']) == null
             ? RouteName.rootScreen
             : null,
-        builder: (context, state) {
-          final category = MarketCategory.fromRoute(
-            state.pathParameters['category'],
-          )!;
-          return BlocProvider(
-            create: (_) =>
-                getIt<CategoryMarketBloc>()
-                  ..add(CategoryMarketStarted(category)),
-            child: CategoryMarketPage(category: category),
-          );
-        },
-        routes: [
-          GoRoute(
-            path: 'services',
-            builder: (context, state) {
-              final category = MarketCategory.fromRoute(
-                state.pathParameters['category'],
-              )!;
-              return MultiBlocProvider(
-                providers: [
-                  BlocProvider(
-                    create: (_) =>
-                        getIt<MarketListingBloc<MarketServiceEntity>>(
-                          param1: category,
-                        )..add(const MarketListingStarted()),
-                  ),
-                  BlocProvider(
-                    create: (_) => getIt<EngagementCubit>(
-                      param1: EngagementTarget.service,
-                    ),
-                  ),
-                ],
-                child: MarketServicesListingPage(category: category),
-              );
-            },
+        builder: (context, state) => _categoryPage(
+          context,
+          MarketPageScope.of(
+            MarketCategory.fromRoute(state.pathParameters['category'])!,
           ),
-          GoRoute(
-            path: 'providers',
-            builder: (context, state) {
-              final category = MarketCategory.fromRoute(
-                state.pathParameters['category'],
-              )!;
-              return MultiBlocProvider(
-                providers: [
-                  BlocProvider(
-                    create: (_) => getIt<MarketListingBloc<MarketExpertEntity>>(
-                      param1: category,
-                    )..add(const MarketListingStarted()),
-                  ),
-                  BlocProvider(
-                    create: (_) => getIt<EngagementCubit>(
-                      param1: EngagementTarget.sellerProfile,
-                    ),
-                  ),
-                ],
-                child: MarketProvidersListingPage(category: category),
-              );
-            },
-          ),
-        ],
-      ),
-      // Heard → Review → Providers dùng chung một PostRequestFlowBloc (tạo khi vào Heard).
-      ShellRoute(
-        observers: [AppAnalytics.observer()],
-        builder: (context, state, child) => BlocProvider(
-          create: (_) => getIt<PostRequestFlowBloc>()
-            ..add(
-              PostRequestFlowStarted(
-                args: PostRequestFlowArgs.fromExtra(state.extra),
-                locale: context.locale.languageCode,
-              ),
-            ),
-          child: child,
         ),
-        routes: [
-          GoRoute(
-            path: RouteName.requestHeard,
-            builder: (context, state) => const RequestHeardPage(),
+        routes: _listingRoutes(
+          (state) => MarketPageScope.of(
+            MarketCategory.fromRoute(state.pathParameters['category'])!,
           ),
-          GoRoute(
-            path: RouteName.requestReview,
-            builder: (context, state) => const RequestReviewPage(),
-          ),
-          GoRoute(
-            path: RouteName.matchingProviders,
-            builder: (context, state) {
-              final flow = context.read<PostRequestFlowBloc>().state;
-              final args = MatchingProvidersPageArgs.fromExtra(state.extra);
-              // Mở thẳng từ Home: bloc luồng vừa tạo, chưa có transcript → lấy chữ từ args.
-              final text = flow.transcript.isNotEmpty
-                  ? flow.transcript
-                  : (args.start?.text ?? '');
-              return BlocProvider(
-                create: (_) => getIt<MatchingProvidersBloc>()
-                  ..add(
-                    MatchingProvidersStarted(
-                      keyword:
-                          flow.providerKeyword ??
-                          ProviderKeyword.fromText(text, const []) ??
-                          ProviderKeyword.fromSearch(text),
-                      context: providerRequestContext(
-                        flow,
-                        context.locale.languageCode,
-                      ),
-                      initiallySelected: flow.selectedProviders,
-                    ),
-                  ),
-                child: MatchingProvidersPage(args: args),
-              );
-            },
-          ),
-        ],
+        ),
       ),
       GoRoute(
-        path: RouteName.requestPosted,
-        builder: (context, state) => RequestPostedPage(
-          args: RequestPostedPageArgs.fromExtra(state.extra),
+        path: RouteName.postRequest,
+        builder: (context, state) {
+          final args = PostRequestFlowArgs.fromExtra(state.extra);
+          return BlocProvider(
+            create: (_) => getIt<PostRequestFlowBloc>()
+              ..add(
+                PostRequestFlowStarted(
+                  args: args,
+                  locale: context.locale.languageCode,
+                ),
+              ),
+            child: PostRequestPage(args: args),
+          );
+        },
+      ),
+      GoRoute(
+        path: RouteName.requestMatches,
+        builder: (context, state) => BlocProvider(
+          create: (_) => getIt<RequestMatchesCubit>()
+            ..start(
+              int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+              language: context.locale.languageCode,
+            ),
+          child: const RequestMatchesPage(),
         ),
+      ),
+      GoRoute(
+        path: RouteName.matchingProviders,
+        builder: (context, state) {
+          final args = MatchingProvidersPageArgs.fromExtra(state.extra);
+          final text = args.text.trim();
+          return BlocProvider(
+            create: (_) => getIt<MatchingProvidersBloc>()
+              ..add(
+                MatchingProvidersStarted(
+                  keyword: text.isEmpty
+                      ? ''
+                      : ProviderKeyword.fromText(text, const []) ??
+                            ProviderKeyword.fromSearch(text),
+                ),
+              ),
+            child: MatchingProvidersPage(args: args),
+          );
+        },
       ),
     ],
   );
 }
 
-/// Chip lọc + tóm tắt ở màn Matching providers lấy từ request đang soạn.
-ProviderRequestContext providerRequestContext(
-  PostRequestFlowState flow,
-  String uiLocale,
-) {
-  final values = flow.values;
-  // Ngôn ngữ ưu tiên: ngôn ngữ đã nói nếu không phải tiếng Anh, rồi tới ngôn ngữ AI gợi ý.
-  final language = [
-    flow.languageCode,
-    ...values.sellerLanguages,
-  ].whereType<String>().where((code) => code != 'en').firstOrNull;
-  return ProviderRequestContext(
-    deliveryTypes: values.deliveryTypes,
-    startDate: values.deadline,
-    endDate: values.endDate,
-    maxBudget: values.parsedBudget.max,
-    currency: values.currency,
-    languageCode: language,
-    summary: [
-      values.deliveryTypes.map(ProviderFormatters.delivery).join(' · '),
-      RequestFormatters.when(values, uiLocale),
-    ].whereType<String>().where((s) => s.isNotEmpty).join(' · '),
-  );
-}
+/// Trang category của Social Market (web `CategoryPage`), ngôn ngữ giao diện cho mục
+/// "Care that speaks your language".
+Widget _categoryPage(BuildContext context, MarketPageScope scope) =>
+    BlocProvider(
+      create: (_) => getIt<CategoryMarketBloc>()
+        ..add(
+          CategoryMarketStarted(scope, language: context.locale.languageCode),
+        ),
+      child: CategoryMarketPage(scope: scope),
+    );
+
+/// Listing "View all" của trang category: `services` (`?lang=` = ngôn ngữ seller) và
+/// `providers` (web `/services/{category}`, `/providers/{category}`).
+List<RouteBase> _listingRoutes(
+  MarketPageScope Function(GoRouterState state) scopeOf,
+) => [
+  GoRoute(
+    path: 'services',
+    builder: (context, state) {
+      final scope = scopeOf(state);
+      return MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => getIt<MarketListingBloc<MarketServiceEntity>>(
+              param1: scope,
+              param2: state.uri.queryParameters[MarketRoutes
+                  .listingLanguageParam],
+            )..add(const MarketListingStarted()),
+          ),
+          BlocProvider(
+            create: (_) =>
+                getIt<EngagementCubit>(param1: EngagementTarget.service),
+          ),
+        ],
+        child: MarketServicesListingPage(scope: scope),
+      );
+    },
+  ),
+  GoRoute(
+    path: 'providers',
+    builder: (context, state) {
+      final scope = scopeOf(state);
+      return MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => getIt<MarketListingBloc<MarketExpertEntity>>(
+              param1: scope,
+            )..add(const MarketListingStarted()),
+          ),
+          BlocProvider(
+            create: (_) =>
+                getIt<EngagementCubit>(param1: EngagementTarget.sellerProfile),
+          ),
+        ],
+        child: MarketProvidersListingPage(scope: scope),
+      );
+    },
+  ),
+];

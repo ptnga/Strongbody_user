@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+import 'package:strongbody_buyer/core/utils/language_names.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -40,11 +41,15 @@ class MarketOfferCard extends StatelessWidget {
   final int index;
   final VoidCallback onWantThis;
 
+  /// false = ẩn like / save và số engagement (thẻ kết quả của trợ lý AI, web `showEngagement`).
+  final bool showEngagement;
+
   const MarketOfferCard({
     super.key,
     required this.offer,
     required this.index,
     required this.onWantThis,
+    this.showEngagement = true,
   });
 
   String? _price() {
@@ -100,7 +105,8 @@ class MarketOfferCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  MarketEngagementButtons(id: o.id, showLike: true),
+                  if (showEngagement)
+                    MarketEngagementButtons(id: o.id, showLike: true),
                   if (price != null) ...[
                     Gap(6.h),
                     MarketBadge(price, tone: MarketBadgeTone.seller),
@@ -171,7 +177,8 @@ class MarketOfferCard extends StatelessWidget {
               runSpacing: 4.h,
               children: [
                 _AvatarStack(seed: index),
-                MarketEngagementLine(id: o.id, style: metaStyle),
+                if (showEngagement)
+                  MarketEngagementLine(id: o.id, style: metaStyle),
               ],
             ),
             trailing: open
@@ -255,7 +262,7 @@ class _OfferDetails extends StatelessWidget {
           MarketInfoRow(
             icon: Icons.translate,
             label: LocaleKeys.marketOfferLanguages.tr(),
-            value: o.languages.map(MarketFormatters.humanize).join(', '),
+            value: o.languages.map(languageLabel).join(', '),
           ),
           MarketInfoRow(
             icon: Icons.location_on_outlined,

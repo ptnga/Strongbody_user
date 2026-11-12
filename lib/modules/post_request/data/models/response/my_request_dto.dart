@@ -18,6 +18,12 @@ class MyRequestDto {
   final Object? schedule;
   final String? voiceUrl;
 
+  /// `is_private` (BE mới) / `is_privated` (BE cũ) — request gửi riêng 1 provider.
+  final bool? isPrivate;
+
+  /// Request sinh từ inquiry (web `RequestInquiryInfo`): provider nhận + item đã hỏi.
+  final Map<String, dynamic>? inquiry;
+
   const MyRequestDto({
     this.id,
     this.description,
@@ -34,6 +40,8 @@ class MyRequestDto {
     this.deadline,
     this.schedule,
     this.voiceUrl,
+    this.isPrivate,
+    this.inquiry,
   });
 
   factory MyRequestDto.fromJson(Map<String, dynamic> json) => MyRequestDto(
@@ -53,7 +61,14 @@ class MyRequestDto {
     deadline: json['deadline']?.toString(),
     schedule: json['schedule'],
     voiceUrl: (json['voice_url'] ?? json['audio_url'])?.toString(),
+    isPrivate: _bool(json['is_private'] ?? json['is_privated']),
+    inquiry: json['inquiry'] is Map
+        ? Map<String, dynamic>.from(json['inquiry'] as Map)
+        : null,
   );
+
+  static bool? _bool(Object? v) =>
+      v is bool ? v : (v == null ? null : '$v'.toLowerCase() == 'true');
 }
 
 /// Item của `GET /buyer/offer/sent-offers-by-my-requests` (web `OfferBuyer`).
@@ -69,9 +84,14 @@ class RequestOfferDto {
   final String? description;
   final num? price;
   final String? currency;
-  final String? sellerFirstName;
-  final String? sellerLastName;
+
+  /// Tên hiển thị của seller (web `sellerDisplayName`): tên organization khi là người
+  /// đại diện, không thì tên shop — không dùng họ tên tài khoản.
+  final String? sellerDisplayName;
   final String? sellerAvatar;
+
+  /// `Seller.rating` (web hiện ở thẻ offer).
+  final num? sellerRating;
   final bool? sellerVerified;
   final num? serviceRating;
   final num? serviceReviewCount;
@@ -101,9 +121,9 @@ class RequestOfferDto {
     this.description,
     this.price,
     this.currency,
-    this.sellerFirstName,
-    this.sellerLastName,
+    this.sellerDisplayName,
     this.sellerAvatar,
+    this.sellerRating,
     this.sellerVerified,
     this.serviceRating,
     this.serviceReviewCount,
@@ -125,6 +145,9 @@ class RequestOfferDto {
         v is Map ? Map<String, dynamic>.from(v) : const <String, dynamic>{};
     num? number(Object? v) => v is num ? v : num.tryParse('${v ?? ''}');
     final seller = map(json['Seller'] ?? json['seller']);
+    final sellerProfile = map(
+      seller['seller_profile'] ?? map(seller['user'])['seller_profile'],
+    );
     final service = map(json['Service'] ?? json['service']);
     final category = map(
       service['SubCategory'] ?? service['Category'] ?? service['category'],
@@ -159,10 +182,15 @@ class RequestOfferDto {
       title: json['title']?.toString(),
       description: json['description']?.toString(),
       price: number(json['price']),
-      currency: (json['currency'] ?? seller['currency'])?.toString(),
-      sellerFirstName: seller['first_name']?.toString(),
-      sellerLastName: seller['last_name']?.toString(),
-      sellerAvatar: seller['profile_picture']?.toString(),
+      // Web: giá offer là số thu (USD) — `Money kind="charged" currency="USD"`;
+      // `Seller.currency` là tiền tài khoản của seller, không phải tiền của offer.
+      currency: (json['charge_currency'] ?? 'USD').toString(),
+      sellerDisplayName: _displayName(
+        sellerProfile.isEmpty ? seller : sellerProfile,
+        seller,
+      ),
+      sellerAvatar: _cleanImageUrl(seller['profile_picture']),
+      sellerRating: number(seller['rating']),
       sellerVerified: verified is bool ? verified : null,
       serviceRating: number(service['rating']),
       serviceReviewCount: number(
@@ -182,5 +210,29 @@ class RequestOfferDto {
       voucherValue: number(json['voucher_value']),
       voucherCode: json['voucher_code']?.toString(),
     );
+  }
+
+  /// Web `sellerDisplayName`: organization (khi `is_org_owner`) → `shop_name` của hồ sơ
+  /// → `shop_name` của owner; rỗng thì nơi hiển thị tự dùng nhãn mặc định.
+  static String? _displayName(Map<String, dynamic> profile, Map owner) {
+    final org = profile['organization'];
+    if (profile['is_org_owner'] == true &&
+        org is Map &&
+        org['id'] != null &&
+        '${org['name'] ?? ''}'.trim().isNotEmpty) {
+      return '${org['name']}'.trim();
+    }
+    for (final v in [profile['shop_name'], owner['shop_name']]) {
+      final name = '${v ?? ''}'.trim();
+      if (name.isNotEmpty) return name;
+    }
+    return null;
+  }
+
+  /// Web `cleanImageUrl`: bỏ `{}` / `"` thừa, chỉ nhận URL hợp lệ.
+  static String? _cleanImageUrl(Object? raw) {
+    final url = '${raw ?? ''}'.replaceAll(RegExp(r'[{}"]'), '').trim();
+    final uri = Uri.tryParse(url);
+    return uri != null && uri.hasScheme && uri.host.isNotEmpty ? url : null;
   }
 }

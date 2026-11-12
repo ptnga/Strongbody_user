@@ -1,188 +1,111 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import 'package:strongbody_buyer/app/routers/routers_name.dart';
-import 'package:strongbody_buyer/core/analytics/analytics_events.dart';
-import 'package:strongbody_buyer/core/analytics/app_analytics.dart';
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
-import 'package:strongbody_buyer/core/themes/theme.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/matching_providers_page_args.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/post_request_flow_args.dart';
+import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
+import 'package:strongbody_buyer/core/themes/app_text_style.dart';
+import 'package:strongbody_buyer/modules/social_market/domain/entities/market_feed_entities.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/bloc/engagement/engagement_cubit.dart';
 
-import '../bloc/home/home_bloc.dart';
+import '../../domain/entities/board_entities.dart';
+import '../bloc/board/board_cubit.dart';
 import '../bloc/home_menu/home_menu_cubit.dart';
-import '../home_composer_focus.dart';
-import '../widgets/home_greeting.dart';
+import '../widgets/board/board_offer_row.dart';
+import '../widgets/board/board_request_card.dart';
+import '../widgets/board/board_view.dart';
 import '../widgets/home_menu_drawer.dart';
-import '../widgets/home_new_offers_pill.dart';
-import '../widgets/home_request_composer.dart';
-import '../widgets/home_suggestion_list.dart';
 import '../widgets/home_top_bar.dart';
-import '../widgets/home_typing_suggestions.dart';
 
-/// Trang chủ = hero "What do you need today?" của web (home-marketplace), luồng theo
-/// prototype: nói → "Here's what I heard"; gõ / gợi ý → danh sách provider; thẻ gợi ý →
-/// "Here's what I heard"; menu ☰ → My requests / Messages / Browse providers / Recent.
-class HomePage extends StatefulWidget {
+/// Trang chủ (web `MarketplacePage`): không còn hero chatbot — mở đầu bằng thanh tab
+/// Requests · Offers (mobile). Request cộng đồng (Me too / Like / Save) và dịch vụ
+/// (Book / Free consult); đăng yêu cầu bằng nút "Get help" ở thanh dưới.
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  final _composerKey = GlobalKey<HomeRequestComposerState>();
-
-  @override
-  void initState() {
-    super.initState();
-    HomeComposerFocus.pending.addListener(_focusComposer);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focusComposer());
-  }
-
-  @override
-  void dispose() {
-    HomeComposerFocus.pending.removeListener(_focusComposer);
-    super.dispose();
-  }
-
-  void _focusComposer() {
-    if (HomeComposerFocus.pending.value == null || !mounted) return;
-    // Chờ màn nói đóng xong rồi mới mở bàn phím.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final attachments = HomeComposerFocus.take();
-      if (attachments == null || !mounted) return;
-      _composerKey.currentState?.focusForTyping(attachments);
-    });
-  }
-
-  /// Thẻ gợi ý → thẳng "Here's what I heard" (prototype: prompt → Understood).
-  void _openHeard(String text) {
-    AppAnalytics.capture(AnalyticsEvents.homePromptTapped, {'prompt': text});
-    context.push(
-      RouteName.requestHeard,
-      extra: PostRequestFlowArgs(text: text),
-    );
-  }
-
-  /// Gõ / chọn gợi ý / tìm gần đây → danh sách provider cho câu đó (prototype "Voice
-  /// search results"); AI vẫn phân tích nền, back về "Here's what I heard".
-  void _search(
-    String text,
-    List<String> attachments, {
-    String source = 'composer',
-  }) {
-    AppAnalytics.capture(AnalyticsEvents.homeSearchSubmitted, {
-      'source': source,
-      'query_length': text.trim().length,
-      'attachments_count': attachments.length,
-    });
-    context.read<HomeBloc>().add(HomeSearchRecorded(text));
-    context.push(
-      RouteName.matchingProviders,
-      extra: MatchingProvidersPageArgs(
-        start: PostRequestFlowArgs(text: text, attachmentPaths: attachments),
-      ),
-    );
-  }
-
-  List<String> _takeAttachments() =>
-      _composerKey.currentState?.takeAttachments() ?? const [];
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: BlocProvider(
-        create: (_) => getIt<HomeMenuCubit>(),
+    final locale = context.locale.languageCode;
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => getIt<HomeMenuCubit>()),
+        BlocProvider(
+          create: (_) =>
+              getIt<BoardCubit<BoardRequest>>()..start(locale: locale),
+        ),
+        BlocProvider(
+          create: (_) => getIt<BoardCubit<BoardOffer>>()..start(locale: locale),
+        ),
+        BlocProvider(
+          create: (_) =>
+              getIt<EngagementCubit>(param1: EngagementTarget.request),
+        ),
+      ],
+      child: DefaultTabController(
+        length: 2,
         child: Builder(
-          builder: (context) => Scaffold(
-            backgroundColor: theme.surface(context),
-            resizeToAvoidBottomInset: true,
-            drawer: const HomeMenuDrawer(),
-            onDrawerChanged: (open) {
-              if (open) context.read<HomeMenuCubit>().load();
-            },
-            body: SafeArea(
-              child: Column(
-                children: [
-                  const HomeTopBar(),
-                  BlocSelector<HomeBloc, HomeState, int>(
-                    selector: (state) => state.newOffersCount,
-                    builder: (context, count) => HomeNewOffersPill(
-                      count: count,
-                      onTap: () {
-                        AppAnalytics.capture(
-                          AnalyticsEvents.homeNewOffersTapped,
-                          {'count': count},
-                        );
-                        context.go(RouteName.myRequests);
-                      },
+          builder: (context) => GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: Scaffold(
+              backgroundColor: Colour.mutedWeb,
+              drawer: const HomeMenuDrawer(),
+              onDrawerChanged: (open) {
+                if (open) context.read<HomeMenuCubit>().load();
+              },
+              body: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    const ColoredBox(
+                      color: Colour.surface,
+                      child: HomeTopBar(),
                     ),
-                  ),
-                  // Đang gõ → "Suggestions"; focus mà chưa gõ → "Recent searches";
-                  // còn lại → lời chào + thẻ gợi ý.
-                  Expanded(
-                    child: BlocBuilder<HomeBloc, HomeState>(
-                      buildWhen: (a, b) =>
-                          a.typing != b.typing ||
-                          a.showRecent != b.showRecent ||
-                          a.recentSearches != b.recentSearches,
-                      builder: (context, state) {
-                        final typing = state.typing;
-                        final Widget? list = typing != null
-                            ? HomeTypingSuggestions(
-                                seed: typing,
-                                onSend: (text) => _search(
-                                  text,
-                                  _takeAttachments(),
-                                  source: 'typing_suggestion',
-                                ),
-                                onFill: (text) =>
-                                    _composerKey.currentState?.setText(text),
-                              )
-                            : state.showRecent
-                            ? HomeRecentSearches(
-                                items: state.recentSearches,
-                                onSend: (text) => _search(
-                                  text,
-                                  _takeAttachments(),
-                                  source: 'recent_search',
-                                ),
-                                onFill: (text) =>
-                                    _composerKey.currentState?.setText(text),
-                              )
-                            : null;
-                        if (list == null) {
-                          return Column(
-                            children: [
-                              const Expanded(child: HomeGreeting()),
-                              HomeSuggestionList(onSelected: _openHeard),
-                            ],
-                          );
-                        }
-                        return Align(
-                          alignment: Alignment.bottomCenter,
-                          child: SingleChildScrollView(
-                            reverse: true,
-                            child: list,
+                    ColoredBox(
+                      color: Colour.surface,
+                      child: TabBar(
+                        labelColor: Colour.textPrimary,
+                        unselectedLabelColor: Colour.textSecondary,
+                        labelStyle: AppTextStyle.lightBodyMediumSemiBold,
+                        unselectedLabelStyle:
+                            AppTextStyle.lightBodyMediumMedium,
+                        indicatorColor: Colour.textPrimary,
+                        indicatorSize: TabBarIndicatorSize.label,
+                        dividerColor: Colour.border,
+                        tabs: [
+                          Tab(
+                            height: 44.h,
+                            text: LocaleKeys.boardTabRequests.tr(),
                           ),
-                        );
-                      },
+                          Tab(
+                            height: 44.h,
+                            text: LocaleKeys.boardTabOffers.tr(),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  HomeRequestComposer(
-                    key: _composerKey,
-                    onSend: _search,
-                    onTextChanged: (text) =>
-                        context.read<HomeBloc>().add(HomeQueryChanged(text)),
-                    onFocusChanged: (focused) => context.read<HomeBloc>().add(
-                      HomeComposerFocusChanged(focused),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          BoardView<BoardRequest>(
+                            kind: BoardKind.requests,
+                            onItems: (items) => context
+                                .read<EngagementCubit>()
+                                .load(items.map((r) => r.id)),
+                            itemBuilder: (context, r) =>
+                                BoardRequestCard(request: r),
+                          ),
+                          BoardView<BoardOffer>(
+                            kind: BoardKind.offers,
+                            itemBuilder: (context, o) =>
+                                BoardOfferRow(offer: o),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

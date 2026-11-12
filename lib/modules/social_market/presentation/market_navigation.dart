@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
@@ -25,6 +26,17 @@ class MarketRoutes {
       '${RouteName.socialMarket}/${c.route}';
   static String services(MarketCategory c) => '${category(c)}/services';
   static String providers(MarketCategory c) => '${category(c)}/providers';
+
+  /// Listing "View all" của trang category (gồm Medical Travel — web
+  /// `/services/{route}`, `/providers/{route}`); [language] = bộ lọc ngôn ngữ seller.
+  static String scopeServices(MarketPageScope s, {String? language}) =>
+      '${RouteName.socialMarket}/${s.route}/services'
+      '${language == null ? '' : '?$listingLanguageParam=$language'}';
+  static String scopeProviders(MarketPageScope s) =>
+      '${RouteName.socialMarket}/${s.route}/providers';
+
+  /// Query của listing service: ngôn ngữ làm việc của seller (web `?lang=`).
+  static const String listingLanguageParam = 'lang';
 
   /// Medical Travel: landing riêng (web `/medical-travel`).
   static const String medicalTravel =
@@ -69,8 +81,25 @@ class MarketNavigation {
     }
   }
 
+  /// Chạm card lưới trang category / listing: Medical Travel mở trang chi tiết riêng;
+  /// service thường — app chưa có trang chi tiết chung (web `/service/...`, nơi gửi
+  /// inquiry) → mở thẳng form inquiry.
+  static void openServiceCard(BuildContext context, MarketServiceEntity s) {
+    if (s.isMedicalTravel) {
+      openService(context, s);
+    } else {
+      inquireService(context, s);
+    }
+  }
+
   /// "Send Inquiry" của card service (web `ServiceCard` → `InquiryDialog kind="service"`).
-  static void inquireService(BuildContext context, MarketServiceEntity s) {
+  /// Service Tư vấn: inquiry mang khoảng giá ("$50 – $200"), card chat kèm
+  /// `pricing_mode` + `price_max`.
+  static void inquireService(
+    BuildContext context,
+    MarketServiceEntity s, {
+    String? message,
+  }) {
     final sellerId = s.seller.id;
     final id = s.id;
     if (id == null || sellerId == null) return;
@@ -83,13 +112,13 @@ class MarketNavigation {
         recipientUserId: sellerId,
         title: s.title,
         image: s.previewImage,
-        // Kèm đơn vị tiền ("$45") - lưu vào inquiry, hiện ở dashboard seller.
-        price: price?.amount == null
-            ? null
-            : MarketMapper.formatMoney(price!.amount!, price.currency),
+        // Kèm đơn vị tiền ("$45" / Tư vấn "$50 – $200") - lưu vào inquiry, hiện ở
+        // dashboard seller.
+        price: inquiryPrice(price),
         recipientName: s.seller.shopName,
         recipientShop: s.seller.shopName,
         recipientAvatar: s.seller.avatar,
+        message: message,
         cardData: {
           'id': id,
           'title': s.title,
@@ -97,6 +126,11 @@ class MarketNavigation {
           'user_id': sellerId,
           'price': ?s.rawPrice,
           'original_price': s.originalPrice,
+          'pricing_mode': ?s.pricingMode,
+          'price_max': ?s.priceMax,
+          'currency': ?(price == null || price.currency.isEmpty
+              ? null
+              : price.currency),
           'type': 'service',
           'image': s.imageList,
           'cover_image': s.coverList,
@@ -105,6 +139,16 @@ class MarketNavigation {
         },
       ),
     );
+  }
+
+  /// Giá lưu vào inquiry (web `inquiryItem.price`): Tư vấn = khoảng giá, còn lại 1 giá.
+  static String? inquiryPrice(MarketPrice? price) {
+    if (price == null) return null;
+    if (price.consultation) return price.text;
+    final amount = price.amount;
+    return amount == null
+        ? null
+        : MarketMapper.formatMoney(amount, price.currency);
   }
 
   /// "I want this offer" (web `OfferCard` → `InquiryDialog kind="offer"`).
@@ -146,7 +190,7 @@ class MarketNavigation {
   static void wantSolution(BuildContext context, HealthSolutionEntity s) {
     final match = getIt<MatchHealthSolutionUseCase>();
     context.push(
-      RouteName.requestHeard,
+      RouteName.postRequest,
       extra: PostRequestFlowArgs(
         text: s.requestTemplate ?? s.title,
         onPosted: (description) async {
@@ -155,7 +199,11 @@ class MarketNavigation {
             (failure) => ToastUtil.showError(failure.message),
             (count) => ToastUtil.showSuccess(
               count > 0
-                  ? LocaleKeys.marketSolutionSentToProviders.plural(count)
+                  ? pluralTr(
+                      count,
+                      one: LocaleKeys.marketSolutionSentToProvidersOne,
+                      other: LocaleKeys.marketSolutionSentToProvidersOther,
+                    )
                   : LocaleKeys.marketSolutionSentNoMatch.tr(),
             ),
           );
@@ -165,14 +213,18 @@ class MarketNavigation {
   }
 }
 
-/// Tham số trang `page` của listing (10 bản ghi, web `LISTING_PAGE_SIZE`).
+/// Tham số trang `page` của listing (10 bản ghi, web `LISTING_PAGE_SIZE`);
+/// [language] = bộ lọc ngôn ngữ seller ("View all services in …").
 MarketPageParams listingParams(
-  MarketCategory c,
+  MarketPageScope scope,
   int page, {
   bool newestFirst = false,
+  String? language,
 }) => MarketPageParams(
-  categorySlug: c.slug,
+  scope: scope,
+  categorySlug: scope.slug,
   page: page,
   limit: 10,
   newestFirst: newestFirst,
+  language: language,
 );

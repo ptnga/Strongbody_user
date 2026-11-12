@@ -76,8 +76,9 @@ abstract final class AppAnalytics {
       switch (event) {
         // `login_completed` (kèm method) do AuthBloc bắn.
         UserLoggedIn() || UserProfileUpdated() => _identify(storage),
-        UserLoggedOut() => capture(
+        UserLoggedOut(:final expired) => capture(
           AnalyticsEvents.userLoggedOut,
+          {'reason': expired ? 'session_expired' : 'manual'},
         ).then((_) => _guard(Posthog().reset)),
       };
 

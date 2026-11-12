@@ -7,16 +7,31 @@ enum ChatMessageType {
   offer,
   image,
   file,
+
+  /// Thẻ request / service / product đính kèm inquiry (web `MessageRequest`…).
+  request,
+  service,
+  product,
+  sticker,
   other;
 
   static ChatMessageType fromApi(String? value) => switch (value) {
     'text' || null || '' => text,
-    'voice' => voice,
+    // Web `MessageBox`: `voice_translation` hiển thị như tin thoại.
+    'voice' || 'voice_translation' => voice,
     'offer' => offer,
     'image' => image,
     'file' => file,
+    'request' => request,
+    'service' => service,
+    'product' => product,
+    'sticker' => sticker,
     _ => other,
   };
+
+  /// Loại thẻ (web `CARD_TYPES`) — gộp với tin chữ gửi ngay sau.
+  bool get isCard =>
+      this == offer || this == request || this == service || this == product;
 }
 
 /// `message.voice` — file ghi âm do server publish sau `POST /user/chat-server/voice`.
@@ -32,16 +47,122 @@ class ChatVoice extends Equatable {
   final String? transcript;
   final Duration? duration;
 
+  /// Bản dịch đính trong payload (web: `translation_audio_url`, `translated_text`,
+  /// `target_lang` / `detected_lang`).
+  final String? translatedUrl;
+  final String? translatedText;
+  final String? translatedLang;
+
   const ChatVoice({
     required this.url,
     this.gcsPath,
     this.sourceLang,
     this.transcript,
     this.duration,
+    this.translatedUrl,
+    this.translatedText,
+    this.translatedLang,
   });
 
+  /// Bản dịch có sẵn trong payload → dùng khi chưa có bản dịch từ API / kênh dịch.
+  ChatTranslation? inlineTranslation(String messageId) =>
+      translatedUrl == null && translatedText == null
+      ? null
+      : ChatTranslation(
+          messageId: messageId,
+          audioUrl: translatedUrl,
+          text: translatedText,
+          sourceLang: sourceLang,
+          targetLang: translatedLang,
+        );
+
   @override
-  List<Object?> get props => [url, gcsPath, sourceLang, transcript, duration];
+  List<Object?> get props => [
+    url,
+    gcsPath,
+    sourceLang,
+    transcript,
+    duration,
+    translatedUrl,
+    translatedText,
+    translatedLang,
+  ];
+}
+
+/// Thẻ đính kèm tin (web `MessageRequest` / `MessageService` / `MessageProduct` /
+/// `MessagePublicOffer`) — chỉ trích dẫn, không thanh toán.
+enum ChatCardKind { request, service, product, publicOffer }
+
+class ChatCardEntity extends Equatable {
+  final ChatCardKind kind;
+  final int? id;
+  final String title;
+  final String description;
+  final String? image;
+
+  /// Giá (service / product / public offer) theo [currency] (rỗng = USD).
+  final double? price;
+  final double? priceMax;
+  final String? currency;
+
+  /// Public offer cũ chỉ có chuỗi giá (`price_text`) + hậu tố đơn vị (`price_unit`).
+  final String? priceText;
+  final String? priceUnit;
+
+  /// "My budget:" — số + tiền gốc (tin mới) hoặc chuỗi (`budget`, tin cũ).
+  final double? budgetMin;
+  final double? budgetMax;
+  final String? budgetCurrency;
+  final String? budgetText;
+  final String? categoryName;
+  final String? country;
+  final String? slug;
+
+  const ChatCardEntity({
+    required this.kind,
+    this.id,
+    this.title = '',
+    this.description = '',
+    this.image,
+    this.price,
+    this.priceMax,
+    this.currency,
+    this.priceText,
+    this.priceUnit,
+    this.budgetMin,
+    this.budgetMax,
+    this.budgetCurrency,
+    this.budgetText,
+    this.categoryName,
+    this.country,
+    this.slug,
+  });
+
+  bool get hasBudget =>
+      budgetMin != null ||
+      budgetMax != null ||
+      (budgetText?.isNotEmpty ?? false);
+
+  @override
+  List<Object?> get props => [
+    kind,
+    id,
+    title,
+    description,
+    image,
+    price,
+    priceMax,
+    currency,
+    priceText,
+    priceUnit,
+    budgetMin,
+    budgetMax,
+    budgetCurrency,
+    budgetText,
+    categoryName,
+    country,
+    slug,
+  ];
 }
 
 /// Offer gửi trong chat (`type: offer`).
@@ -111,6 +232,9 @@ class ChatMessageEntity extends Equatable {
   final String text;
   final ChatVoice? voice;
   final ChatOfferEntity? offer;
+
+  /// Thẻ request / service / product / public offer (không phải offer có thanh toán).
+  final ChatCardEntity? card;
   final String? fileName;
   final DateTime createdAt;
 
@@ -129,6 +253,7 @@ class ChatMessageEntity extends Equatable {
     this.text = '',
     this.voice,
     this.offer,
+    this.card,
     this.fileName,
     this.isPending = false,
     this.isLocal = false,
@@ -148,6 +273,7 @@ class ChatMessageEntity extends Equatable {
       text: text,
       voice: voice ?? this.voice,
       offer: offer ?? this.offer,
+      card: card,
       fileName: fileName,
       isPending: isPending ?? this.isPending,
       isLocal: isLocal,
@@ -162,6 +288,7 @@ class ChatMessageEntity extends Equatable {
     text,
     voice,
     offer,
+    card,
     fileName,
     createdAt,
     isPending,

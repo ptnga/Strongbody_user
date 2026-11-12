@@ -34,3 +34,13 @@ class PayOfferUseCase
     OfferPaymentRequest params,
   ) => _repository.payOffer(params);
 }
+
+/// Param = offer id.
+class GetCheckoutOfferUseCase implements UseCase<CheckoutOfferSnapshot, int> {
+  final CheckoutRepository _repository;
+  GetCheckoutOfferUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, CheckoutOfferSnapshot>> call(int offerId) =>
+      _repository.getOffer(offerId);
+}

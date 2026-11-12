@@ -14,8 +14,9 @@ import '../../../domain/usecases/get_request_offers_use_case.dart';
 part 'my_requests_event.dart';
 part 'my_requests_state.dart';
 
-/// "My requests" — `GET /user/requests` của buyer đang đăng nhập (Multime `RequestBuyerBloc`),
-/// kèm offer của từng request để hiện khoảng giá / provider / "Booked with".
+/// "My requests" — `GET /user/requests?user_id=&page=&is_private=` như web
+/// `BuyerManageRequest` (tab Public / Private lọc ở BE), kèm offer của từng request
+/// công khai để hiện khoảng giá / provider / "Booked with".
 class MyRequestsBloc extends BlocWithApi<MyRequestsEvent, MyRequestsState> {
   final GetMyRequestsUseCase _getMyRequests;
   final GetRequestOffersUseCase _getRequestOffers;
@@ -83,15 +84,18 @@ class MyRequestsBloc extends BlocWithApi<MyRequestsEvent, MyRequestsState> {
     );
   }
 
-  void _onTabChanged(
+  Future<void> _onTabChanged(
     MyRequestsTabChanged event,
     Emitter<MyRequestsState> emit,
-  ) {
-    emit(state.copyWith(tab: event.tab));
-    // Một trang có thể toàn request của tab kia → tải tiếp để tab mới không trống oan.
-    if (state.visibleItems.isEmpty && state.hasMore) {
-      add(const MyRequestsLoadMore());
+  ) async {
+    final userId = _storage.userId;
+    if (event.tab == state.tab || !_storage.isLoggedIn || userId == null) {
+      return;
     }
+    // Web đổi tab = trang mới (`?type=private`, về trang 1): bỏ danh sách tab cũ.
+    final generation = ++_generation;
+    emit(MyRequestsState(status: MyRequestsStatus.loading, tab: event.tab));
+    await _load(emit, userId: userId, page: 1, generation: generation);
   }
 
   Future<void> _load(
@@ -103,7 +107,12 @@ class MyRequestsBloc extends BlocWithApi<MyRequestsEvent, MyRequestsState> {
     List<MyRequestEntity>? loaded;
     await callApi(
       useCase: _getMyRequests,
-      param: GetMyRequestsParams(userId: userId, page: page, limit: _pageSize),
+      param: GetMyRequestsParams(
+        userId: userId,
+        page: page,
+        limit: _pageSize,
+        isPrivate: state.isPrivate,
+      ),
       onSuccess: (result) async {
         if (generation != _generation) return;
         loaded = result.items;
@@ -135,13 +144,12 @@ class MyRequestsBloc extends BlocWithApi<MyRequestsEvent, MyRequestsState> {
     );
     final requests = loaded;
     if (requests == null) return;
-    if (state.hasMore && state.visibleItems.isEmpty) {
-      add(const MyRequestsLoadMore());
-    }
     // Offer từng request (song song); lỗi thì thẻ chỉ hiện số offer từ `offers_count`.
+    // Request từ inquiry: provider trả lời trong chat, không gửi offer (web).
     await Future.wait([
       for (final request in requests)
-        if (request.offersCount > 0) _loadOffers(emit, request.id),
+        if (request.offersCount > 0 && request.inquiry == null)
+          _loadOffers(emit, request.id),
     ]);
   }
 

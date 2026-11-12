@@ -14,7 +14,7 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/services/microphone_permission_service.dart';
-import 'package:strongbody_buyer/modules/home/presentation/home_composer_focus.dart';
+import 'package:strongbody_buyer/modules/assistant/presentation/assistant_page_args.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../bloc/voice_request/voice_request_bloc.dart';
@@ -68,18 +68,21 @@ class _VoiceRequestPageState extends State<VoiceRequestPage>
     }
   }
 
-  /// "Type instead": refine → về màn trước; còn lại → Home, mở bàn phím ô nhập.
+  /// "Type instead": refine / chat trợ lý → về màn trước (có ô gõ); còn lại → form
+  /// "Post a request" trống.
   void _typeInstead(BuildContext context) {
     AppAnalytics.capture(AnalyticsEvents.voiceTypeInsteadTapped, {
       'source': args.source,
       'problem': context.read<VoiceRequestBloc>().state.problem?.name,
     });
-    if (args.refine) {
+    if (args.refine || args.toAssistant) {
       context.pop();
       return;
     }
-    HomeComposerFocus.request(args.attachmentPaths);
-    context.go(RouteName.rootScreen);
+    context.pushReplacement(
+      RouteName.postRequest,
+      extra: PostRequestFlowArgs(attachmentPaths: args.attachmentPaths),
+    );
   }
 
   void _close(BuildContext context) {
@@ -107,13 +110,25 @@ class _VoiceRequestPageState extends State<VoiceRequestPage>
         context.pop(result.text);
         return;
       }
+      if (args.toAssistant) {
+        context.pushReplacement(
+          RouteName.assistant,
+          extra: AssistantPageArgs(
+            text: result.text,
+            attachmentPaths: args.attachmentPaths,
+            source: '${args.source}_voice',
+          ),
+        );
+        return;
+      }
+      // Chữ nhận ra trên máy → AI soạn form; voice note (nếu có) gửi kèm request.
       context.pushReplacement(
-        RouteName.requestHeard,
+        RouteName.postRequest,
         extra: PostRequestFlowArgs(
           text: result.text,
-          voicePath: result.voicePath,
+          audioPath: result.voicePath,
+          attachVoice: result.voicePath != null,
           voiceDuration: result.voiceDuration,
-          languageCode: result.languageCode,
           attachmentPaths: args.attachmentPaths,
         ),
       );

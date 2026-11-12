@@ -52,11 +52,13 @@ class AccountRepositoryImpl implements AccountRepository {
     required String lastName,
     required String city,
   }) => _guard(() async {
-    final data = await _remote.updateProfile({
-      'first_name': firstName.trim(),
-      'last_name': lastName.trim(),
-      'city': city.trim(),
-    });
+    final data = await _remote.updateProfile(
+      AccountMapper.profileForm(
+        firstName: firstName,
+        lastName: lastName,
+        city: city,
+      ),
+    );
     // PUT có thể không trả user → đọc lại.
     final profile =
         AccountMapper.profile(
@@ -84,7 +86,15 @@ class AccountRepositoryImpl implements AccountRepository {
   Future<Either<Failure, LionWallet>> getWallet() => _guard(() async {
     final userId = _storage.userId;
     if (userId == null) throw Exception('Signed out');
-    final wallet = AccountMapper.wallet(await _remote.getWallet(userId));
+    final Map<String, dynamic> json;
+    try {
+      json = await _remote.getWallet(userId);
+    } on DioException catch (e) {
+      // Web: 404 "Customer not found" = chưa có ví → 0 điểm là số thật, không phải lỗi.
+      if (e.response?.statusCode == 404) return LionWallet.empty;
+      rethrow;
+    }
+    final wallet = AccountMapper.wallet(json);
     if (wallet == null) throw Exception('No wallet');
     return wallet;
   }, 'Cannot load Lion Points');
@@ -141,15 +151,20 @@ class AccountRepositoryImpl implements AccountRepository {
 
   /// Bước 2: chỉ xoá phiên khi server xác nhận đã xoá tài khoản.
   @override
-  Future<Either<Failure, Unit>> verifyAccountDeletion({required String otp}) =>
-      _guard(() async {
-        final email = _storage.userEmail;
-        if (email == null || email.isEmpty) throw Exception('Signed out');
-        await _remote.verifyAccountDeletion(email: email, otp: otp);
-        if (_storage.isLoggedIn) {
-          await _storage.clearUser();
-          AuthEventBus.emit(const UserLoggedOut());
-        }
-        return unit;
-      }, 'Cannot delete your account');
+  Future<Either<Failure, Unit>> verifyAccountDeletion({
+    required String otp,
+  }) => _guard(() async {
+    final email = _storage.userEmail;
+    if (email == null || email.isEmpty) throw Exception('Signed out');
+    await _remote.verifyAccountDeletion(email: email, otp: otp);
+    // Web `signOutAndClearSubscriptionCookie`: gọi logout (lỗi bỏ qua) rồi xoá phiên.
+    try {
+      await _remote.logout();
+    } catch (_) {}
+    if (_storage.isLoggedIn) {
+      await _storage.clearUser();
+      AuthEventBus.emit(const UserLoggedOut());
+    }
+    return unit;
+  }, 'Cannot delete your account');
 }

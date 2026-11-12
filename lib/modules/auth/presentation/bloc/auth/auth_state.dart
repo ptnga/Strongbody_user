@@ -25,6 +25,20 @@ class AuthMessage extends Equatable {
   List<Object?> get props => [key, text];
 }
 
+/// Toast sau một bước (web `toast.success` / `toast.info`).
+class AuthNotice extends Equatable {
+  final AuthMessage message;
+
+  /// `true` = toast thông tin (vd email đã có tài khoản), `false` = thành công.
+  final bool info;
+
+  const AuthNotice.success(this.message) : info = false;
+  const AuthNotice.info(this.message) : info = true;
+
+  @override
+  List<Object?> get props => [message, info];
+}
+
 class AuthState extends Equatable {
   final AuthScreen screen;
   final AuthStatus status;
@@ -38,8 +52,12 @@ class AuthState extends Equatable {
   final AuthMessage? otpError;
   final AuthMessage? formError;
 
-  /// Đăng ký trùng email → hiện gợi ý "You can sign in now".
-  final bool emailExists;
+  /// Domain email không nhận thư (chỉ cảnh báo ở màn đăng ký, không chặn gửi — như web).
+  final AuthMessage? emailDomainError;
+
+  /// Toast mới nhất; [noticeId] tăng mỗi lần có toast để UI chỉ hiện một lần.
+  final AuthNotice? notice;
+  final int noticeId;
 
   /// Đếm ngược nút "Resend" (giây).
   final int resendIn;
@@ -55,7 +73,9 @@ class AuthState extends Equatable {
     this.passwordError,
     this.otpError,
     this.formError,
-    this.emailExists = false,
+    this.emailDomainError,
+    this.notice,
+    this.noticeId = 0,
     this.resendIn = 0,
     this.session,
   });
@@ -73,7 +93,9 @@ class AuthState extends Equatable {
     AuthMessage? otpError,
     AuthMessage? formError,
     bool clearErrors = false,
-    bool? emailExists,
+    AuthMessage? emailDomainError,
+    bool clearEmailDomainError = false,
+    AuthNotice? notice,
     int? resendIn,
     AuthSession? session,
   }) {
@@ -89,7 +111,11 @@ class AuthState extends Equatable {
           : (passwordError ?? this.passwordError),
       otpError: clearErrors ? otpError : (otpError ?? this.otpError),
       formError: clearErrors ? formError : (formError ?? this.formError),
-      emailExists: emailExists ?? (clearErrors ? false : this.emailExists),
+      emailDomainError: clearEmailDomainError
+          ? null
+          : (emailDomainError ?? this.emailDomainError),
+      notice: notice ?? this.notice,
+      noticeId: notice != null ? noticeId + 1 : noticeId,
       resendIn: resendIn ?? this.resendIn,
       session: session ?? this.session,
     );
@@ -106,7 +132,9 @@ class AuthState extends Equatable {
     passwordError,
     otpError,
     formError,
-    emailExists,
+    emailDomainError,
+    notice,
+    noticeId,
     resendIn,
     session,
   ];

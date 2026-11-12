@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
 import 'package:strongbody_buyer/core/constants/app_svg.dart';
@@ -18,7 +19,7 @@ typedef RequestSendCallback =
     void Function(String text, List<String> attachmentPaths);
 
 /// Ô "Ask StrongBody" (mirror `RequestComposer.tsx` của web):
-/// - Ô trống → nút micro mở màn nói yêu cầu (transcript trực tiếp); có chữ → nút gửi.
+/// - Ô trống → nút micro mở màn nói (transcript trực tiếp); có chữ → nút gửi.
 /// - Nút "+": đính kèm ảnh / file, đi kèm sang form Post Request.
 class HomeRequestComposer extends StatefulWidget {
   final RequestSendCallback onSend;
@@ -38,6 +39,10 @@ class HomeRequestComposer extends StatefulWidget {
   /// Nền ô nhập (mặc định xám nhạt); đặt trên khối xám thì dùng trắng.
   final Color? background;
 
+  /// Nói xong → chat trợ lý AI (ô hỏi ở Home / hero, web `/ai-assistant`); false →
+  /// "Here's what I heard" (khối đăng request, web `/request-assistant`).
+  final bool voiceToAssistant;
+
   const HomeRequestComposer({
     super.key,
     required this.onSend,
@@ -46,6 +51,7 @@ class HomeRequestComposer extends StatefulWidget {
     this.hintText,
     this.source = 'home',
     this.background,
+    this.voiceToAssistant = false,
   });
 
   @override
@@ -136,6 +142,7 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
       RouteName.voiceRequest,
       extra: VoiceRequestPageArgs(
         attachmentPaths: attachments,
+        toAssistant: widget.voiceToAssistant,
         source: widget.source,
       ),
     );
@@ -229,7 +236,7 @@ class HomeRequestComposerState extends State<HomeRequestComposer> {
   }
 }
 
-/// Nút tròn đỏ: micro (ô trống) ↔ gửi (có chữ).
+/// Nút tròn primary: micro (ô trống) ↔ gửi (có chữ).
 class _MicSendButton extends StatelessWidget {
   final bool hasText;
   final VoidCallback onTap;
@@ -238,12 +245,11 @@ class _MicSendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Material(
-      color: theme.primary(context),
+      color: Colour.buttonPrimary,
       shape: const CircleBorder(),
       elevation: 3,
-      shadowColor: theme.primary(context).withValues(alpha: 0.4),
+      shadowColor: Colour.buttonPrimary.withValues(alpha: 0.4),
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),

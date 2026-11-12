@@ -6,14 +6,24 @@ import '../domain/entities/request_category.dart';
 import '../domain/entities/request_form_values.dart';
 import '../domain/entities/request_options.dart';
 
-/// Chuỗi hiển thị cho request (dùng chung ở Heard / Review / Posted / My requests).
+/// Chuỗi hiển thị cho request (form Post a request, trang matches, My requests).
 class RequestFormatters {
   RequestFormatters._();
 
   static String delivery(RequestDeliveryType type) => switch (type) {
     RequestDeliveryType.remote => LocaleKeys.requestDeliveryOnline.tr(),
+    RequestDeliveryType.atOffice => LocaleKeys.requestDeliveryAtOffice.tr(),
     RequestDeliveryType.atHome => LocaleKeys.requestDeliveryAtHome.tr(),
     RequestDeliveryType.atClinic => LocaleKeys.requestDeliveryAtClinic.tr(),
+  };
+
+  /// Nhãn lựa chọn ở form / thẻ request (web `forms.deliveryTypes`): Remote · At office ·
+  /// At clinic · At home.
+  static String deliveryOption(RequestDeliveryType type) => switch (type) {
+    RequestDeliveryType.remote => LocaleKeys.postRequestDeliveryRemote.tr(),
+    RequestDeliveryType.atOffice => LocaleKeys.postRequestDeliveryAtOffice.tr(),
+    RequestDeliveryType.atClinic => LocaleKeys.postRequestDeliveryAtClinic.tr(),
+    RequestDeliveryType.atHome => LocaleKeys.postRequestDeliveryAtHome.tr(),
   };
 
   static String category(RequestCategory category) => switch (category) {

@@ -53,6 +53,29 @@ class ChatState extends Equatable {
   bool get autoTranslate => settings?.autoTranslate ?? false;
   bool get hasOlder => historyCursor != null;
 
+  /// Bản dịch hiển thị cho tin của partner: bật dịch → bản dịch chữ + audio; tắt dịch →
+  /// chỉ bản dịch giọng nói của tin voice (web luôn phát `translated_url` khi có).
+  /// Bản dịch đính trong payload voice (`translation_audio_url`) làm nền.
+  ChatTranslation? translationFor(ChatMessageEntity message) {
+    if (message.senderId == session?.myUserId) return null;
+    final api = translations[message.id];
+    final inline = message.voice?.inlineTranslation(message.id);
+    if (autoTranslate) {
+      if (api == null) return inline;
+      return inline == null ? api : inline.merge(api);
+    }
+    if (message.type != ChatMessageType.voice) return null;
+    final audio = api?.audioUrl;
+    if (audio == null) return inline;
+    return ChatTranslation(
+      messageId: message.id,
+      audioUrl: audio,
+      text: inline?.text,
+      sourceLang: api?.sourceLang ?? inline?.sourceLang,
+      targetLang: api?.targetLang ?? inline?.targetLang,
+    );
+  }
+
   /// Ngôn ngữ partner nói — lấy từ tin gần nhất có `source_lang`.
   String? get partnerLanguage {
     final partnerId = session?.partner.id;

@@ -240,12 +240,16 @@ class MarketSectionHeading extends StatelessWidget {
   final VoidCallback? onViewAll;
   final String? viewAllLabel;
 
+  /// Tiêu đề gọn 18px (trang category có nhiều section liền nhau — web `compact`).
+  final bool compact;
+
   const MarketSectionHeading({
     super.key,
     required this.title,
     this.description,
     this.onViewAll,
     this.viewAllLabel,
+    this.compact = false,
   });
 
   @override
@@ -256,9 +260,11 @@ class MarketSectionHeading extends StatelessWidget {
         Flexible(
           child: Text(
             title,
-            style: AppTextStyle.lightHeadingMedium.copyWith(
-              color: Colour.textPrimary,
-            ),
+            style:
+                (compact
+                        ? AppTextStyle.lightBodyXLargeSemiBold
+                        : AppTextStyle.lightHeadingMedium)
+                    .copyWith(color: Colour.textPrimary),
           ),
         ),
         if (onViewAll != null) ...[
@@ -430,7 +436,7 @@ class MarketButton extends StatelessWidget {
       case MarketButtonVariant.outline:
         final (background, foreground, border) = switch (variant) {
           MarketButtonVariant.primary => (
-            Colour.primary,
+            Colour.buttonPrimary,
             Colors.white,
             Colors.transparent,
           ),

@@ -52,12 +52,7 @@ class _AuthOtpViewState extends State<AuthOtpView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              forgot
-                  ? LocaleKeys.authForgotTitle.tr()
-                  : LocaleKeys.authOtpTitle.tr(),
-              style: _title(context),
-            ),
+            Text(LocaleKeys.authOtpTitle.tr(), style: _title(context)),
             Gap(6.h),
             Text(
               forgot
@@ -71,6 +66,9 @@ class _AuthOtpViewState extends State<AuthOtpView> {
                 color: theme.textPrimary(context),
               ),
             ),
+            // Web `ForgotPasswordDialog` bước nhập mã.
+            if (forgot)
+              Text(LocaleKeys.authCheckInbox.tr(), style: _body(context)),
             Gap(22.h),
             TextField(
               controller: _otp,
@@ -147,7 +145,7 @@ class _AuthOtpViewState extends State<AuthOtpView> {
             Gap(20.h),
             AuthPrimaryButton(
               label: forgot
-                  ? LocaleKeys.authVerify.tr()
+                  ? LocaleKeys.authContinue.tr()
                   : LocaleKeys.authSend.tr(),
               loadingLabel: LocaleKeys.authVerifying.tr(),
               loading: state.isSubmitting,
@@ -208,7 +206,8 @@ class _AuthForgotEmailViewState extends State<AuthForgotEmailView> {
           ),
           Gap(20.h),
           AuthPrimaryButton(
-            label: LocaleKeys.authSendCode.tr(),
+            label: LocaleKeys.authContinue.tr(),
+            loadingLabel: LocaleKeys.authSending.tr(),
             loading: state.isSubmitting,
             onPressed: () => bloc.add(AuthForgotEmailSubmitted(_email.text)),
           ),
@@ -259,12 +258,12 @@ class _AuthNewPasswordViewState extends State<AuthNewPasswordView> {
       builder: (context, state) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(LocaleKeys.authNewPasswordTitle.tr(), style: _title(context)),
+          Text(LocaleKeys.authResetPassword.tr(), style: _title(context)),
           Gap(20.h),
           AuthTextField(
             label: LocaleKeys.authNewPassword.tr(),
             controller: _password,
-            hint: LocaleKeys.authPasswordHint.tr(),
+            hint: LocaleKeys.authNewPasswordHint.tr(),
             password: true,
             autofillHints: const [AutofillHints.newPassword],
           ),
@@ -280,6 +279,7 @@ class _AuthNewPasswordViewState extends State<AuthNewPasswordView> {
           Gap(20.h),
           AuthPrimaryButton(
             label: LocaleKeys.authResetPassword.tr(),
+            loadingLabel: LocaleKeys.authUpdating.tr(),
             loading: state.isSubmitting,
             onPressed: submit,
           ),

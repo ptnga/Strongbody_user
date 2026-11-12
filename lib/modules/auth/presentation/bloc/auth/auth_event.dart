@@ -94,6 +94,25 @@ final class AuthNewPasswordSubmitted extends AuthEvent {
   List<Object?> get props => [password, confirm];
 }
 
+/// Gõ email ở màn đăng ký → kiểm tra domain (MX) sau 800ms như web `useEmailDomainValidation`.
+final class AuthEmailChanged extends AuthEvent {
+  final String email;
+
+  const AuthEmailChanged(this.email);
+
+  @override
+  List<Object?> get props => [email];
+}
+
+final class _AuthEmailDomainRequested extends AuthEvent {
+  final String email;
+
+  const _AuthEmailDomainRequested(this.email);
+
+  @override
+  List<Object?> get props => [email];
+}
+
 final class _AuthResendTicked extends AuthEvent {
   const _AuthResendTicked();
 }

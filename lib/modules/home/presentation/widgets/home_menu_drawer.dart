@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
 import 'package:strongbody_buyer/components/initials_avatar.dart';
 import 'package:strongbody_buyer/core/components/app_icon.dart';
@@ -14,19 +15,25 @@ import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_badge_notifier.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/matching_providers_page_args.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/post_request_flow_args.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_formatters.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/request_offers_page_args.dart';
-import 'package:strongbody_buyer/modules/post_request/presentation/voice_request_page_args.dart';
 import 'package:strongbody_buyer/modules/social_market/domain/entities/market_category.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/market_formatters.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/market_navigation.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
+import 'package:strongbody_buyer/modules/auth/presentation/bloc/auth/auth_bloc.dart';
+import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
+import 'package:strongbody_buyer/modules/post_request/presentation/widgets/voice/get_help_sheet.dart';
 
 import '../bloc/home_menu/home_menu_cubit.dart';
 import '../new_offers_badge_notifier.dart';
 
-/// Menu ☰ ở Home: New request · My requests · Messages · Browse providers · Recent · hồ sơ.
+/// Menu ☰ ở Home (web ngăn kéo menu mobile `AppShell` → `Drawer`):
+/// Request someone's help · Browse by need (4 Social Market) · [khách: User sign up |
+/// đã đăng nhập: My requests · Messages] · Browse providers · Recent · Sign in / hồ sơ.
+///
+/// Như web: khách không thấy Messages / My requests (web chỉ có ở header khi đã đăng nhập
+/// và trong khu tài khoản); "User sign up" / "Sign in" mở popup đăng ký / đăng nhập ngay.
 class HomeMenuDrawer extends StatelessWidget {
   const HomeMenuDrawer({super.key});
 
@@ -35,6 +42,13 @@ class HomeMenuDrawer extends StatelessWidget {
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
     action(router);
+  }
+
+  /// Đóng menu rồi mở popup đăng ký / đăng nhập (web `openAuth('signup' | 'login')`).
+  void _openAuth(BuildContext context, AuthScreen screen) {
+    final root = Navigator.of(context, rootNavigator: true);
+    Navigator.of(context).pop();
+    showAuthSheet(root.context, initial: screen, source: 'menu');
   }
 
   @override
@@ -109,17 +123,15 @@ class HomeMenuDrawer extends StatelessWidget {
                   child: SizedBox(
                     height: 48.h,
                     child: FilledButton.icon(
-                      onPressed: () => _go(
-                        context,
-                        (r) => r.push(
-                          RouteName.voiceRequest,
-                          extra: const VoiceRequestPageArgs(source: 'menu'),
-                        ),
-                      ),
+                      onPressed: () {
+                        final root = Navigator.of(context, rootNavigator: true);
+                        Navigator.of(context).pop();
+                        showGetHelpSheet(root.context, source: 'menu');
+                      },
                       icon: AppIcon(AppSvg.microphone, size: 24.r),
                       label: Text(LocaleKeys.homeMenuNewRequest.tr()),
                       style: FilledButton.styleFrom(
-                        backgroundColor: theme.primary(context),
+                        backgroundColor: Colour.buttonPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12.r),
                         ),
@@ -134,19 +146,8 @@ class HomeMenuDrawer extends StatelessWidget {
                   child: ListView(
                     padding: EdgeInsets.zero,
                     children: [
-                      link(
-                        AppSvg.box,
-                        LocaleKeys.myRequestsTitle.tr(),
-                        () => _go(context, (r) => r.go(RouteName.myRequests)),
-                        badge: getIt<NewOffersBadgeNotifier>(),
-                      ),
-                      link(
-                        AppSvg.message,
-                        LocaleKeys.messagesTitle.tr(),
-                        () => _go(context, (r) => r.go(RouteName.messages)),
-                        badge: getIt<ChatBadgeNotifier>(),
-                      ),
-                      // Social Market (web sidebar): mở ra 4 trang con theo `SOCIAL_MARKET_NAV`.
+                      // Social Market (web `SOCIAL_MARKET_ITEM`, nhãn "Browse by need"): mở ra 4
+                      // trang con theo `SOCIAL_MARKET_NAV`.
                       Theme(
                         data: theme.copyWith(dividerColor: Colors.transparent),
                         child: ExpansionTile(
@@ -156,7 +157,7 @@ class HomeMenuDrawer extends StatelessWidget {
                             color: theme.textPrimary(context),
                           ),
                           title: Text(
-                            LocaleKeys.marketSocialMarket.tr(),
+                            LocaleKeys.navSocialMarket.tr(),
                             style: AppTextStyle.lightBodyMediumSemiBold
                                 .copyWith(color: theme.textPrimary(context)),
                           ),
@@ -198,6 +199,27 @@ class HomeMenuDrawer extends StatelessWidget {
                           ],
                         ),
                       ),
+                      // Web `buildAccountNav`: khách → "User sign up" (mở popup đăng ký);
+                      // đã đăng nhập → các mục tài khoản.
+                      if (state.loggedIn) ...[
+                        link(
+                          AppSvg.box,
+                          LocaleKeys.myRequestsTitle.tr(),
+                          () => _go(context, (r) => r.go(RouteName.myRequests)),
+                          badge: getIt<NewOffersBadgeNotifier>(),
+                        ),
+                        link(
+                          AppSvg.message,
+                          LocaleKeys.messagesTitle.tr(),
+                          () => _go(context, (r) => r.go(RouteName.messages)),
+                          badge: getIt<ChatBadgeNotifier>(),
+                        ),
+                      ] else
+                        link(
+                          AppSvg.user,
+                          LocaleKeys.navUserSignUp.tr(),
+                          () => _openAuth(context, AuthScreen.signup),
+                        ),
                       link(
                         AppSvg.search,
                         LocaleKeys.homeMenuBrowseProviders.tr(),
@@ -205,9 +227,7 @@ class HomeMenuDrawer extends StatelessWidget {
                           context,
                           (r) => r.push(
                             RouteName.matchingProviders,
-                            extra: const MatchingProvidersPageArgs(
-                              start: PostRequestFlowArgs(browseOnly: true),
-                            ),
+                            extra: const MatchingProvidersPageArgs(),
                           ),
                         ),
                       ),
@@ -275,7 +295,11 @@ class HomeMenuDrawer extends StatelessWidget {
                             ],
                           ),
                         ),
-                  onTap: () => _go(context, (r) => r.go(RouteName.account)),
+                  // Web `DrawerAccount`: khách bấm Sign in → popup đăng nhập; đã đăng nhập
+                  // → hồ sơ (web Profile → /buyer/dashboard = tab Account).
+                  onTap: state.loggedIn
+                      ? () => _go(context, (r) => r.go(RouteName.account))
+                      : () => _openAuth(context, AuthScreen.login),
                 ),
               ],
             );

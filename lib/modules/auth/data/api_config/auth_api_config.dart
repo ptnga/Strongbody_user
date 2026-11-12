@@ -1,3 +1,5 @@
+import 'package:strongbody_buyer/core/config/environment.dart';
+
 /// Endpoint đăng ký / đăng nhập — giống web (`src/api/auth`, `src/guards/authOptions.ts`,
 /// `ModalAuth/*`). Riêng Google / Apple dùng endpoint native của Multime vì token lấy từ SDK
 /// mobile (web dùng OAuth web → `/login-google`, `/login-apple-web`).
@@ -18,6 +20,14 @@ class AuthApiConfig {
 
   /// Sau khi xác minh email, web gọi để nhận offer gửi tới email lúc còn là khách.
   static const String claimOffer = '/public/offer/claim';
+
+  /// Web `submitApplyJob('', email)` sau mỗi lần đăng ký / đăng nhập thành công (ghi lead).
+  static const String applyJob = '/admin/ldp/applyjob';
+
+  /// Web `useEmailDomainValidation`: route Next.js tra MX record của domain email (DNS phía
+  /// server — app không tự làm được) → gọi thẳng route của web.
+  static String get verifyEmailDomain =>
+      '${AppConfig.webBaseUrl}/api/verify-email-domain';
 
   static const String loginGoogleIdToken = '/public/auth/login-google-id-token';
   static const String loginApple = '/public/auth/login-apple';

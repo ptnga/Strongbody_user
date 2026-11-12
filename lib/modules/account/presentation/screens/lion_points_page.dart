@@ -44,16 +44,32 @@ class _LionPointsPageState extends State<LionPointsPage> {
     super.dispose();
   }
 
-  /// Tiêu đề theo loại/nguồn như web `HistoryItemList`.
-  static String _title(LionLedgerItem item) => switch (item.type) {
-    LionLedgerType.spend => LocaleKeys.accountPointsSpent.tr(),
-    LionLedgerType.expired => LocaleKeys.accountPointsExpired.tr(),
-    LionLedgerType.earn => switch (item.source) {
-      'invite' => LocaleKeys.accountPointsReferral.tr(),
-      'purchase' => LocaleKeys.accountPointsPurchase.tr(),
-      _ => LocaleKeys.accountPointsEarned.tr(),
-    },
+  /// Tiêu đề theo loại/nguồn như web `HistoryItemList`. Dòng khác loại: web lấy
+  /// `idempotencyKey` (chuỗi kỹ thuật) → app giữ nhãn dễ đọc theo `type`.
+  static String _title(LionLedgerItem item) => switch (item.kind) {
+    LionLedgerKind.referral => LocaleKeys.accountPointsReferral.tr(),
+    LionLedgerKind.purchase => LocaleKeys.accountPointsPurchase.tr(),
+    LionLedgerKind.redemption => LocaleKeys.accountPointsSpent.tr(),
+    LionLedgerKind.other =>
+      item.type == LionLedgerType.expired
+          ? LocaleKeys.accountPointsExpired.tr()
+          : LocaleKeys.accountPointsEarned.tr(),
   };
+
+  /// Mô tả như web: số điểm trong câu (redemption lấy trị tuyệt đối), khác loại = `reason`.
+  static String _description(LionLedgerItem item, NumberFormat format) =>
+      switch (item.kind) {
+        LionLedgerKind.referral => LocaleKeys.accountPointsReferralDesc.tr(
+          args: [format.format(item.amount)],
+        ),
+        LionLedgerKind.purchase => LocaleKeys.accountPointsPurchaseDesc.tr(
+          args: [format.format(item.amount)],
+        ),
+        LionLedgerKind.redemption => LocaleKeys.accountPointsRedemptionDesc.tr(
+          args: [format.format(item.amount.abs())],
+        ),
+        LionLedgerKind.other => item.reason,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +112,22 @@ class _LionPointsPageState extends State<LionPointsPage> {
                       color: theme.textPrimary(context),
                     ),
                   ),
+                if (state.wallet?.showsExpiry ?? false) ...[
+                  Gap(4.h),
+                  Text(
+                    LocaleKeys.accountPointsExpiry.tr(
+                      args: [
+                        format.format(state.wallet!.expiringPoints),
+                        DateFormat.yMMMd(
+                          locale,
+                        ).format(state.wallet!.expiresAt!),
+                      ],
+                    ),
+                    style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                      color: theme.textSecondary(context),
+                    ),
+                  ),
+                ],
                 Gap(12.h),
                 if (state.items.isEmpty)
                   Padding(
@@ -126,6 +158,14 @@ class _LionPointsPageState extends State<LionPointsPage> {
                                       color: theme.textPrimary(context),
                                     ),
                               ),
+                              if (_description(item, format).isNotEmpty)
+                                Text(
+                                  _description(item, format),
+                                  style: AppTextStyle.lightBodySmallRegular
+                                      .copyWith(
+                                        color: theme.textSecondary(context),
+                                      ),
+                                ),
                               if (item.at != null)
                                 Text(
                                   DateFormat.yMMMd(
@@ -133,7 +173,7 @@ class _LionPointsPageState extends State<LionPointsPage> {
                                   ).add_Hm().format(item.at!),
                                   style: AppTextStyle.lightBodySmallRegular
                                       .copyWith(
-                                        color: theme.textSecondary(context),
+                                        color: theme.textTertiary(context),
                                       ),
                                 ),
                             ],

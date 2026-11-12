@@ -10,6 +10,9 @@ abstract class CheckoutRepository {
   /// Thêm thẻ (setup intent → PaymentSheet) rồi trả danh sách thẻ mới; cancelled = Right(null).
   Future<Either<Failure, List<PaymentCard>?>> addCard();
 
+  /// Đọc lại offer trước khi trả (`GET /user/offer/{id}`).
+  Future<Either<Failure, CheckoutOfferSnapshot>> getOffer(int offerId);
+
   /// `retry-payment` → (nếu cần) Stripe → đọc lại offer để biết đã paid chưa.
   Future<Either<Failure, OfferPaymentResult>> payOffer(
     OfferPaymentRequest request,

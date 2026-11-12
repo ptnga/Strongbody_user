@@ -4,6 +4,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:strongbody_buyer/core/base/failure.dart';
 import 'package:strongbody_buyer/core/usecases/usecase.dart';
 
+import '../entities/market_category.dart';
 import '../entities/market_feed_entities.dart';
 import '../entities/market_inquiry.dart';
 import '../entities/market_listing_entities.dart';
@@ -18,15 +19,39 @@ class MarketPageParams extends Equatable {
   /// Listing: mới nhất trước (service).
   final bool newestFirst;
 
+  /// Phạm vi trang category (web `servicesScopeFor` / `providersQueryFor`); có thì
+  /// thắng [categorySlug] (Medical Travel lọc theo cờ `is_medical_travel`).
+  final MarketPageScope? scope;
+
+  /// Sắp xếp riêng (vd. "In the spotlight": `quality_score` DESC) — thắng [newestFirst].
+  final String? orderBy;
+  final String? orderDir;
+
+  /// Ngôn ngữ làm việc của seller (`language`, vd "vi").
+  final String? language;
+
   const MarketPageParams({
     this.categorySlug = '',
     this.page = 1,
     required this.limit,
     this.newestFirst = false,
+    this.scope,
+    this.orderBy,
+    this.orderDir,
+    this.language,
   });
 
   @override
-  List<Object?> get props => [categorySlug, page, limit, newestFirst];
+  List<Object?> get props => [
+    categorySlug,
+    page,
+    limit,
+    newestFirst,
+    scope?.route,
+    orderBy,
+    orderDir,
+    language,
+  ];
 }
 
 class GetMarketServicesUseCase
@@ -42,6 +67,10 @@ class GetMarketServicesUseCase
     page: p.page,
     limit: p.limit,
     newestFirst: p.newestFirst,
+    scope: p.scope,
+    orderBy: p.orderBy,
+    orderDir: p.orderDir,
+    language: p.language,
   );
 }
 
@@ -57,6 +86,7 @@ class GetMarketExpertsUseCase
     categorySlug: p.categorySlug,
     page: p.page,
     limit: p.limit,
+    scope: p.scope,
   );
 }
 

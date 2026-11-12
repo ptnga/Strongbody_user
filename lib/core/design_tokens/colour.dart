@@ -42,4 +42,7 @@ class Colour {
   static const Color amber700 = Color(0xFFB45309);
   static const Color info50 = Color(0xFFEAF4FE);
   static const Color blue700 = Color(0xFF1D4ED8);
+
+  /// Nền nút primary (thay đỏ [primary] trên mọi nút) — xanh đại dương web `ocean-700`.
+  static const Color buttonPrimary = Color(0xFF0B6B8A);
 }

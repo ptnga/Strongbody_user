@@ -1,8 +1,9 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import 'package:strongbody_buyer/core/utils/language_names.dart';
+import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
-import 'package:strongbody_buyer/modules/post_request/domain/entities/request_options.dart';
 
 import '../domain/entities/market_category.dart';
 import '../domain/entities/market_feed_entities.dart';
@@ -24,6 +25,40 @@ class MarketFormatters {
     MarketCategory.healthProAdvisory =>
       LocaleKeys.marketBrandHealthProAdvisory.tr(),
     MarketCategory.personalHelper => LocaleKeys.marketBrandPersonalHelper.tr(),
+  };
+
+  /// Tên category (gồm Medical Travel) trong tiêu đề listing.
+  static String scopeLabel(MarketPageScope scope) => switch (scope.category) {
+    final c? => categoryLabel(c),
+    null => LocaleKeys.marketMedicalTravel.tr(),
+  };
+
+  /// Tên trên header của trang category (gồm Medical Travel).
+  static String scopeBrand(MarketPageScope scope) => switch (scope.category) {
+    final c? => brand(c),
+    null => LocaleKeys.marketBrandMedicalTravel.tr(),
+  };
+
+  /// Hero 2 dòng của trang category (web `homeMarketplace.categoryPage.hero.<key>`).
+  static ({String title, String subtitle}) categoryHero(
+    MarketPageScope scope,
+  ) => switch (scope.category) {
+    MarketCategory.longevity => (
+      title: LocaleKeys.marketCategoryHeroLongevityTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroLongevitySubtitle.tr(),
+    ),
+    MarketCategory.healthProAdvisory => (
+      title: LocaleKeys.marketCategoryHeroHealthProAdvisoryTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroHealthProAdvisorySubtitle.tr(),
+    ),
+    MarketCategory.personalHelper => (
+      title: LocaleKeys.marketCategoryHeroPersonalHelperTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroPersonalHelperSubtitle.tr(),
+    ),
+    null => (
+      title: LocaleKeys.marketCategoryHeroMedicalTravelTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroMedicalTravelSubtitle.tr(),
+    ),
   };
 
   /// Hero riêng của category; thiếu thì dùng copy trang chủ (web `categoryHero`).
@@ -113,14 +148,16 @@ class MarketFormatters {
       .replaceAllMapped(RegExp(r'\b\w'), (m) => m[0]!.toUpperCase());
 
   /// Mã ngôn ngữ (form request lưu code) → tên; giá trị cũ là tên thì giữ.
-  static String languageName(String code) =>
-      requestLanguageByCode(code)?.name ??
-      requestLanguageByCode(code.split('-').first)?.name ??
-      humanize(code);
+  static String languageName(String code) => languageLabel(code);
 
   /// "5 yrs"; rỗng khi chưa khai.
-  static String years(int? years) =>
-      years == null || years <= 0 ? '' : LocaleKeys.marketYears.plural(years);
+  static String years(int? years) => years == null || years <= 0
+      ? ''
+      : pluralTr(
+          years,
+          one: LocaleKeys.marketYearsOne,
+          other: LocaleKeys.marketYearsOther,
+        );
 
   static String budget(MarketBudget budget) => switch (budget) {
     BudgetExact(:final amount) => amount,
@@ -141,29 +178,57 @@ class MarketFormatters {
     final hours = diff.inHours;
     final days = diff.inDays;
     if (diff.inSeconds < 60) return LocaleKeys.marketAgoNow.tr();
-    if (minutes < 60) return LocaleKeys.marketAgoMinutes.plural(minutes);
-    if (hours < 24) return LocaleKeys.marketAgoHours.plural(hours);
+    if (minutes < 60) {
+      return pluralTr(
+        minutes,
+        one: LocaleKeys.marketAgoMinutesOne,
+        other: LocaleKeys.marketAgoMinutesOther,
+      );
+    }
+    if (hours < 24) {
+      return pluralTr(
+        hours,
+        one: LocaleKeys.marketAgoHoursOne,
+        other: LocaleKeys.marketAgoHoursOther,
+      );
+    }
     if (days < 7) {
       return days == 1
           ? LocaleKeys.marketAgoYesterday.tr()
-          : LocaleKeys.marketAgoDays.plural(days);
+          : pluralTr(
+              days,
+              one: LocaleKeys.marketAgoDaysOne,
+              other: LocaleKeys.marketAgoDaysOther,
+            );
     }
     if (days < 30) {
       final weeks = days ~/ 7;
       return weeks == 1
           ? LocaleKeys.marketAgoLastWeek.tr()
-          : LocaleKeys.marketAgoWeeks.plural(weeks);
+          : pluralTr(
+              weeks,
+              one: LocaleKeys.marketAgoWeeksOne,
+              other: LocaleKeys.marketAgoWeeksOther,
+            );
     }
     if (days < 365) {
       final months = days ~/ 30;
       return months == 1
           ? LocaleKeys.marketAgoLastMonth.tr()
-          : LocaleKeys.marketAgoMonths.plural(months);
+          : pluralTr(
+              months,
+              one: LocaleKeys.marketAgoMonthsOne,
+              other: LocaleKeys.marketAgoMonthsOther,
+            );
     }
     final years = days ~/ 365;
     return years == 1
         ? LocaleKeys.marketAgoLastYear.tr()
-        : LocaleKeys.marketAgoYears.plural(years);
+        : pluralTr(
+            years,
+            one: LocaleKeys.marketAgoYearsOne,
+            other: LocaleKeys.marketAgoYearsOther,
+          );
   }
 
   /// Dòng "N interested · N saved · N contacted" (web `EngagementCounts`).

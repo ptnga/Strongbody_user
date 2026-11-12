@@ -19,7 +19,8 @@ class ChatApiException implements Exception {
 }
 
 abstract class ChatRemoteDataSource {
-  Future<List<Map<String, dynamic>>> getConversations(int page, int limit);
+  /// `data` của `/user/chat-server/conversations`: `{data: [...], current_page, total_page…}`.
+  Future<Map<String, dynamic>> getConversations(int page, int limit);
   Future<Map<String, dynamic>> getUnreadCounts();
   Future<Map<String, dynamic>> searchUsers(String query);
   Future<Map<String, dynamic>> createChannel(int partnerId);
@@ -90,20 +91,15 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
   @override
-  Future<List<Map<String, dynamic>>> getConversations(
-    int page,
-    int limit,
-  ) async {
+  Future<Map<String, dynamic>> getConversations(int page, int limit) async {
     final data = await _call(
       ChatApiConfig.conversations,
       ApiType.get,
       query: {'page': page, 'limit': limit},
       timeout: const Duration(seconds: 60),
     );
-    final list = data is Map ? data['data'] : data;
-    return list is List
-        ? list.whereType<Map>().map(Map<String, dynamic>.from).toList()
-        : const [];
+    // BE cũ trả thẳng mảng.
+    return data is List ? {'data': data} : _map(data);
   }
 
   @override
@@ -115,7 +111,8 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     await _call(
       ChatApiConfig.searchUsers,
       ApiType.get,
-      query: {'query': query, 'limit': 20, 'page': 1, 'search_by': 'auto'},
+      // Web `SearchInChat`: chỉ `?query=`.
+      query: {'query': query},
     ),
   );
 
@@ -153,7 +150,13 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         await _call(ChatApiConfig.translationSettings(channelId), ApiType.get),
       );
     } on ChatApiException catch (e) {
-      if (e.message.toLowerCase().contains('not found')) return null;
+      if (e.code == 404 || e.message.toLowerCase().contains('not found')) {
+        return null;
+      }
+      rethrow;
+    } on DioException catch (e) {
+      // Web `getTextTranslationSettings`: HTTP 404 = chưa có cài đặt.
+      if (e.response?.statusCode == 404) return null;
       rethrow;
     }
   }

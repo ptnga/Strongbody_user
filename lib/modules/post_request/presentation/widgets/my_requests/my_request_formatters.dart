@@ -25,6 +25,19 @@ class MyRequestFormatters {
     };
   }
 
+  /// Nhãn trạng thái request như web `getStatusLabel`: pending / pending_approval →
+  /// "In review", active → "Open", closed → "Closed", cancelled / rejected / spam →
+  /// "Not approved" (không lộ chữ "Spam"); trạng thái lạ → viết hoa chữ đầu.
+  static String status(MyRequestEntity request) => switch (request.status) {
+    _ when request.isInReview => LocaleKeys.myRequestsStatusPending.tr(),
+    _ when request.isRejected => LocaleKeys.myRequestsStatusRejected.tr(),
+    'active' => LocaleKeys.myRequestsStatusOpen.tr(),
+    'closed' => LocaleKeys.myRequestsStatusClosed.tr(),
+    'expired' => LocaleKeys.myRequestsStatusExpired.tr(),
+    '' => LocaleKeys.myRequestsStatusPending.tr(),
+    final other => other[0].toUpperCase() + other.substring(1),
+  };
+
   /// "12 Oct" (thêm năm nếu khác năm nay).
   static String shortDate(DateTime date, String locale, {DateTime? now}) {
     final sameYear = date.year == (now ?? DateTime.now()).year;
@@ -43,6 +56,7 @@ class MyRequestFormatters {
     RequestDeliveryType.remote => LocaleKeys.requestDeliveryOnline.tr(),
     RequestDeliveryType.atHome => LocaleKeys.myRequestsChipAtHome.tr(),
     RequestDeliveryType.atClinic => LocaleKeys.myRequestsChipAtClinic.tr(),
+    RequestDeliveryType.atOffice => LocaleKeys.postRequestDeliveryAtOffice.tr(),
   };
 
   /// "Today" / "Tomorrow" / "This weekend" / "Sat 24 – Sun 25 Oct"; null nếu không có ngày.
@@ -122,6 +136,13 @@ class MyRequestFormatters {
     final range = details.schedule[WeekDay.fromDate(date)]?.firstOrNull;
     return range == null ? day : '$day · ${range.from}–${range.to}';
   }
+
+  /// Tên provider của offer (shop / organization); trống → "Unknown Provider" (web
+  /// `offerDetail.unknown_seller`).
+  static String sellerName(RequestOfferEntity offer) =>
+      offer.sellerName.trim().isEmpty
+      ? LocaleKeys.offersUnknownSeller.tr()
+      : offer.sellerName;
 
   /// "Mai Pham" → "MP".
   static String initials(String name) => InitialsAvatar.initials(name);

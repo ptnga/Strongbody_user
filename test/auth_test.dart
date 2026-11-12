@@ -102,6 +102,14 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<({bool? valid, String? error})> verifyEmailDomain(String email) async {
+    calls.add('domain:$email');
+    return email.endsWith('@nomx.test')
+        ? (valid: false, error: 'This email domain does not exist.')
+        : (valid: true, error: null);
+  }
+
+  @override
   Future<Either<Failure, AuthSession>> loginWithGoogle() async =>
       Left(AuthFailure('', reason: AuthFailureReason.notConfigured));
 
@@ -119,6 +127,7 @@ AuthBloc _bloc(AuthRepository repo) => AuthBloc(
   requestPasswordReset: RequestPasswordResetUseCase(repo),
   verifyPasswordReset: VerifyPasswordResetUseCase(repo),
   resetPassword: ResetPasswordUseCase(repo),
+  verifyEmailDomain: VerifyEmailDomainUseCase(repo),
 );
 
 Future<AuthState> _until(AuthBloc bloc, bool Function(AuthState) test) =>
@@ -194,7 +203,7 @@ void main() {
     await bloc.close();
   });
 
-  test('sign up with taken email → "you can sign in now"', () async {
+  test('sign up with taken email → straight to sign in (web toast)', () async {
     final bloc = _bloc(_FakeAuthRepository())
       ..add(
         const AuthSignUpSubmitted(
@@ -202,14 +211,11 @@ void main() {
           password: 'secret123',
         ),
       );
-    final state = await _until(bloc, (s) => s.emailExists);
-    expect(state.status, AuthStatus.idle);
-    bloc.add(
-      const AuthScreenChanged(AuthScreen.login, email: 'taken@mail.com'),
-    );
     final login = await _until(bloc, (s) => s.screen == AuthScreen.login);
+    expect(login.status, AuthStatus.idle);
     expect(login.email, 'taken@mail.com');
-    expect(login.emailExists, isFalse);
+    expect(login.notice?.info, isTrue);
+    expect(login.notice?.message.key, LocaleKeys.authEmailExistsSignIn);
     await bloc.close();
   });
 

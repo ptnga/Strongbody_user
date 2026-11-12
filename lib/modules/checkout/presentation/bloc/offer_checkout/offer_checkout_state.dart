@@ -1,8 +1,12 @@
 part of 'offer_checkout_bloc.dart';
 
-enum OfferCheckoutStatus { loading, ready, paying, paid, pending }
+/// [unavailable] = offer đã trả / đã huỷ (web chặn checkout, xem [OfferCheckoutBlocked]).
+enum OfferCheckoutStatus { loading, ready, paying, paid, pending, unavailable }
 
 enum OfferCheckoutNotice { payFailed, addCardFailed }
+
+/// Lý do chặn checkout (web `offer_already_paid` / `offer_cancelled`).
+enum OfferCheckoutBlocked { alreadyPaid, cancelled }
 
 class OfferCheckoutState extends Equatable {
   final OfferCheckoutStatus status;
@@ -17,6 +21,10 @@ class OfferCheckoutState extends Equatable {
   final OfferCheckoutNotice? notice;
   final int noticeId;
 
+  /// Offer đọc lại lúc mở (điểm / voucher đã áp mới nhất); null = dùng offer truyền vào.
+  final CheckoutOfferSnapshot? snapshot;
+  final OfferCheckoutBlocked? blocked;
+
   const OfferCheckoutState({
     this.status = OfferCheckoutStatus.loading,
     this.cards = const [],
@@ -27,6 +35,8 @@ class OfferCheckoutState extends Equatable {
     this.usePoints = false,
     this.notice,
     this.noticeId = 0,
+    this.snapshot,
+    this.blocked,
   });
 
   OfferCheckoutState copyWith({
@@ -38,6 +48,8 @@ class OfferCheckoutState extends Equatable {
     double? pointValue,
     bool? usePoints,
     OfferCheckoutNotice? notice,
+    CheckoutOfferSnapshot? snapshot,
+    OfferCheckoutBlocked? blocked,
   }) {
     return OfferCheckoutState(
       status: status ?? this.status,
@@ -49,6 +61,8 @@ class OfferCheckoutState extends Equatable {
       usePoints: usePoints ?? this.usePoints,
       notice: notice ?? this.notice,
       noticeId: notice != null ? noticeId + 1 : noticeId,
+      snapshot: snapshot ?? this.snapshot,
+      blocked: blocked ?? this.blocked,
     );
   }
 
@@ -63,6 +77,8 @@ class OfferCheckoutState extends Equatable {
     usePoints,
     notice,
     noticeId,
+    snapshot,
+    blocked,
   ];
 }
 
@@ -100,24 +116,28 @@ class OfferCheckoutQuote extends Equatable {
     RequestOfferEntity offer,
     OfferCheckoutState s,
   ) {
+    // Offer đọc lại lúc mở checkout (web `getOfferById`) thắng offer truyền vào.
+    final fresh = s.snapshot;
+    final netPrice = fresh?.price ?? offer.price ?? 0;
+    final pointsUsed = fresh?.pointsUsed ?? offer.pointsUsed;
+    final pointsValue = fresh?.pointsValue ?? offer.pointsValue;
+    final voucherValue = fresh?.voucherValue ?? offer.voucherValue;
     // BE (`retry-payment`) lưu `price` = giá gốc + phí − (điểm + voucher) đã áp → giá gốc
     // = price + phần đã giảm; tổng phải trả khi đã áp = đúng `price` BE sẽ thu.
-    final price = (offer.price ?? 0) + offer.pointsValue + offer.voucherValue;
-    final canChoose = offer.pointsUsed == 0 && offer.pointsValue == 0;
+    final price = netPrice + pointsValue + voucherValue;
+    final canChoose = pointsUsed == 0 && pointsValue == 0;
     final usable = usablePoints(
       wallet: s.walletPoints,
       valueOfPoint: s.pointValue,
       price: price,
     );
-    final points = canChoose ? (s.usePoints ? usable : 0) : offer.pointsUsed;
+    final points = canChoose ? (s.usePoints ? usable : 0) : pointsUsed;
     return OfferCheckoutQuote(
       price: price,
       canChoosePoints: canChoose && usable > 0,
       points: points,
-      pointsDiscount: canChoose
-          ? points * (s.pointValue ?? 0)
-          : offer.pointsValue,
-      voucherDiscount: offer.voucherValue,
+      pointsDiscount: canChoose ? points * (s.pointValue ?? 0) : pointsValue,
+      voucherDiscount: voucherValue,
     );
   }
 

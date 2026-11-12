@@ -4,6 +4,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:strongbody_buyer/core/base/failure.dart';
 import 'package:strongbody_buyer/core/usecases/usecase.dart';
 
+import '../entities/posted_request_entity.dart';
 import '../entities/request_draft_entity.dart';
 import '../entities/request_form_values.dart';
 import '../repositories/post_request_repository.dart';
@@ -32,18 +33,19 @@ class CreateBuyerRequestParams extends Equatable {
 }
 
 class CreateBuyerRequestUseCase
-    implements UseCase<String?, CreateBuyerRequestParams> {
+    implements UseCase<CreatedRequest, CreateBuyerRequestParams> {
   final PostRequestRepository _repository;
 
   CreateBuyerRequestUseCase(this._repository);
 
   @override
-  Future<Either<Failure, String?>> call(CreateBuyerRequestParams params) =>
-      _repository.createBuyerRequest(
-        userId: params.userId,
-        values: params.values,
-        assistant: params.assistant,
-        sellerUserIds: params.sellerUserIds,
-        onSellerPosted: params.onSellerPosted,
-      );
+  Future<Either<Failure, CreatedRequest>> call(
+    CreateBuyerRequestParams params,
+  ) => _repository.createBuyerRequest(
+    userId: params.userId,
+    values: params.values,
+    assistant: params.assistant,
+    sellerUserIds: params.sellerUserIds,
+    onSellerPosted: params.onSellerPosted,
+  );
 }

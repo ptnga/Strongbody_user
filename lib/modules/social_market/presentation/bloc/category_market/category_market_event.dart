@@ -8,12 +8,15 @@ sealed class CategoryMarketEvent extends Equatable {
 }
 
 class CategoryMarketStarted extends CategoryMarketEvent {
-  final MarketCategory category;
+  final MarketPageScope scope;
 
-  const CategoryMarketStarted(this.category);
+  /// Ngôn ngữ giao diện ("en" / "vi") — section "Care that speaks your language".
+  final String language;
+
+  const CategoryMarketStarted(this.scope, {required this.language});
 
   @override
-  List<Object?> get props => [category];
+  List<Object?> get props => [scope.route, language];
 }
 
 /// Kéo để làm mới.
