@@ -317,6 +317,7 @@ void main() {
       final signUp = api.calls[0];
       expect(signUp.path, '/public/auth/sign-up');
       expect((signUp.data as Map).containsKey('platform'), isTrue);
+      expect((signUp.data as Map)['type'], 'app_strongbody_buyer');
       expect(api.calls[1].headers?['x-api-key'], 'test-key');
       expect(api.calls[2].path, '/public/offer/claim');
       expect(api.calls[2].headers?['x-api-key'], 'test-key');

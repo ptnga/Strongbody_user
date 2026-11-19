@@ -73,6 +73,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   static String get _platform => Platform.isIOS ? 'ios' : 'android';
 
+  /// App gửi đăng ký (BE phân biệt nguồn tạo tài khoản).
+  static const signUpType = 'app_strongbody_buyer';
+
   Map<String, dynamic> get _apiKey => {'x-api-key': AppConfig.publicApiKey};
 
   /// Gọi API auth, chuẩn hoá lỗi về [AuthApiException]; trả `data` (Map) nếu code == 0.
@@ -119,7 +122,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> signUp(Map<String, dynamic> body) => _call(
     path: AuthApiConfig.signUp,
     method: ApiType.post,
-    data: {...body, 'platform': _platform},
+    data: {...body, 'platform': _platform, 'type': signUpType},
   );
 
   @override
