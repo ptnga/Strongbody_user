@@ -19,6 +19,7 @@ import 'package:strongbody_buyer/modules/account/domain/usecases/account_use_cas
 import 'package:strongbody_buyer/modules/post_request/domain/usecases/get_my_requests_use_case.dart';
 
 import '../presentation/bloc/board/board_cubit.dart';
+import '../presentation/bloc/board_stats/board_stats_cubit.dart';
 import '../presentation/bloc/home/home_bloc.dart';
 import '../presentation/bloc/home_menu/home_menu_cubit.dart';
 import '../presentation/new_offers_badge_notifier.dart';
@@ -49,6 +50,8 @@ void registerHomeModule(GetIt getIt) {
     ..registerFactory(
       () => GetBoardCountriesUseCase(getIt<HomeBoardRepository>()),
     )
+    ..registerFactory(() => GetBoardStatsUseCase(getIt<HomeBoardRepository>()))
+    ..registerFactory(() => BoardStatsCubit(getIt<GetBoardStatsUseCase>()))
     ..registerFactory<BoardCubit<BoardRequest>>(
       () => BoardCubit<BoardRequest>(
         kind: BoardKind.requests,

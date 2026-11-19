@@ -10,7 +10,7 @@ sealed class CategoryMarketEvent extends Equatable {
 class CategoryMarketStarted extends CategoryMarketEvent {
   final MarketPageScope scope;
 
-  /// Ngôn ngữ giao diện ("en" / "vi") — section "Care that speaks your language".
+  /// Ngôn ngữ giao diện ("en" / "vi") — tên category doanh nghiệp của các section.
   final String language;
 
   const CategoryMarketStarted(this.scope, {required this.language});

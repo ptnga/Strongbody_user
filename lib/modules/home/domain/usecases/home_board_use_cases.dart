@@ -38,3 +38,13 @@ class GetBoardCountriesUseCase
   Future<Either<Failure, List<BoardCountry>>> call(BoardKind kind) =>
       _repository.getCountries(kind);
 }
+
+class GetBoardStatsUseCase implements UseCase<BoardStats, NoParams> {
+  final HomeBoardRepository _repository;
+
+  GetBoardStatsUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, BoardStats>> call(NoParams params) =>
+      _repository.getStats();
+}

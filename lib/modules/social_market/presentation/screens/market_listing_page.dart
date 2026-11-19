@@ -12,36 +12,69 @@ import 'package:strongbody_buyer/core/utils/toast_util.dart';
 import '../../domain/entities/market_category.dart';
 import '../../domain/entities/market_listing_entities.dart';
 import '../bloc/engagement/engagement_cubit.dart';
+import '../bloc/market_listing/listing_facets_cubit.dart';
 import '../bloc/market_listing/market_listing_bloc.dart';
 import '../market_formatters.dart';
 import '../market_navigation.dart';
+import '../widgets/listing_facets.dart';
 import '../widgets/market_expert_card.dart';
 import '../widgets/market_service_card.dart';
 import '../widgets/market_ui.dart';
 
-/// "View all services" → service của category, mới nhất trước (web `/services/{category}`,
-/// cùng lưới + card với trang category).
+/// "View all" → service của nhãn, mới nhất trước (web `/services/{route}`, cùng lưới +
+/// card với trang nhãn). Đã chọn category doanh nghiệp ([category], web `?category=`):
+/// tiêu đề theo category đó + thanh tab classification; chưa chọn: hàng chip category.
 class MarketServicesListingPage extends StatelessWidget {
   final MarketPageScope scope;
 
-  const MarketServicesListingPage({super.key, required this.scope});
+  /// Category doanh nghiệp đã chọn (thuộc nhãn) hoặc null.
+  final String? category;
+
+  const MarketServicesListingPage({
+    super.key,
+    required this.scope,
+    this.category,
+  });
 
   @override
-  Widget build(BuildContext context) => _MarketListingView<MarketServiceEntity>(
-    title: LocaleKeys.marketListingServicesTitle.tr(
-      namedArgs: {'category': MarketFormatters.scopeLabel(scope)},
-    ),
-    description: LocaleKeys.marketListingServicesDesc.tr(),
-    idOf: (s) => s.id,
-    itemBuilder: (context, s) => MarketServiceGridCard(
-      service: s,
-      onTap: () => MarketNavigation.openServiceCard(context, s),
-    ),
+  Widget build(
+    BuildContext context,
+  ) => BlocBuilder<ListingFacetsCubit, ListingFacetsState>(
+    buildWhen: (a, b) => a.selected != b.selected,
+    builder: (context, facets) {
+      final selected = facets.selected;
+      // Tiêu đề theo category đã chọn (web 30a087ed3), chưa có tên thì theo nhãn.
+      final label = category != null && selected != null
+          ? MarketFormatters.needCategoryName(
+              context,
+              selected.slug,
+              selected.name,
+            )
+          : MarketFormatters.scopeLabel(scope);
+      return _MarketListingView<MarketServiceEntity>(
+        title: LocaleKeys.marketListingServicesTitle.tr(
+          namedArgs: {'category': label},
+        ),
+        description: LocaleKeys.marketListingServicesDesc.tr(),
+        idOf: (s) => s.id,
+        filters: (context, state) => ListingFacetsBar(
+          scope: scope,
+          activeClassification: state.filter,
+          onClassification: (slug) => context
+              .read<MarketListingBloc<MarketServiceEntity>>()
+              .add(MarketListingFilterChanged(slug)),
+        ),
+        itemBuilder: (context, s) => MarketServiceGridCard(
+          service: s,
+          onTap: () => MarketNavigation.openServiceCard(context, s),
+        ),
+      );
+    },
   );
 }
 
-/// "View all experts" → provider của category, xếp score_rank (web `/providers/{category}`,
-/// card chân dung `spotlight`).
+/// "View all experts" → provider của nhãn (doanh nghiệp theo category HOẶC expert theo
+/// profession, xếp `score` — web `/providers/{route}`, card chân dung `spotlight`).
 class MarketProvidersListingPage extends StatelessWidget {
   final MarketPageScope scope;
 
@@ -64,12 +97,17 @@ class _MarketListingView<T> extends StatefulWidget {
   final int? Function(T item) idOf;
   final Widget Function(BuildContext context, T item) itemBuilder;
 
+  /// Hàng lọc dưới tiêu đề (listing service của trang nhãn).
+  final Widget Function(BuildContext context, MarketListingState<T> state)?
+  filters;
+
   const _MarketListingView({
     super.key,
     required this.title,
     required this.description,
     required this.idOf,
     required this.itemBuilder,
+    this.filters,
   });
 
   @override
@@ -148,6 +186,10 @@ class _MarketListingViewState<T> extends State<_MarketListingView<T>> {
                 ),
                 Gap(8.h),
                 Text(widget.description, style: metaStyle),
+                if (widget.filters != null) ...[
+                  Gap(16.h),
+                  widget.filters!(context, state),
+                ],
                 Gap(24.h),
               ],
             );

@@ -5,6 +5,8 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:strongbody_buyer/app/routers/routers_name.dart';
+import 'package:strongbody_buyer/core/components/app_icon.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 import 'package:strongbody_buyer/core/themes/theme.dart';
@@ -21,7 +23,29 @@ class ChatCardView extends StatefulWidget {
   /// Tin do chính mình gửi — nút "Go to my requests" chỉ dành cho người nhận.
   final bool mine;
 
-  const ChatCardView({super.key, required this.card, required this.mine});
+  /// Người đang xem (so với `buyerId` của thẻ request).
+  final int? myUserId;
+
+  const ChatCardView({
+    super.key,
+    required this.card,
+    required this.mine,
+    this.myUserId,
+  });
+
+  /// Web `MessageBox` → `MessageRequest`: chỉ NGƯỜI NHẬN là chủ request có nút sang
+  /// My requests. Tin cũ không có `buyerId`: thẻ chỉ gửi theo chiều provider → người
+  /// đăng, nên người nhận là chủ. Provider nhận request của người khác (web: link
+  /// expert dashboard) không có nút trong app người mua.
+  static bool showsMyRequestsAction(
+    ChatCardEntity card, {
+    required bool mine,
+    int? myUserId,
+  }) {
+    if (card.kind != ChatCardKind.request || mine) return false;
+    final buyerId = card.buyerId;
+    return buyerId == null || buyerId == myUserId;
+  }
 
   /// "$100–200" / "100 VND"; tin cũ chỉ có chuỗi `budget`.
   static String? budget(ChatCardEntity c) {
@@ -131,15 +155,20 @@ class _ChatCardViewState extends State<ChatCardView> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (c.image case final image?) ...[
+              // Web `MessageService`: service không có ảnh / ảnh lỗi → ảnh dự phòng chung.
+              if (c.image != null || c.kind == ChatCardKind.service) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8.r),
-                  child: Image.network(
-                    image,
-                    width: 56.r,
-                    height: 56.r,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => SizedBox(width: 56.r),
+                  child: SizedBox.square(
+                    dimension: 56.r,
+                    child: switch (c.image) {
+                      final image? => Image.network(
+                        image,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const _FallbackImage(),
+                      ),
+                      null => const _FallbackImage(),
+                    },
                   ),
                 ),
                 Gap(10.w),
@@ -258,7 +287,11 @@ class _ChatCardViewState extends State<ChatCardView> {
               ),
             ),
           ],
-          if (c.kind == ChatCardKind.request && !widget.mine) ...[
+          if (ChatCardView.showsMyRequestsAction(
+            c,
+            mine: widget.mine,
+            myUserId: widget.myUserId,
+          )) ...[
             Gap(10.h),
             SizedBox(
               width: double.infinity,
@@ -284,4 +317,20 @@ class _ChatCardViewState extends State<ChatCardView> {
       ),
     );
   }
+}
+
+/// Ảnh dự phòng chung (web `FALLBACK_IMAGE`), phủ kín ô ảnh.
+class _FallbackImage extends StatelessWidget {
+  const _FallbackImage();
+
+  @override
+  Widget build(BuildContext context) => const FittedBox(
+    fit: BoxFit.cover,
+    clipBehavior: Clip.hardEdge,
+    child: SizedBox(
+      width: 80,
+      height: 60,
+      child: AppIcon(AppSvg.fallbackImage, tint: false),
+    ),
+  );
 }

@@ -1,18 +1,17 @@
-/// Trang con của Social Market — web `SOCIAL_MARKET_NAV` (`_category/config.ts`),
-/// đúng thứ tự trên sidebar. 3 trang đầu là bản sao trang marketplace lọc theo
-/// category (`CategoryMarketplacePage`); Medical Travel là landing riêng.
+import 'market_need.dart';
+
+/// Trang con "Browse by need" — web `SOCIAL_MARKET_NAV` (`_category/config.ts`), đúng
+/// thứ tự trên sidebar: Longevity · Mental Health · Personal Helper (Health Pro Advisory
+/// đã bị thay bằng Mental Health); Medical Travel là [MarketPageScope.medicalTravel].
 enum MarketCategory {
   longevity(route: 'longevity', slug: 'longevity-1'),
-  healthProAdvisory(
-    route: 'health-pro-advisory',
-    slug: 'health-pro-advisory-1',
-  ),
+  mental(route: 'mental', slug: 'mental-wellness'),
   personalHelper(route: 'personal-helper', slug: 'personal-helper-1');
 
   /// Segment URL trên web (`/longevity`) — dùng làm tham số route của app.
   final String route;
 
-  /// Slug category `provider_2026` mà API lọc service / seller theo.
+  /// Slug category `provider_2026` cũ của trang.
   final String slug;
 
   const MarketCategory({required this.route, required this.slug});
@@ -25,9 +24,9 @@ enum MarketCategory {
   }
 }
 
-/// Trang category của web (`CategoryPageConfig` → `CategoryPage`): 3 marketplace +
-/// Medical Travel dùng CHUNG một bố cục (hero → [destinations] → spotlight → services →
-/// services theo ngôn ngữ → experts) và listing "View all".
+/// Trang của một nhãn "Browse by need" (web `CategoryPage` với `needByRoute`): 3 nhãn +
+/// Medical Travel dùng CHUNG một bố cục (hero → [destinations] → mỗi category doanh nghiệp
+/// một section service → experts) và listing "View all".
 class MarketPageScope {
   /// null = Medical Travel.
   final MarketCategory? category;
@@ -35,7 +34,7 @@ class MarketPageScope {
   /// Segment URL (`longevity`, `medical-travel`).
   final String route;
 
-  /// Slug category `provider_2026`.
+  /// Slug category `provider_2026` cũ.
   final String slug;
 
   const MarketPageScope._(this.category, this.route, this.slug);
@@ -51,16 +50,28 @@ class MarketPageScope {
 
   bool get isMedicalTravel => category == null;
 
-  /// Phạm vi service (web `servicesScopeFor`): Medical Travel lọc theo cờ
-  /// `is_medical_travel` (không còn là category của service), còn lại theo slug.
-  Map<String, dynamic> get servicesScope => isMedicalTravel
-      ? const {'is_medical_travel': true}
-      : {'category_slug': slug};
+  /// Mapping category doanh nghiệp / profession của nhãn (mọi trang của app đều là nhãn).
+  MarketNeed? get need => MarketNeed.byRoute(route);
 
-  /// Phạm vi provider (web `providersQueryFor`): Medical Travel gửi cả slug cũ lẫn cờ.
-  Map<String, dynamic> get providersScope => isMedicalTravel
-      ? {'category_slug': slug, 'is_medical_travel': true}
-      : {'category_slug': slug};
+  /// Phạm vi service (web `servicesScopeFor`): trang nhãn = service thuộc các category
+  /// doanh nghiệp của nhãn ([sub] = chip đang chọn); dự phòng như cũ theo cờ / slug.
+  Map<String, dynamic> servicesScopeFor([String? sub]) {
+    final n = need;
+    if (n != null) return {'provider_category_slugs': n.servicesScope(sub)};
+    return isMedicalTravel
+        ? const {'is_medical_travel': true}
+        : {'category_slug': slug};
+  }
+
+  Map<String, dynamic> get servicesScope => servicesScopeFor();
+
+  /// Phạm vi provider (web `providersQueryFor`): trang nhãn = doanh nghiệp theo category
+  /// HOẶC expert theo profession.
+  Map<String, dynamic> get providersScope =>
+      need?.providersScope ??
+      (isMedicalTravel
+          ? {'category_slug': slug, 'is_medical_travel': true}
+          : {'category_slug': slug});
 
   @override
   bool operator ==(Object other) =>

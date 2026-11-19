@@ -10,8 +10,12 @@ class MarketListingState<T> extends Equatable {
   final bool loadingMore;
   final bool loadMoreError;
 
+  /// Bộ lọc phụ đang áp (slug tab classification; null = "All").
+  final String? filter;
+
   const MarketListingState({
     this.status = ListingStatus.initial,
+    this.filter,
     this.items = const [],
     this.page = 0,
     this.hasMore = false,
@@ -30,6 +34,7 @@ class MarketListingState<T> extends Equatable {
     bool? loadMoreError,
   }) => MarketListingState<T>(
     status: status,
+    filter: filter,
     items: items ?? this.items,
     page: page ?? this.page,
     hasMore: hasMore ?? this.hasMore,
@@ -45,5 +50,6 @@ class MarketListingState<T> extends Equatable {
     hasMore,
     loadingMore,
     loadMoreError,
+    filter,
   ];
 }

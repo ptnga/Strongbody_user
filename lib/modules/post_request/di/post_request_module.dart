@@ -15,12 +15,14 @@ import '../domain/repositories/post_request_repository.dart';
 import '../domain/usecases/create_buyer_request_use_case.dart';
 import '../domain/usecases/draft_request_use_case.dart';
 import '../domain/usecases/get_currencies_use_case.dart';
+import '../domain/usecases/get_matched_providers_use_case.dart';
 import '../domain/usecases/get_my_requests_use_case.dart';
 import '../domain/usecases/get_provider_extras_use_case.dart';
 import '../domain/usecases/get_request_offers_use_case.dart';
 import '../domain/usecases/get_sent_request_use_case.dart';
 import '../domain/usecases/search_providers_use_case.dart';
 import '../domain/usecases/transcribe_audio_use_case.dart';
+import '../presentation/bloc/matched_providers/matched_providers_cubit.dart';
 import '../presentation/bloc/matching_providers/matching_providers_bloc.dart';
 import '../presentation/bloc/my_requests/my_requests_bloc.dart';
 import '../presentation/bloc/post_request_flow/post_request_flow_bloc.dart';
@@ -36,6 +38,12 @@ void registerPostRequestModule(GetIt getIt) {
     )
     ..registerLazySingleton<PostRequestRepository>(
       () => PostRequestRepositoryImpl(getIt<PostRequestRemoteDataSource>()),
+    )
+    ..registerFactory(
+      () => GetMatchedProvidersUseCase(getIt<PostRequestRepository>()),
+    )
+    ..registerFactory(
+      () => MatchedProvidersCubit(getIt<GetMatchedProvidersUseCase>()),
     )
     ..registerFactory(
       () => TranscribeAudioUseCase(getIt<PostRequestRepository>()),

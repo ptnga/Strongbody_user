@@ -6,6 +6,7 @@ import 'package:strongbody_buyer/core/utils/plural_tr.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 
 import '../domain/entities/market_category.dart';
+import '../domain/entities/market_need.dart';
 import '../domain/entities/market_feed_entities.dart';
 import '../domain/entities/market_listing_entities.dart';
 
@@ -15,15 +16,14 @@ class MarketFormatters {
 
   static String categoryLabel(MarketCategory c) => switch (c) {
     MarketCategory.longevity => LocaleKeys.marketLongevity.tr(),
-    MarketCategory.healthProAdvisory => LocaleKeys.marketHealthProAdvisory.tr(),
+    MarketCategory.mental => LocaleKeys.marketMental.tr(),
     MarketCategory.personalHelper => LocaleKeys.marketPersonalHelper.tr(),
   };
 
   /// Tên marketplace trên header (web `categoryMarketplace.<key>.brand`).
   static String brand(MarketCategory c) => switch (c) {
     MarketCategory.longevity => LocaleKeys.marketBrandLongevity.tr(),
-    MarketCategory.healthProAdvisory =>
-      LocaleKeys.marketBrandHealthProAdvisory.tr(),
+    MarketCategory.mental => LocaleKeys.marketBrandMental.tr(),
     MarketCategory.personalHelper => LocaleKeys.marketBrandPersonalHelper.tr(),
   };
 
@@ -39,6 +39,13 @@ class MarketFormatters {
     null => LocaleKeys.marketBrandMedicalTravel.tr(),
   };
 
+  /// Tên category doanh nghiệp theo ngôn ngữ app (web `needCategoryName`).
+  static String needCategoryName(
+    BuildContext context,
+    String slug,
+    String name,
+  ) => MarketNeed.categoryName(slug, name, context.locale.languageCode);
+
   /// Hero 2 dòng của trang category (web `homeMarketplace.categoryPage.hero.<key>`).
   static ({String title, String subtitle}) categoryHero(
     MarketPageScope scope,
@@ -47,9 +54,9 @@ class MarketFormatters {
       title: LocaleKeys.marketCategoryHeroLongevityTitle.tr(),
       subtitle: LocaleKeys.marketCategoryHeroLongevitySubtitle.tr(),
     ),
-    MarketCategory.healthProAdvisory => (
-      title: LocaleKeys.marketCategoryHeroHealthProAdvisoryTitle.tr(),
-      subtitle: LocaleKeys.marketCategoryHeroHealthProAdvisorySubtitle.tr(),
+    MarketCategory.mental => (
+      title: LocaleKeys.marketCategoryHeroMentalTitle.tr(),
+      subtitle: LocaleKeys.marketCategoryHeroMentalSubtitle.tr(),
     ),
     MarketCategory.personalHelper => (
       title: LocaleKeys.marketCategoryHeroPersonalHelperTitle.tr(),

@@ -34,6 +34,7 @@ class HomeBoardRepositoryImpl implements HomeBoardRepository {
               // Rỗng thật (web gửi `status=&type=`) để BE không lọc lại theo trạng thái.
               'status': '',
               'type': '',
+              'feed': HomeBoardApiConfig.requestFeed,
               'offers_limit': 1,
               'ids': hits.ids.join(','),
             });
@@ -45,6 +46,8 @@ class HomeBoardRepositoryImpl implements HomeBoardRepository {
       'status': 'active',
       'type': 'ldp',
       'statuses': 'active,closed',
+      // Bảng trang chủ chỉ hiện request của tài khoản seed (web `BOARD_REQUEST_FEED`).
+      'feed': HomeBoardApiConfig.requestFeed,
       'offers_limit': 1,
       'country_id': ?query.filters.country?.id,
       'category_id': ?query.topicId,
@@ -98,6 +101,12 @@ class HomeBoardRepositoryImpl implements HomeBoardRepository {
             .toList();
       }, 'Cannot load countries');
 
+  @override
+  Future<Either<Failure, BoardStats>> getStats() => _guard(
+    () async => HomeBoardMapper.stats(await _remote.getRequestBoardStats()),
+    'Cannot load board stats',
+  );
+
   /// Thẻ đúng thứ tự của search (id feed không trả thì bỏ).
   BoardPage<T> _searchPage<T>(
     BoardSearchHits hits,
@@ -130,7 +139,10 @@ class HomeBoardRepositoryImpl implements HomeBoardRepository {
       'page': query.page,
       'size': _size,
       'with_facets': query.page == 1,
-      if (kind == BoardKind.requests) 'include_closed': true,
+      if (kind == BoardKind.requests) ...{
+        'include_closed': true,
+        'feed': HomeBoardApiConfig.requestFeed,
+      },
       'filters': {
         'created_within_days': ?f.postedDays,
         if (f.delivery != null) 'delivery_types': [f.delivery],

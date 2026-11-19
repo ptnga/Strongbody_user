@@ -45,6 +45,8 @@ class _Repo implements SocialMarketRepository {
     String? orderBy,
     String? orderDir,
     String? language,
+    String? subCategory,
+    String? classification,
   }) async {
     final q = SocialMarketRepositoryImpl.servicesQuery(
       categorySlug: categorySlug,
@@ -68,6 +70,26 @@ class _Repo implements SocialMarketRepository {
     );
   }
 
+  final sectionCalls = <List<String>>[];
+
+  @override
+  Future<Either<Failure, List<MarketCategorySection>>> getServicesByCategory({
+    required List<String> categories,
+    required int per,
+  }) async {
+    sectionCalls.add(categories);
+    return Right([
+      MarketCategorySection(
+        category: const MarketBusinessCategory(
+          slug: 'dental-clinic',
+          name: 'Dental Clinic',
+        ),
+        total: 3,
+        items: [_s(1), _s(2), _s(3)],
+      ),
+    ]);
+  }
+
   @override
   Future<Either<Failure, MarketPage<MarketExpertEntity>>> getExperts({
     required String categorySlug,
@@ -76,7 +98,16 @@ class _Repo implements SocialMarketRepository {
     MarketPageScope? scope,
   }) async {
     expertCalls.add(scope);
-    return const Right(MarketPage(items: [], total: 0, totalPages: 0));
+    return Right(
+      MarketPage(
+        items: [
+          for (var i = 1; i <= 12; i++)
+            MarketMapper.expert({'id': i, 'shop_name': 'E$i'}),
+        ],
+        total: 12,
+        totalPages: 2,
+      ),
+    );
   }
 
   @override
@@ -173,119 +204,91 @@ void main() {
     () {
       final longevity = MarketPageScope.of(MarketCategory.longevity);
 
-      test('Services (fetchCategoryPackages): không page, thứ tự BE', () {
+      final need = longevity.need!;
+
+      test('Trang nhãn: service theo các category doanh nghiệp của nhãn', () {
         expect(
           SocialMarketRepositoryImpl.servicesQuery(
             page: 1,
             limit: 12,
             scope: longevity,
           ),
-          {'limit': 12, 'category_slug': 'longevity-1'},
+          {'limit': 12, 'provider_category_slugs': need.services.join(',')},
         );
       });
 
-      test('Spotlight: page 1 + order_by quality_score DESC', () {
-        expect(
-          SocialMarketRepositoryImpl.servicesQuery(
-            page: 1,
-            limit: 10,
-            scope: longevity,
-            orderBy: 'quality_score',
-            orderDir: 'DESC',
-          ),
-          {
-            'page': 1,
-            'limit': 10,
-            'order_by': 'quality_score',
-            'order_dir': 'DESC',
-            'category_slug': 'longevity-1',
-          },
-        );
-      });
-
-      test('Listing theo ngôn ngữ: mới nhất trước + language', () {
+      test('Listing đã chọn category + tab classification (web data.ts)', () {
         expect(
           SocialMarketRepositoryImpl.servicesQuery(
             page: 2,
             limit: 10,
             newestFirst: true,
             scope: longevity,
-            language: 'vi',
+            subCategory: 'yoga-studio-center',
+            classification: 'hatha-yoga',
           ),
           {
             'page': 2,
             'limit': 10,
             'order_by': 'created_at',
             'order_dir': 'DESC',
-            'category_slug': 'longevity-1',
-            'language': 'vi',
+            'provider_category_slugs': 'yoga-studio-center',
+            'service_classification_slug': 'hatha-yoga',
           },
+        );
+        // Category không thuộc nhãn → cả nhãn, bỏ tab classification.
+        final q = SocialMarketRepositoryImpl.servicesQuery(
+          page: 1,
+          limit: 10,
+          newestFirst: true,
+          scope: longevity,
+          subCategory: 'dental-clinic',
+          classification: 'x',
+        );
+        expect(q['provider_category_slugs'], need.services.join(','));
+        expect(q.containsKey('service_classification_slug'), isFalse);
+      });
+
+      test('Experts của nhãn: category HOẶC profession, sort score', () {
+        expect(
+          SocialMarketRepositoryImpl.expertsQuery(
+            page: 1,
+            limit: 9,
+            scope: MarketPageScope.medicalTravel,
+          ),
+          {
+            'page': 1,
+            'limit': 9,
+            'provider_category_slugs': MarketPageScope
+                .medicalTravel
+                .need!
+                .services
+                .join(','),
+            'profession_slugs': 'dentist-2026',
+            'sort': 'score',
+          },
+        );
+        // Longevity gồm cả category Health product trong phạm vi expert.
+        expect(
+          SocialMarketRepositoryImpl.expertsQuery(
+            page: 1,
+            limit: 9,
+            scope: longevity,
+          )['provider_category_slugs'],
+          [...need.services, ...need.products].join(','),
         );
       });
 
-      test(
-        'Medical Travel: service lọc theo cờ, provider gửi cả slug + cờ',
-        () {
-          expect(
-            SocialMarketRepositoryImpl.servicesQuery(
-              page: 1,
-              limit: 12,
-              scope: MarketPageScope.medicalTravel,
-            ),
-            {'limit': 12, 'is_medical_travel': true},
-          );
-          expect(
-            SocialMarketRepositoryImpl.expertsQuery(
-              page: 1,
-              limit: 10,
-              scope: MarketPageScope.medicalTravel,
-            ),
-            {
-              'page': 1,
-              'limit': 10,
-              'category_slug': 'medical-travel-2',
-              'is_medical_travel': true,
-              'sort': 'score_rank',
-            },
-          );
-        },
-      );
-
-      test('route listing kèm ?lang=', () {
+      test('route listing kèm ?category=', () {
         expect(
-          MarketRoutes.scopeServices(longevity, language: 'vi'),
-          '/socialMarket/longevity/services?lang=vi',
+          MarketRoutes.scopeServices(longevity, category: 'dental-clinic'),
+          '/socialMarket/longevity/services?category=dental-clinic',
         );
         expect(
           MarketRoutes.scopeProviders(MarketPageScope.medicalTravel),
           '/socialMarket/medical-travel/providers',
         );
       });
-    },
-  );
-
-  test(
-    'splitServiceSections: bỏ trùng giữa spotlight / services / ngôn ngữ',
-    () {
-      List<MarketServiceEntity> ids(Iterable<int> v) => [
-        for (final id in v) MarketMapper.service({'id': id}),
-      ];
-      final r = CategoryMarketBloc.splitServiceSections(
-        spotlight: ids([1, 2, 3, 4, 5, 6, 7]),
-        latest: ids([1, 8, 2, 9, 10, 11, 12, 13, 14]),
-        language: ids([3, 9, 15, 16]),
-      );
-      expect(r.spotlight!.map((s) => s.id), [1, 2, 3, 4, 5, 6]);
-      expect(r.main!.map((s) => s.id), [8, 9, 10, 11, 12, 13]);
-      expect(r.language!.map((s) => s.id), [15, 16]);
-      // Nguồn lỗi → null (mục đó báo lỗi / ẩn), không kéo theo nguồn khác.
-      final failed = CategoryMarketBloc.splitServiceSections(
-        spotlight: null,
-        latest: ids([1]),
-        language: null,
-      );
-      expect(failed.spotlight, isNull);
-      expect(failed.main!.map((s) => s.id), [1]);
     },
   );
 
@@ -309,7 +312,8 @@ void main() {
         expect(e.subtitle, 'Nutritionist');
         expect(e.name, 'Green Clinic');
         expect(e.organization, 'Green Clinic');
-        expect(e.avatar, 'me.png');
+        // Người đại diện organization → logo của organization (web 6a0496ba6).
+        expect(e.avatar, 'logo.png');
         expect(e.verified, isTrue);
         expect(
           e.verifications,
@@ -320,7 +324,7 @@ void main() {
     );
 
     test(
-      '"undefined" profession → category; coordinator chỉ có cờ danh tính',
+      '"undefined" profession → không lấy category; coordinator chỉ có cờ danh tính',
       () {
         final e = MarketMapper.expert({
           'id': 2,
@@ -330,7 +334,8 @@ void main() {
             {'id': 1, 'name': 'Longevity'},
           ],
         });
-        expect(e.subtitle, 'Longevity');
+        // Web providerLine: category tự gán không mô tả người bán → không có dòng phụ.
+        expect(e.subtitle, isNull);
         expect(e.verifications, isNull);
         final c = MarketMapper.coordinator({'id': 3, 'seller_verified': true});
         expect(c.cardVerifications, const MarketVerifications(identity: true));
@@ -409,14 +414,13 @@ void main() {
   });
 
   test(
-    'CategoryMarketBloc Medical Travel: destinations + coordinator, lọc theo cờ',
+    'CategoryMarketBloc Medical Travel: destinations + section theo category + experts của nhãn',
     () async {
       final repo = _Repo();
       final bloc =
           CategoryMarketBloc(
-            getServices: GetMarketServicesUseCase(repo),
+            getServicesByCategory: GetServicesByCategoryUseCase(repo),
             getExperts: GetMarketExpertsUseCase(repo),
-            getCoordinators: GetCoordinatorsUseCase(repo),
             getDestinations: GetDestinationsUseCase(repo),
           )..add(
             const CategoryMarketStarted(
@@ -430,23 +434,15 @@ void main() {
       final s = bloc.state;
       expect(s.sections.first, MarketSectionKind.destinations);
       expect(s.destinations.single.country, 'Thailand');
-      // Coordinator: phase category trang 1, tối đa 9 card; không gọi /expert/balanced.
-      expect(repo.coordinatorCalls.single.category, isTrue);
-      expect(repo.coordinatorCalls.single.page, 1);
-      expect(s.experts.length, 9);
-      expect(repo.expertCalls, isEmpty);
       expect(
-        repo.serviceQueries.every(
-          (q) =>
-              q['is_medical_travel'] == true && !q.containsKey('category_slug'),
-        ),
-        isTrue,
+        repo.sectionCalls.single,
+        MarketPageScope.medicalTravel.need!.services,
       );
-      expect(repo.serviceQueries.last['language'], 'vi');
-      expect(s.spotlight.map((e) => e.id), [1, 2, 3, 4, 5, 6]);
-      expect(s.services.map((e) => e.id), [7, 8, 9, 10, 11, 12]);
-      // Mọi service ngôn ngữ đều đã có ở 2 mục trên → mục ẩn.
-      expect(s.languageServices, isEmpty);
+      expect(s.categorySections.single.items.map((e) => e.id), [1, 2]);
+      // Experts: /expert/balanced theo nhãn (không còn hàng coordinator), tối đa 9.
+      expect(repo.coordinatorCalls, isEmpty);
+      expect(repo.expertCalls.single, MarketPageScope.medicalTravel);
+      expect(s.experts.length, 9);
       await bloc.close();
     },
   );

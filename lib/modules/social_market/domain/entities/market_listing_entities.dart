@@ -16,26 +16,37 @@ class MarketPage<T> extends Equatable {
   List<Object?> get props => [items, total, totalPages];
 }
 
-/// 3 mục xác minh công khai của provider (web `ProviderVerifications`): danh tính,
-/// số điện thoại (OTP), bằng cấp. Có ít nhất 1 mục → card hiện trạng thái verified.
+/// Mục xác minh công khai của provider (web `ProviderVerifications`): theo đúng những gì
+/// người đó có — danh tính, số điện thoại (OTP), bằng cấp, tổ chức (giấy phép kinh doanh)
+/// và loại khác BE thêm sau ([others], key gốc của BE). Có ít nhất 1 mục → verified.
 class MarketVerifications extends Equatable {
   final bool identity;
   final bool phone;
   final bool diploma;
 
+  /// Tổ chức đã xác minh giấy phép kinh doanh (BE: `organisation`).
+  final bool organization;
+
+  /// Loại khác BE thêm sau (key gốc, vd. `business_license`) — tự tính vào số mục.
+  final List<String> others;
+
   const MarketVerifications({
     this.identity = false,
     this.phone = false,
     this.diploma = false,
+    this.organization = false,
+    this.others = const [],
   });
 
-  bool get any => identity || phone || diploma;
+  bool get any => count > 0;
 
   /// Số mục đã xác minh (chấm số trên huy hiệu `VerificationSummary`).
-  int get count => [identity, phone, diploma].where((v) => v).length;
+  int get count =>
+      [identity, phone, diploma, organization].where((v) => v).length +
+      others.length;
 
   @override
-  List<Object?> get props => [identity, phone, diploma];
+  List<Object?> get props => [identity, phone, diploma, organization, others];
 }
 
 /// Người bán đi kèm service — web `resolveSeller()`: danh tính là TÊN SHOP (hoặc
@@ -196,6 +207,10 @@ class MarketServiceEntity extends Equatable {
   /// `price_max` thô (Giá Đến của service Tư vấn) — gửi kèm card inquiry.
   final num? priceMax;
 
+  /// Tên service classification (seller / admin chọn, chưa chọn thì AI gán — field
+  /// `service_classifications`): badge dưới mô tả của card; rỗng → không hiện.
+  final List<String> classifications;
+
   const MarketServiceEntity({
     required this.id,
     required this.slug,
@@ -219,6 +234,7 @@ class MarketServiceEntity extends Equatable {
     this.rawDescription,
     this.pricingMode,
     this.priceMax,
+    this.classifications = const [],
   });
 
   String? get previewImage => images.isEmpty ? null : images.first;
@@ -248,8 +264,13 @@ class MarketExpertEntity extends Equatable {
   final String? slug;
   final String? avatar;
 
-  /// Nghề / category; null + `medicalTravel` → nhãn "Medical Travel".
+  /// Dòng phụ theo loại provider (web `providerLine`): expert / seller cũ = nghề; null +
+  /// `medicalTravel` → nhãn "Medical Travel".
   final String? subtitle;
+
+  /// Provider Business (clinic / wellness / health_product): category doanh nghiệp — dòng
+  /// phụ là tên category (dịch theo ngôn ngữ app, web `needCategoryName`).
+  final ({String slug, String name})? providerCategory;
   final bool medicalTravel;
   final String? country;
   final String? flag;
@@ -281,6 +302,7 @@ class MarketExpertEntity extends Equatable {
     this.slug,
     this.avatar,
     this.subtitle,
+    this.providerCategory,
     this.medicalTravel = false,
     this.country,
     this.flag,
@@ -306,4 +328,70 @@ class MarketExpertEntity extends Equatable {
 
   @override
   List<Object?> get props => [id, userId, name, slug, ratingValue, ratingCount];
+}
+
+/// Category doanh nghiệp (clinic / wellness / health_product) của trang "Browse by need".
+class MarketBusinessCategory extends Equatable {
+  final int? id;
+  final String slug;
+
+  /// Tên theo API (tiếng Anh) — hiển thị qua `MarketNeed.categoryName`.
+  final String name;
+
+  const MarketBusinessCategory({
+    this.id,
+    required this.slug,
+    required this.name,
+  });
+
+  @override
+  List<Object?> get props => [id, slug, name];
+}
+
+/// Một section của trang nhãn (web `CategorySection`): category + tổng số service công
+/// khai + vài service đầu (`/public/services/by-category`).
+class MarketCategorySection extends Equatable {
+  final MarketBusinessCategory category;
+  final int total;
+  final List<MarketServiceEntity> items;
+
+  const MarketCategorySection({
+    required this.category,
+    required this.total,
+    required this.items,
+  });
+
+  @override
+  List<Object?> get props => [category, total, items];
+}
+
+/// Service classification của 1 category doanh nghiệp kèm số service công khai (web
+/// `ServiceClassificationFacet`) — tab của listing khi đã chọn category.
+class MarketClassificationFacet extends Equatable {
+  final int? id;
+  final String slug;
+  final String name;
+  final int count;
+
+  const MarketClassificationFacet({
+    this.id,
+    required this.slug,
+    required this.name,
+    required this.count,
+  });
+
+  @override
+  List<Object?> get props => [id, slug, name, count];
+}
+
+/// `/public/services/classifications`: [category] null = slug không phải category doanh
+/// nghiệp đang hoạt động.
+class MarketClassifications extends Equatable {
+  final MarketBusinessCategory? category;
+  final List<MarketClassificationFacet> list;
+
+  const MarketClassifications({required this.category, required this.list});
+
+  @override
+  List<Object?> get props => [category, list];
 }

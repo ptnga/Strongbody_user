@@ -38,4 +38,8 @@ class AppSvg {
   static const add = '$_base/add.svg';
   static const shop = '$_base/shop.svg';
   static const apple = '$_base/apple.svg';
+
+  /// Ảnh dự phòng chung khi service không có ảnh / ảnh lỗi (web `FALLBACK_IMAGE`
+  /// `/images/fallback.svg`). Ảnh màu: không tô (`AppIcon(..., tint: false)`).
+  static const fallbackImage = 'assets/svg/fallback.svg';
 }

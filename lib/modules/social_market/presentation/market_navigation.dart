@@ -27,16 +27,16 @@ class MarketRoutes {
   static String services(MarketCategory c) => '${category(c)}/services';
   static String providers(MarketCategory c) => '${category(c)}/providers';
 
-  /// Listing "View all" của trang category (gồm Medical Travel — web
-  /// `/services/{route}`, `/providers/{route}`); [language] = bộ lọc ngôn ngữ seller.
-  static String scopeServices(MarketPageScope s, {String? language}) =>
+  /// Listing "View all" của trang nhãn (gồm Medical Travel — web `/services/{route}`,
+  /// `/providers/{route}`); [category] = category doanh nghiệp đã chọn (web `?category=`).
+  static String scopeServices(MarketPageScope s, {String? category}) =>
       '${RouteName.socialMarket}/${s.route}/services'
-      '${language == null ? '' : '?$listingLanguageParam=$language'}';
+      '${category == null ? '' : '?$listingCategoryParam=${Uri.encodeQueryComponent(category)}'}';
   static String scopeProviders(MarketPageScope s) =>
       '${RouteName.socialMarket}/${s.route}/providers';
 
-  /// Query của listing service: ngôn ngữ làm việc của seller (web `?lang=`).
-  static const String listingLanguageParam = 'lang';
+  /// Query của listing service: category doanh nghiệp đang chọn (web `?category=`).
+  static const String listingCategoryParam = 'category';
 
   /// Medical Travel: landing riêng (web `/medical-travel`).
   static const String medicalTravel =
@@ -213,18 +213,20 @@ class MarketNavigation {
   }
 }
 
-/// Tham số trang `page` của listing (10 bản ghi, web `LISTING_PAGE_SIZE`);
-/// [language] = bộ lọc ngôn ngữ seller ("View all services in …").
+/// Tham số trang `page` của listing (10 bản ghi, web `LISTING_PAGE_SIZE`); trang nhãn:
+/// [subCategory] = chip category, [classification] = tab classification.
 MarketPageParams listingParams(
   MarketPageScope scope,
   int page, {
   bool newestFirst = false,
-  String? language,
+  String? subCategory,
+  String? classification,
 }) => MarketPageParams(
   scope: scope,
   categorySlug: scope.slug,
   page: page,
   limit: 10,
   newestFirst: newestFirst,
-  language: language,
+  subCategory: subCategory,
+  classification: classification,
 );

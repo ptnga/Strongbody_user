@@ -1042,6 +1042,7 @@ class _ServiceFilterSheetState extends State<_ServiceFilterSheet> {
               for (final (key, desc, label) in sorts)
                 RadioListTile<(String, bool)>(
                   contentPadding: EdgeInsets.zero,
+                  activeColor: Colour.buttonPrimary,
                   dense: true,
                   value: (key, desc),
                   title: Text(label),
@@ -1118,6 +1119,7 @@ class _ServiceFilterSheetState extends State<_ServiceFilterSheet> {
         for (final c in MarketCert.values)
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
+            activeColor: Colour.buttonPrimary,
             dense: true,
             controlAffinity: ListTileControlAffinity.leading,
             value: _f.certs.contains(c),
@@ -1164,6 +1166,7 @@ class _SellerFilterSheetState extends State<_SellerFilterSheet> {
         _groupTitle(LocaleKeys.marketDestFiltersTrust.tr()),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
+          activeTrackColor: Colour.buttonPrimary,
           value: _f.verified,
           title: Text(LocaleKeys.marketDestFiltersVerified.tr()),
           subtitle: Text(LocaleKeys.marketDestFiltersVerifiedHint.tr()),
@@ -1171,6 +1174,7 @@ class _SellerFilterSheetState extends State<_SellerFilterSheet> {
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
+          activeTrackColor: Colour.buttonPrimary,
           value: _f.introCall,
           title: Text(LocaleKeys.marketDestFiltersIntroCall.tr()),
           subtitle: Text(LocaleKeys.marketDestFiltersIntroCallHint.tr()),
@@ -1185,6 +1189,7 @@ class _SellerFilterSheetState extends State<_SellerFilterSheet> {
             children: [
               RadioListTile<String>(
                 contentPadding: EdgeInsets.zero,
+                activeColor: Colour.buttonPrimary,
                 dense: true,
                 value: '',
                 title: Text(LocaleKeys.marketDestFiltersAny.tr()),
@@ -1192,6 +1197,7 @@ class _SellerFilterSheetState extends State<_SellerFilterSheet> {
               for (final e in _speakLanguages.entries)
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
+                  activeColor: Colour.buttonPrimary,
                   dense: true,
                   value: e.key,
                   title: Text(e.value),

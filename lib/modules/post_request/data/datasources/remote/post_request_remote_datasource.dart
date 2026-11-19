@@ -57,6 +57,13 @@ abstract class PostRequestRemoteDataSource {
   /// `GET /user/request/{id}` → body JSON.
   Future<dynamic> getRequest(int id);
 
+  /// Body thô của matched-providers (`{code, data: {list, total, page, limit}}`).
+  Future<dynamic> getMatchedProviders(
+    int requestId, {
+    required int page,
+    required int limit,
+  });
+
   /// `GET /admin/currencies` → body JSON (`data.list`).
   Future<dynamic> getCurrencies();
 }
@@ -246,6 +253,17 @@ class PostRequestRemoteDataSourceImpl implements PostRequestRemoteDataSource {
     );
     return _dataMap(body);
   }
+
+  @override
+  Future<dynamic> getMatchedProviders(
+    int requestId, {
+    required int page,
+    required int limit,
+  }) => _apiClient.request(
+    path: PostRequestApiConfig.matchedProviders(requestId),
+    method: ApiType.get,
+    queryParameters: {'page': page, 'limit': limit},
+  );
 
   @override
   Future<Map<String, dynamic>> getRequestOffers(int requestId) async {

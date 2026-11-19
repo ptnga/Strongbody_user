@@ -29,7 +29,7 @@ import '../bloc/home_menu/home_menu_cubit.dart';
 import '../new_offers_badge_notifier.dart';
 
 /// Menu ☰ ở Home (web ngăn kéo menu mobile `AppShell` → `Drawer`):
-/// Request someone's help · Browse by need (4 Social Market) · [khách: User sign up |
+/// Request someone's help · Offers · Browse by need (4 Social Market) · [khách: User sign up |
 /// đã đăng nhập: My requests · Messages] · Browse providers · Recent · Sign in / hồ sơ.
 ///
 /// Như web: khách không thấy Messages / My requests (web chỉ có ở header khi đã đăng nhập
@@ -65,6 +65,7 @@ class HomeMenuDrawer extends StatelessWidget {
               String label,
               VoidCallback onTap, {
               ValueNotifier<int>? badge,
+              Color? badgeColor,
             }) => ListTile(
               leading: AppIcon(
                 icon,
@@ -89,11 +90,11 @@ class HomeMenuDrawer extends StatelessWidget {
                                 vertical: 2.h,
                               ),
                               decoration: BoxDecoration(
-                                color: theme.textPrimary(context),
+                                color: badgeColor ?? theme.textPrimary(context),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
-                                '$count',
+                                count > 99 ? '99+' : '$count',
                                 style: AppTextStyle.lightBodyXSmallBold
                                     .copyWith(color: Colors.white),
                               ),
@@ -146,6 +147,13 @@ class HomeMenuDrawer extends StatelessWidget {
                   child: ListView(
                     padding: EdgeInsets.zero,
                     children: [
+                      // Offers (web `OFFERS_ITEM`, chỉ menu mobile): bảng service của chuyên gia
+                      // ở trang riêng — trang chủ mobile đã bỏ tab Offers.
+                      link(
+                        AppSvg.offer,
+                        LocaleKeys.homeMenuOffers.tr(),
+                        () => _go(context, (r) => r.push(RouteName.offers)),
+                      ),
                       // Social Market (web `SOCIAL_MARKET_ITEM`, nhãn "Browse by need"): mở ra 4
                       // trang con theo `SOCIAL_MARKET_NAV`.
                       Theme(
@@ -213,6 +221,8 @@ class HomeMenuDrawer extends StatelessWidget {
                           LocaleKeys.messagesTitle.tr(),
                           () => _go(context, (r) => r.go(RouteName.messages)),
                           badge: getIt<ChatBadgeNotifier>(),
+                          // Web `MessagesBadge`: số tin chưa đọc màu đỏ.
+                          badgeColor: Colour.error,
                         ),
                       ] else
                         link(

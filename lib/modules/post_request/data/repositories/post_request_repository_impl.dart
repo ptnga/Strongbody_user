@@ -168,6 +168,29 @@ class PostRequestRepositoryImpl implements PostRequestRepository {
   }
 
   @override
+  Future<Either<Failure, MatchedProvidersPage>> getMatchedProviders(
+    int requestId, {
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final body = _ensureSuccess(
+        await _remote.getMatchedProviders(requestId, page: page, limit: limit),
+      );
+      final data = body is Map ? body['data'] : null;
+      // BE trả lỗi nghiệp vụ trong HTTP 200 → thiếu `data.list` coi như lỗi (web).
+      if (data is! Map || data['list'] is! List) {
+        throw ServerFailureException('Failed to load matched providers');
+      }
+      return Right(
+        PostRequestMapper.matchedProviders(Map<String, dynamic>.from(data)),
+      );
+    } catch (e) {
+      return Left(_toFailure(e, 'Cannot load matched providers'));
+    }
+  }
+
+  @override
   Future<Either<Failure, SentRequest>> getSentRequest(int id) async {
     try {
       final request = PostRequestMapper.sentRequest(

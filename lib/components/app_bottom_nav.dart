@@ -244,6 +244,8 @@ class AppBottomNav extends StatelessWidget {
               icon: AppNavIcon.chat,
               label: LocaleKeys.navMessages.tr(),
               badge: unread,
+              // Web `MessagesBadge` (icon): đỏ cố định, viền trắng.
+              badgeColor: Colour.error,
               selected: current == AppTab.messages,
               onTap: () => onSelect(AppTab.messages),
             ),
@@ -265,6 +267,9 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool selected;
   final int? badge;
+
+  /// Nền badge; mặc định màu secondary (đếm offer mới).
+  final Color? badgeColor;
   final VoidCallback onTap;
 
   const _NavItem({
@@ -273,6 +278,7 @@ class _NavItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badge,
+    this.badgeColor,
   });
 
   @override
@@ -316,7 +322,7 @@ class _NavItem extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 4.w),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: theme.secondary(context),
+                        color: badgeColor ?? theme.secondary(context),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
                           color: theme.surface(context),

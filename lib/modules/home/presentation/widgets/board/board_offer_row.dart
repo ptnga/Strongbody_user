@@ -28,18 +28,16 @@ class BoardOfferRow extends StatelessWidget {
     _ => type,
   };
 
-  /// Web `servicePrice`: 1 giá (Đặt ngay) hoặc "Consultation $a – $b" (Tư vấn).
+  /// Web `servicePrice`: 1 giá (Đặt ngay) hoặc khoảng giá "$a – $b" (Tư vấn). Web
+  /// (bcda61a95) bỏ nhãn "Consultation" trước giá — nút "Send inquiry" đã nói rõ.
   static String? priceLabel(BoardOffer offer, String? currency) {
     final price = offer.price;
     if (price == null) return null;
     final max = offer.priceMax;
-    final text = max != null && max != price
+    return max != null && max != price
         ? '${MarketMapper.formatMoney(price, currency)} – '
               '${MarketMapper.formatMoney(max, currency)}'
         : MarketMapper.formatMoney(price, currency);
-    return offer.consultation
-        ? '${LocaleKeys.boardCardConsultation.tr()} $text'
-        : text;
   }
 
   @override
@@ -145,6 +143,12 @@ class BoardOfferRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: metaStyle,
                       ),
+                    ],
+                    // Service classification ĐẦU ngay dưới mô tả (web `ClassificationBadges
+                    // max={1}`); chưa có → không hiện.
+                    if (offer.classification case final c?) ...[
+                      Gap(8.h),
+                      MarketBadge(c, tone: MarketBadgeTone.info),
                     ],
                   ],
                 ),

@@ -11,6 +11,8 @@ import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 
 import '../../../domain/entities/my_request_entity.dart';
 import '../../request_formatters.dart';
+import 'matched_experts_section.dart';
+import 'my_request_ai_review.dart';
 import 'my_request_formatters.dart';
 import 'offer_avatar.dart';
 
@@ -133,6 +135,21 @@ class MyRequestCard extends StatelessWidget {
               if (chips.isNotEmpty) ...[
                 Gap(10.h),
                 Wrap(spacing: 6.w, runSpacing: 6.h, children: chips),
+              ],
+              // Chờ duyệt / bị từ chối: vì sao AI chưa duyệt (web `AIReview`).
+              if (request.showsAiReview) ...[
+                Gap(12.h),
+                MyRequestAiReview(request: request),
+              ],
+              // Chuyên gia đã nhận request (auto-match theo dịch vụ): số + bung danh sách.
+              if (request.matchedProviders > 0) ...[
+                Gap(12.h),
+                Divider(height: 1, color: theme.border(context)),
+                Gap(6.h),
+                MatchedExpertsSection(
+                  requestId: request.id,
+                  count: request.matchedProviders,
+                ),
               ],
               if (!closed && liveOffers.isNotEmpty) ...[
                 Gap(12.h),

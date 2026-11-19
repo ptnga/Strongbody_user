@@ -27,168 +27,17 @@ import 'package:strongbody_buyer/modules/social_market/presentation/widgets/mark
 
 import '../../../domain/entities/board_entities.dart';
 
-/// Thẻ request của board (web `BoardRequestCard`): người đăng (ẩn danh → "***") ·
-/// nước · thời gian → nội dung → ảnh / file → hình thức · ngôn ngữ → "Willing to pay"
-/// → "Me too" (đăng request tương tự) → dải hoạt động + Like / Save.
+/// Card request GỌN của trang chủ (web `RequestFeedCard`): người đăng (tên · nơi ở; ẩn danh →
+/// "Anonymous" + "name hidden for privacy") + Save ở góc phải → lời yêu cầu 3 dòng có "See
+/// more" → chip ngân sách / loại dịch vụ / hình thức → hành động dạng chữ ("Me too").
+/// "See more" (hoặc chạm lời yêu cầu) mở rộng NGAY TẠI CHỖ: lời yêu cầu đầy đủ, ngôn ngữ (cùng
+/// hàng chip), ảnh / tệp, dải hoạt động; "Show less" thu lại. Không hiện thời gian đăng.
 ///
 /// "I can help" (provider trả lời request) là thao tác phía seller — app buyer không hiện.
-class BoardRequestCard extends StatelessWidget {
+class BoardRequestCard extends StatefulWidget {
   final BoardRequest request;
 
   const BoardRequestCard({super.key, required this.request});
-
-  bool get _own {
-    final me = getIt<GlobalStorage>().userId;
-    return me != null && me == request.userId;
-  }
-
-  void _meToo(BuildContext context) {
-    final r = request;
-    context.push(
-      RouteName.postRequest,
-      extra: PostRequestFlowArgs(
-        prefill: RequestFormValues(
-          description: r.text,
-          // "all" = cả 4 hình thức (web `requestDeliveryTypes`).
-          deliveryTypes: r.deliveryType == 'all'
-              ? RequestDeliveryType.values
-              : [?RequestDeliveryType.fromApi(r.deliveryType ?? '')],
-          similarToRequestId: r.id,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final r = request;
-    final own = _own;
-    return MarketCard(
-      padding: EdgeInsets.all(16.r),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Header(request: r),
-          Gap(12.h),
-          _QuotedText(r.text),
-          if (r.attachments.any((a) => a.isPhoto)) ...[
-            Gap(12.h),
-            _Photos(photos: r.attachments.where((a) => a.isPhoto).toList()),
-          ],
-          if (r.attachments.any((a) => !a.isPhoto)) ...[
-            Gap(8.h),
-            Wrap(
-              spacing: 6.w,
-              runSpacing: 6.h,
-              children: [
-                for (final (i, f)
-                    in r.attachments.where((a) => !a.isPhoto).indexed)
-                  MarketBadge(
-                    f.name ??
-                        LocaleKeys.boardCardFileN.tr(
-                          namedArgs: {'index': '${i + 1}'},
-                        ),
-                    icon: Icons.attach_file_rounded,
-                  ),
-              ],
-            ),
-          ],
-          ..._chips(r),
-          if (budgetText(r) case final budget?) ...[
-            Gap(12.h),
-            Row(
-              children: [
-                Text(
-                  LocaleKeys.boardCardWillingToPay.tr(),
-                  style: AppTextStyle.lightBodySmallRegular.copyWith(
-                    color: Colour.textSecondary,
-                  ),
-                ),
-                Gap(8.w),
-                Flexible(
-                  child: Text(
-                    budget,
-                    style: AppTextStyle.lightBodyLargeSemiBold.copyWith(
-                      color: Colour.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          Gap(14.h),
-          _actions(context, own),
-          Gap(12.h),
-          const Divider(height: 1, color: Colour.lineSubtle),
-          Gap(8.h),
-          _Activity(request: r, own: own),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _chips(BoardRequest r) {
-    final delivery = switch (r.deliveryType) {
-      null || '' => null,
-      // "all" hiện "Remote" như web.
-      'all' => RequestFormatters.deliveryOption(RequestDeliveryType.remote),
-      final d => switch (RequestDeliveryType.fromApi(d)) {
-        final type? => RequestFormatters.deliveryOption(type),
-        null => MarketFormatters.humanize(d),
-      },
-    };
-    final languages = r.languages.take(2).map(languageLabel).join(', ');
-    if (delivery == null && languages.isEmpty) return const [];
-    return [
-      Gap(12.h),
-      Wrap(
-        spacing: 6.w,
-        runSpacing: 6.h,
-        children: [
-          if (delivery != null)
-            MarketBadge(delivery, icon: Icons.location_on_outlined),
-          if (languages.isNotEmpty)
-            MarketBadge(languages, icon: Icons.translate_rounded),
-        ],
-      ),
-    ];
-  }
-
-  Widget _actions(BuildContext context, bool own) {
-    final r = request;
-    if (own) {
-      return _ActionButton(
-        icon: Icons.edit_outlined,
-        label: LocaleKeys.boardCardManageOwn.tr(),
-        onTap: () => context.go(RouteName.myRequests),
-      );
-    }
-    final meToo = _ActionButton(
-      icon: Icons.groups_outlined,
-      label: LocaleKeys.boardCardMeToo.tr(),
-      highlighted: context.select<EngagementCubit, bool>(
-        (c) => c.state.of(r.id).similar,
-      ),
-      onTap: r.text.trim().isEmpty ? null : () => _meToo(context),
-    );
-    if (r.closed || !r.solved) return meToo;
-    return Row(
-      children: [
-        Expanded(child: meToo),
-        Gap(8.w),
-        Expanded(
-          child: Center(
-            child: Text(
-              '✓ ${LocaleKeys.boardCardSolved.tr()}',
-              style: AppTextStyle.lightBodyMediumMedium.copyWith(
-                color: Colour.success,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   /// "100" / "50 – 80" / "From 50" / "Up to 80" (web `formatBudget`); null = không có.
   static String? budgetText(BoardRequest r) {
@@ -210,35 +59,225 @@ class BoardRequestCard extends StatelessWidget {
     }
     return r.budget == null ? null : money(r.budget!);
   }
+
+  /// Tên hiển thị card gọn (web): công khai → "Teri M." (họ chỉ chữ cái đầu); ẩn danh /
+  /// không có tên → `null` ("Anonymous").
+  static String? displayName(BoardRequest r) {
+    final first = r.firstName?.trim() ?? '';
+    if (r.anonymous || first.isEmpty) return null;
+    final last = r.lastName?.trim() ?? '';
+    return last.isEmpty ? first : '$first ${last.characters.first}.';
+  }
+
+  /// "all" hiện "Remote" như web; giá trị lạ → viết hoa chữ đầu.
+  static String? delivery(String? type) => switch (type) {
+    null || '' => null,
+    'all' => RequestFormatters.deliveryOption(RequestDeliveryType.remote),
+    final d => switch (RequestDeliveryType.fromApi(d)) {
+      final t? => RequestFormatters.deliveryOption(t),
+      null => MarketFormatters.humanize(d),
+    },
+  };
+
+  @override
+  State<BoardRequestCard> createState() => _BoardRequestCardState();
+}
+
+class _BoardRequestCardState extends State<BoardRequestCard> {
+  bool _expanded = false;
+
+  BoardRequest get _r => widget.request;
+
+  bool get _own {
+    final me = getIt<GlobalStorage>().userId;
+    return me != null && me == _r.userId;
+  }
+
+  void _meToo() {
+    final r = _r;
+    context.push(
+      RouteName.postRequest,
+      extra: PostRequestFlowArgs(
+        prefill: RequestFormValues(
+          description: r.text,
+          // "all" = cả 4 hình thức (web `requestDeliveryTypes`).
+          deliveryTypes: r.deliveryType == 'all'
+              ? RequestDeliveryType.values
+              : [?RequestDeliveryType.fromApi(r.deliveryType ?? '')],
+          similarToRequestId: r.id,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleSave() async {
+    final cubit = context.read<EngagementCubit>();
+    if (!getIt<GlobalStorage>().isLoggedIn &&
+        !await showAuthSheet(context, source: 'board_engagement')) {
+      return;
+    }
+    await cubit.toggle(_r.id, EngagementKind.save);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = _r;
+    final own = _own;
+    final budget = BoardRequestCard.budgetText(r);
+    final delivery = BoardRequestCard.delivery(r.deliveryType);
+    // Ngôn ngữ người đăng muốn được hỗ trợ (tối đa 2): chỉ khi mở rộng, cùng hàng chip.
+    final languages = _expanded
+        ? r.languages.take(2).map(languageLabel).join(', ')
+        : '';
+    final chips = <Widget>[
+      if (budget != null) MarketBadge(budget, tone: MarketBadgeTone.warning),
+      if (r.category != null)
+        MarketBadge(r.category!, tone: MarketBadgeTone.info),
+      if (delivery != null) MarketBadge(delivery),
+      if (languages.isNotEmpty)
+        MarketBadge(languages, icon: Icons.translate_rounded),
+      if (r.closed)
+        MarketBadge(
+          LocaleKeys.boardCardClosed.tr(),
+          icon: Icons.lock_outline_rounded,
+        ),
+    ];
+    return MarketCard(
+      padding: EdgeInsets.all(16.r),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Header(request: r, own: own, onSave: _toggleSave),
+          Gap(12.h),
+          _RequestText(
+            text: r.text,
+            expanded: _expanded,
+            onExpand: () => setState(() => _expanded = true),
+            onCollapse: () => setState(() => _expanded = false),
+          ),
+          if (chips.isNotEmpty) ...[
+            Gap(12.h),
+            Wrap(spacing: 6.w, runSpacing: 6.h, children: chips),
+          ],
+          Gap(16.h),
+          const Divider(height: 1, color: Colour.lineSubtle),
+          Gap(4.h),
+          _actions(own),
+          if (_expanded) ..._body(r),
+        ],
+      ),
+    );
+  }
+
+  /// Hàng hành động dạng chữ: request của mình → "Manage my request"; còn lại "Me too"
+  /// (+ "✓ Solved" khi đã giải quyết, chưa đóng).
+  Widget _actions(bool own) {
+    final r = _r;
+    if (own) {
+      return _TextAction(
+        icon: Icons.edit_outlined,
+        label: LocaleKeys.boardCardManageOwn.tr(),
+        onTap: () => context.go(RouteName.myRequests),
+      );
+    }
+    final meToo = _TextAction(
+      icon: Icons.volunteer_activism_outlined,
+      label: LocaleKeys.boardCardMeToo.tr(),
+      highlighted: context.select<EngagementCubit, bool>(
+        (c) => c.state.of(r.id).similar,
+      ),
+      onTap: r.text.trim().isEmpty ? null : _meToo,
+    );
+    if (r.closed || !r.solved) return meToo;
+    return Row(
+      children: [
+        Expanded(child: meToo),
+        Expanded(
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 16.r,
+                  color: Colour.buttonPrimary,
+                ),
+                Gap(6.w),
+                Text(
+                  LocaleKeys.boardCardSolved.tr(),
+                  style: AppTextStyle.lightBodyMediumMedium.copyWith(
+                    color: Colour.buttonPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Phần mở rộng: ảnh / tệp đính kèm + dải hoạt động (khi có).
+  List<Widget> _body(BoardRequest r) {
+    final photos = r.attachments.where((a) => a.isPhoto).toList();
+    final files = r.attachments.where((a) => !a.isPhoto).toList();
+    return [
+      if (photos.isNotEmpty) ...[Gap(8.h), _Photos(photos: photos)],
+      if (files.isNotEmpty) ...[
+        Gap(8.h),
+        Wrap(
+          spacing: 6.w,
+          runSpacing: 6.h,
+          children: [
+            for (final (i, f) in files.indexed)
+              MarketBadge(
+                f.name ??
+                    LocaleKeys.boardCardFileN.tr(
+                      namedArgs: {'index': '${i + 1}'},
+                    ),
+                icon: Icons.attach_file_rounded,
+              ),
+          ],
+        ),
+      ],
+      _Activity(request: r),
+    ];
+  }
 }
 
 class _Header extends StatelessWidget {
   final BoardRequest request;
+  final bool own;
+  final VoidCallback onSave;
 
-  const _Header({required this.request});
+  const _Header({
+    required this.request,
+    required this.own,
+    required this.onSave,
+  });
 
   @override
   Widget build(BuildContext context) {
     final r = request;
-    final name = r.anonymous ? '' : r.authorName;
-    final meta = [
-      ?r.country,
-      if (r.createdAt != null) MarketFormatters.timeAgo(r.createdAt),
-    ].join(' · ');
+    final name = BoardRequestCard.displayName(r);
+    final nameStyle = AppTextStyle.lightBodyLargeSemiBold.copyWith(
+      height: 1.35,
+      color: Colour.textPrimary,
+    );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (r.anonymous || name.isEmpty)
+        if (name == null)
           Container(
-            width: 40.r,
-            height: 40.r,
+            width: 44.r,
+            height: 44.r,
             decoration: const BoxDecoration(
               color: Colour.subtle,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.person_outline_rounded,
-              size: 22.r,
+              size: 20.r,
               color: Colour.textSecondary,
             ),
           )
@@ -247,142 +286,178 @@ class _Header extends StatelessWidget {
             name: name,
             imageUrl: r.avatar,
             colorSeed: name.hashCode,
-            size: 40.r,
+            size: 44.r,
           ),
-        Gap(10.w),
+        Gap(12.w),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      r.anonymous || name.isEmpty ? '***' : name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyle.lightBodyMediumMedium.copyWith(
-                        color: Colour.textPrimary,
-                      ),
-                    ),
-                  ),
-                  if (r.anonymous) ...[
-                    Gap(4.w),
-                    Tooltip(
-                      message: LocaleKeys.boardCardAnonymous.tr(),
-                      child: Icon(
-                        Icons.visibility_off_outlined,
-                        size: 14.r,
-                        color: Colour.textTertiary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              if (meta.isNotEmpty) ...[
-                Gap(2.h),
-                Row(
+              Text.rich(
+                TextSpan(
                   children: [
-                    if (r.flag != null && r.country != null) ...[
-                      CountryFlag(r.flag),
-                      Gap(6.w),
-                    ],
-                    Flexible(
-                      child: Text(
-                        meta,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyle.lightBodySmallRegular.copyWith(
-                          color: Colour.textSecondary,
-                        ),
+                    TextSpan(text: name ?? LocaleKeys.boardCardAnonymous.tr()),
+                    if (r.country != null) ...[
+                      const TextSpan(
+                        text: '  ·  ',
+                        style: TextStyle(color: Colour.textTertiary),
                       ),
-                    ),
+                      // Cờ + nước không tách dòng.
+                      if (r.flag != null)
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Padding(
+                            padding: EdgeInsetsDirectional.only(end: 6.w),
+                            child: CountryFlag(r.flag),
+                          ),
+                        ),
+                      TextSpan(text: r.country),
+                    ],
                   ],
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: nameStyle,
+              ),
+              // Người đăng chọn ẩn danh → nói rõ tên được che để bảo vệ riêng tư.
+              if (name == null) ...[
+                Gap(2.h),
+                Text(
+                  LocaleKeys.boardCardNameHidden.tr(),
+                  style: AppTextStyle.lightBodySmallRegular.copyWith(
+                    color: Colour.textTertiary,
+                  ),
                 ),
               ],
             ],
           ),
         ),
-        if (r.closed || r.category != null) ...[
-          Gap(8.w),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (r.closed)
-                MarketBadge(
-                  LocaleKeys.boardCardClosed.tr(),
-                  icon: Icons.lock_outline_rounded,
-                ),
-              if (r.closed && r.category != null) Gap(4.h),
-              if (r.category != null)
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 130.w),
-                  child: MarketBadge(r.category!),
-                ),
-            ],
+        // Lưu request: góc phải trên (card gọn không có nút tim). Request của mình: không lưu.
+        if (!own)
+          BlocBuilder<EngagementCubit, EngagementCubitState>(
+            buildWhen: (a, b) =>
+                a.of(r.id).saved != b.of(r.id).saved || a.pending != b.pending,
+            builder: (context, state) => Transform.translate(
+              offset: Offset(6.w, -6.h),
+              child: EngagementToggle(
+                like: false,
+                on: state.of(r.id).saved,
+                busy: state.isPending(r.id, EngagementKind.save),
+                onTap: onSave,
+              ),
+            ),
           ),
-        ],
       ],
     );
   }
 }
 
-/// Nội dung dạng trích dẫn (vạch trái), 3 dòng + "See more" khi tràn.
-class _QuotedText extends StatefulWidget {
+/// Lời yêu cầu: 3 dòng + "… See more" khi tràn (chạm chữ cũng mở); mở rộng → đầy đủ +
+/// "Show less" ngay sau chữ.
+class _RequestText extends StatelessWidget {
   final String text;
+  final bool expanded;
+  final VoidCallback onExpand;
+  final VoidCallback onCollapse;
 
-  const _QuotedText(this.text);
-
-  @override
-  State<_QuotedText> createState() => _QuotedTextState();
-}
-
-class _QuotedTextState extends State<_QuotedText> {
-  bool _open = false;
+  const _RequestText({
+    required this.text,
+    required this.expanded,
+    required this.onExpand,
+    required this.onCollapse,
+  });
 
   @override
   Widget build(BuildContext context) {
     final style = AppTextStyle.lightBodyMediumRegular.copyWith(
-      height: 1.45,
+      height: 1.6,
       color: Colour.textPrimary,
     );
-    return Container(
-      padding: EdgeInsets.only(left: 12.w),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Colour.lineStrong, width: 3)),
-      ),
+    final linkStyle = AppTextStyle.lightBodyMediumMedium.copyWith(
+      height: 1.6,
+      color: Colour.textPrimary,
+      decoration: TextDecoration.underline,
+    );
+    if (expanded) {
+      return Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: '$text '),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: GestureDetector(
+                onTap: onCollapse,
+                child: Text(
+                  LocaleKeys.boardCardShowLess.tr(),
+                  style: linkStyle,
+                ),
+              ),
+            ),
+          ],
+        ),
+        style: style,
+      );
+    }
+    return GestureDetector(
+      onTap: onExpand,
+      behavior: HitTestBehavior.opaque,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final painter = TextPainter(
-            text: TextSpan(text: widget.text, style: style),
+          final more = LocaleKeys.boardCardSeeMore.tr();
+          final direction = Directionality.of(context);
+          final scale = MediaQuery.textScalerOf(context);
+          // Không bị cắt (kể cả "See more" đứng ngay sau chữ) → "See more" sau chữ;
+          // bị cắt → "… See more" đè cuối dòng 3.
+          final inline = TextPainter(
+            text: TextSpan(
+              children: [
+                TextSpan(text: '$text ', style: style),
+                TextSpan(text: more, style: linkStyle),
+              ],
+            ),
             maxLines: 3,
-            textDirection: Directionality.of(context),
+            textDirection: direction,
+            textScaler: scale,
           )..layout(maxWidth: constraints.maxWidth);
-          final overflows = painter.didExceedMaxLines;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          if (!inline.didExceedMaxLines) {
+            return Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: '$text '),
+                  TextSpan(text: more, style: linkStyle),
+                ],
+              ),
+              style: style,
+            );
+          }
+          return Stack(
             children: [
               Text(
-                widget.text,
-                maxLines: _open ? null : 3,
-                overflow: _open ? null : TextOverflow.ellipsis,
+                text,
+                maxLines: 3,
+                overflow: TextOverflow.clip,
                 style: style,
               ),
-              if (overflows)
-                GestureDetector(
-                  onTap: () => setState(() => _open = !_open),
+              PositionedDirectional(
+                end: 0,
+                bottom: 0,
+                child: ColoredBox(
+                  color: Colour.surface,
                   child: Padding(
-                    padding: EdgeInsets.only(top: 4.h),
-                    child: Text(
-                      _open
-                          ? LocaleKeys.boardCardSeeLess.tr()
-                          : LocaleKeys.boardCardSeeMore.tr(),
-                      style: AppTextStyle.lightBodySmallMedium.copyWith(
-                        color: Colour.textPrimary,
+                    padding: EdgeInsetsDirectional.only(start: 4.w),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(text: '… '),
+                          TextSpan(text: more, style: linkStyle),
+                        ],
                       ),
+                      style: style,
                     ),
                   ),
                 ),
+              ),
             ],
           );
         },
@@ -455,13 +530,14 @@ class _Photos extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
+/// Hành động dạng chữ (web `part="actions"`): icon + nhãn màu xanh, căn giữa.
+class _TextAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final bool highlighted;
 
-  const _ActionButton({
+  const _TextAction({
     required this.icon,
     required this.label,
     this.onTap,
@@ -469,42 +545,45 @@ class _ActionButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: double.infinity,
-    height: 40.h,
-    child: OutlinedButton.icon(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colour.textPrimary,
-        backgroundColor: highlighted ? Colour.subtle : null,
-        side: const BorderSide(color: Colour.lineStrong),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10.r),
+  Widget build(BuildContext context) {
+    final color = onTap == null ? Colour.textTertiary : Colour.buttonPrimary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8.r),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 10.h),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              highlighted ? Icons.volunteer_activism : icon,
+              size: 18.r,
+              color: color,
+            ),
+            Gap(6.w),
+            Flexible(
+              child: Text(
+                label,
+                style: AppTextStyle.lightBodyMediumMedium.copyWith(
+                  color: color,
+                  decoration: highlighted ? TextDecoration.underline : null,
+                  decorationColor: color,
+                ),
+              ),
+            ),
+          ],
         ),
-        textStyle: AppTextStyle.lightBodyMediumMedium,
       ),
-      icon: Icon(icon, size: 18.r),
-      label: Text(label),
-    ),
-  );
+    );
+  }
 }
 
-/// Dải hoạt động (web): avatar người đã trả lời + "{n} replied" (hoặc "Be the first to
-/// respond") · "{n} need this too" · "{n} likes" — bên phải Like / Save.
+/// Dải hoạt động khi mở rộng (web): avatar người đã đề xuất + "{n} experts offered" ·
+/// "{n} need this too" · "{n} likes". Chưa có hoạt động nào → không hiện.
 class _Activity extends StatelessWidget {
   final BoardRequest request;
-  final bool own;
 
-  const _Activity({required this.request, required this.own});
-
-  Future<void> _toggle(BuildContext context, EngagementKind kind) async {
-    final cubit = context.read<EngagementCubit>();
-    if (!getIt<GlobalStorage>().isLoggedIn &&
-        !await showAuthSheet(context, source: 'board_engagement')) {
-      return;
-    }
-    await cubit.toggle(request.id, kind);
-  }
+  const _Activity({required this.request});
 
   @override
   Widget build(BuildContext context) {
@@ -512,85 +591,98 @@ class _Activity extends StatelessWidget {
       color: Colour.textSecondary,
     );
     return BlocBuilder<EngagementCubit, EngagementCubitState>(
-      buildWhen: (a, b) =>
-          a.of(request.id) != b.of(request.id) || a.pending != b.pending,
+      buildWhen: (a, b) => a.of(request.id) != b.of(request.id),
       builder: (context, state) {
         final e = state.of(request.id);
-        final parts = <Widget>[
-          if (e.contacts > 0) ...[
-            for (final (i, c) in e.recentContacts.take(3).indexed)
-              Transform.translate(
-                offset: Offset(-6.w * i, 0),
-                child: InitialsAvatar(
-                  name: c.name,
-                  imageUrl: c.avatar,
-                  colorSeed: c.name.hashCode,
-                  size: 22.r,
-                  border: true,
-                ),
-              ),
-            if (e.recentContacts.isEmpty)
-              Icon(
-                Icons.forum_outlined,
-                size: 16.r,
-                color: Colour.textSecondary,
-              ),
-            Gap(4.w),
-            Text(
-              LocaleKeys.boardCardRepliedCount.tr(
-                namedArgs: {'count': '${e.contacts}'},
-              ),
-              style: style,
+        if (e.contacts <= 0 && e.similars <= 0 && e.likes <= 0) {
+          return const SizedBox.shrink();
+        }
+        return Padding(
+          padding: EdgeInsets.only(top: 12.h),
+          child: Container(
+            padding: EdgeInsets.only(top: 8.h),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Colour.lineSubtle)),
             ),
-          ] else if (e.similars == 0 && e.likes == 0)
-            Text(LocaleKeys.boardCardNoActivity.tr(), style: style),
-          if (e.similars > 0) ...[
-            Text('  ·  ', style: style),
-            Text(
-              pluralTr(
-                e.similars,
-                one: LocaleKeys.boardCardMeTooCountOne,
-                other: LocaleKeys.boardCardMeTooCountOther,
-              ),
-              style: style,
+            child: Wrap(
+              spacing: 12.w,
+              runSpacing: 4.h,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (e.contacts > 0)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (e.recentContacts.isEmpty)
+                        Icon(
+                          Icons.forum_outlined,
+                          size: 14.r,
+                          color: Colour.seller800,
+                        )
+                      else
+                        for (final (i, c) in e.recentContacts.take(3).indexed)
+                          Transform.translate(
+                            offset: Offset(-6.w * i, 0),
+                            child: InitialsAvatar(
+                              name: c.name,
+                              imageUrl: c.avatar,
+                              colorSeed: c.name.hashCode,
+                              size: 20.r,
+                              border: true,
+                            ),
+                          ),
+                      Gap(4.w),
+                      Text(
+                        pluralTr(
+                          e.contacts,
+                          one: LocaleKeys.boardCardOfferedCountOne,
+                          other: LocaleKeys.boardCardOfferedCountOther,
+                        ),
+                        style: AppTextStyle.lightBodySmallSemiBold.copyWith(
+                          color: Colour.seller800,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (e.similars > 0)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.volunteer_activism_outlined,
+                        size: 14.r,
+                        color: Colour.textSecondary,
+                      ),
+                      Gap(4.w),
+                      Text(
+                        pluralTr(
+                          e.similars,
+                          one: LocaleKeys.boardCardMeTooCountOne,
+                          other: LocaleKeys.boardCardMeTooCountOther,
+                        ),
+                        style: style,
+                      ),
+                    ],
+                  ),
+                if (e.likes > 0)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.favorite, size: 14.r, color: Colour.primary),
+                      Gap(4.w),
+                      Text(
+                        pluralTr(
+                          e.likes,
+                          one: LocaleKeys.boardCardLikeCountOne,
+                          other: LocaleKeys.boardCardLikeCountOther,
+                        ),
+                        style: style,
+                      ),
+                    ],
+                  ),
+              ],
             ),
-          ],
-          if (e.likes > 0) ...[
-            Text('  ·  ', style: style),
-            Text(
-              pluralTr(
-                e.likes,
-                one: LocaleKeys.boardCardLikeCountOne,
-                other: LocaleKeys.boardCardLikeCountOther,
-              ),
-              style: style,
-            ),
-          ],
-        ];
-        return Row(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(children: parts),
-              ),
-            ),
-            // Request của mình: không tự thích / lưu.
-            if (!own) ...[
-              EngagementToggle(
-                like: true,
-                on: e.liked,
-                busy: state.isPending(request.id, EngagementKind.like),
-                onTap: () => _toggle(context, EngagementKind.like),
-              ),
-              EngagementToggle(
-                like: false,
-                on: e.saved,
-                busy: state.isPending(request.id, EngagementKind.save),
-                onTap: () => _toggle(context, EngagementKind.save),
-              ),
-            ],
-          ],
+          ),
         );
       },
     );

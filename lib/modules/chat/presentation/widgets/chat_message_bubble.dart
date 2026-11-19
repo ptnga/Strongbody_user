@@ -17,7 +17,10 @@ import 'chat_offer_strip.dart';
 
 /// Bong bóng tin: của mình (nền tối, bên phải) / của partner (nền trắng, bên trái).
 /// Tin partner có bản dịch → hiện bản dịch + "Translated from X · show original".
-class ChatMessageBubble extends StatelessWidget {
+///
+/// Như web (Messenger): không ghi giờ dưới từng tin — chạm bong bóng để hiện / ẩn giờ
+/// đầy đủ; mốc giờ của cụm tin do danh sách vẽ.
+class ChatMessageBubble extends StatefulWidget {
   final ChatMessageEntity message;
   final bool mine;
   final ChatTranslation? translation;
@@ -31,6 +34,9 @@ class ChatMessageBubble extends StatelessWidget {
   /// Thẻ gửi ngay trước tin chữ này (web `pairCardWithText`) — hiện ở đầu bong bóng.
   final ChatMessageEntity? attachedCard;
 
+  /// Người đang xem — thẻ request chỉ có nút "Go to my requests" với chủ request.
+  final int? myUserId;
+
   const ChatMessageBubble({
     super.key,
     required this.message,
@@ -41,16 +47,29 @@ class ChatMessageBubble extends StatelessWidget {
     this.read = false,
     this.partner,
     this.attachedCard,
+    this.myUserId,
   });
 
   @override
+  State<ChatMessageBubble> createState() => _ChatMessageBubbleState();
+}
+
+class _ChatMessageBubbleState extends State<ChatMessageBubble> {
+  /// Giờ đầy đủ dưới bong bóng (web: chạm để hiện / ẩn trên mobile).
+  bool _showTime = false;
+
+  @override
   Widget build(BuildContext context) {
+    final message = widget.message;
+    final mine = widget.mine;
+    final partner = widget.partner;
+    final myUserId = widget.myUserId;
     final theme = Theme.of(context);
     final locale = context.locale.languageCode;
-    final t = translation;
+    final t = widget.translation;
     final hasTranslation =
         !mine && t != null && (t.text != null || t.audioUrl != null);
-    final translated = hasTranslation && !showOriginal;
+    final translated = hasTranslation && !widget.showOriginal;
     final voice = message.voice;
     final original = message.type == ChatMessageType.voice
         ? (voice?.transcript ?? '')
@@ -63,10 +82,15 @@ class ChatMessageBubble extends StatelessWidget {
       locale,
     );
 
-    final attached = attachedCard;
+    final attached = widget.attachedCard;
     final content = <Widget>[
       if (attached != null) ...[
-        _CardOf(message: attached, mine: mine, partner: partner),
+        _CardOf(
+          message: attached,
+          mine: mine,
+          partner: partner,
+          myUserId: myUserId,
+        ),
         Gap(8.h),
       ],
       if (message.type == ChatMessageType.voice && audio != null)
@@ -78,7 +102,12 @@ class ChatMessageBubble extends StatelessWidget {
         ),
       if (message.card != null ||
           (message.type == ChatMessageType.offer && message.offer != null))
-        _CardOf(message: message, mine: mine, partner: partner)
+        _CardOf(
+          message: message,
+          mine: mine,
+          partner: partner,
+          myUserId: myUserId,
+        )
       else if (message.type == ChatMessageType.image ||
           message.type == ChatMessageType.file)
         Row(
@@ -127,13 +156,13 @@ class ChatMessageBubble extends StatelessWidget {
       if (hasTranslation) ...[
         Gap(8.h),
         GestureDetector(
-          onTap: onToggleOriginal,
+          onTap: widget.onToggleOriginal,
           child: Text(
             [
               source != null
                   ? LocaleKeys.chatTranslatedFrom.tr(args: [source])
                   : LocaleKeys.chatTranslated.tr(),
-              showOriginal
+              widget.showOriginal
                   ? LocaleKeys.chatShowTranslation.tr()
                   : LocaleKeys.chatShowOriginal.tr(),
             ].join(' · '),
@@ -148,11 +177,11 @@ class ChatMessageBubble extends StatelessWidget {
     ];
 
     final meta = [
+      if (_showTime) ChatFormatters.fullTime(message.createdAt, locale),
       if (message.isPending)
         LocaleKeys.chatSending.tr()
-      else
-        ChatFormatters.time(message.createdAt, locale),
-      if (mine && read && !message.isPending) LocaleKeys.chatRead.tr(),
+      else if (mine && widget.read)
+        LocaleKeys.chatRead.tr(),
     ].join(' · ');
 
     final radius = Radius.circular(16.r);
@@ -165,35 +194,45 @@ class ChatMessageBubble extends StatelessWidget {
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.8,
           ),
-          child: Opacity(
-            opacity: message.isPending ? 0.7 : 1,
-            child: Container(
-              padding: EdgeInsets.all(12.r),
-              decoration: BoxDecoration(
-                color: mine ? theme.secondary(context) : theme.surface(context),
-                border: mine ? null : Border.all(color: theme.border(context)),
-                borderRadius: BorderRadius.only(
-                  topLeft: radius,
-                  topRight: radius,
-                  bottomLeft: mine ? radius : Radius.circular(4.r),
-                  bottomRight: mine ? Radius.circular(4.r) : radius,
+          child: GestureDetector(
+            // Nút / link / trình phát trong bong bóng tự nhận chạm trước.
+            onTap: () => setState(() => _showTime = !_showTime),
+            child: Opacity(
+              opacity: message.isPending ? 0.7 : 1,
+              child: Container(
+                padding: EdgeInsets.all(12.r),
+                decoration: BoxDecoration(
+                  color: mine
+                      ? theme.secondary(context)
+                      : theme.surface(context),
+                  border: mine
+                      ? null
+                      : Border.all(color: theme.border(context)),
+                  borderRadius: BorderRadius.only(
+                    topLeft: radius,
+                    topRight: radius,
+                    bottomLeft: mine ? radius : Radius.circular(4.r),
+                    bottomRight: mine ? Radius.circular(4.r) : radius,
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: content,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: content,
+                ),
               ),
             ),
           ),
         ),
-        Gap(4.h),
-        Text(
-          meta,
-          style: AppTextStyle.lightBodyXSmallRegular.copyWith(
-            color: theme.textSecondary(context),
+        if (meta.isNotEmpty) ...[
+          Gap(4.h),
+          Text(
+            meta,
+            style: AppTextStyle.lightBodyXSmallRegular.copyWith(
+              color: theme.textSecondary(context),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -204,8 +243,14 @@ class _CardOf extends StatelessWidget {
   final ChatMessageEntity message;
   final bool mine;
   final ChatPartner? partner;
+  final int? myUserId;
 
-  const _CardOf({required this.message, required this.mine, this.partner});
+  const _CardOf({
+    required this.message,
+    required this.mine,
+    this.partner,
+    this.myUserId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -215,6 +260,7 @@ class _CardOf extends StatelessWidget {
         key: ValueKey('card-${message.id}'),
         card: card,
         mine: mine,
+        myUserId: myUserId,
       );
     }
     return _OfferContent(offer: message.offer!, mine: mine, partner: partner);

@@ -155,7 +155,8 @@ void main() {
       );
       expect(
         MyRequestFormatters.status(_request('closed')),
-        'myRequestsStatusClosed',
+        // Web (288d5cecb): BE `closed` hiển thị "Solved".
+        'myRequestsStatusSolved',
       );
       for (final s in ['cancelled', 'rejected', 'spam']) {
         expect(

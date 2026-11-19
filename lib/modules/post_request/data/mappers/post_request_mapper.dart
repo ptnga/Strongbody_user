@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 
+import 'package:strongbody_buyer/modules/social_market/data/mappers/market_mapper.dart';
+
 import '../../domain/entities/my_request_entity.dart';
 import '../../domain/entities/posted_request_entity.dart';
 import '../../domain/entities/provider_entity.dart';
@@ -433,12 +435,60 @@ class PostRequestMapper {
           details: _requestDetails(dto),
           isPrivate: dto.isPrivate ?? dto.inquiry != null,
           inquiry: _inquiry(dto.inquiry),
+          aiRefine: aiRefine(dto.aiRefine),
+          matchedProviders: dto.matchedProviders ?? 0,
         ),
       );
     }
     return MyRequestPage(
       items: items,
       totalPage: (data['total_page'] as num?)?.toInt() ?? 1,
+    );
+  }
+
+  /// `ai_refine` của request (web `RequestAIRefine`).
+  static RequestAiRefine? aiRefine(Map<String, dynamic>? raw) {
+    if (raw == null) return null;
+    String text(Object? v) => v == null ? '' : '$v'.trim();
+    return RequestAiRefine(
+      score: raw['score'] is num
+          ? raw['score'] as num
+          : num.tryParse('${raw['score'] ?? ''}') ?? 0,
+      isEmpty: raw['is_empty'] == true,
+      suggestion: text(raw['suggestion']),
+      suggestionEn: text(raw['suggestion_en']),
+      rescoring: raw['rescoring'] == true,
+    );
+  }
+
+  /// `data` của matched-providers → trang chuyên gia đã nhận request (hồ sơ `expert` → card
+  /// chuyên gia như trang category).
+  static MatchedProvidersPage matchedProviders(Map<String, dynamic> data) {
+    final raw = data['list'] is List ? data['list'] as List : const [];
+    final items = <MatchedProviderEntity>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final dto = MatchedProviderDto.fromJson(Map<String, dynamic>.from(item));
+      if (dto.userId == null) continue;
+      final country = dto.country;
+      items.add(
+        MatchedProviderEntity(
+          userId: dto.userId!,
+          name: (dto.name ?? '').trim(),
+          avatar: _nonEmpty(dto.avatar),
+          country: _nonEmpty(country?['title']?.toString()),
+          flag: MarketMapper.flagUrl(
+            country?['flag']?.toString(),
+            country?['code']?.toString(),
+          ),
+          replied: dto.replied,
+          expert: dto.expert == null ? null : MarketMapper.expert(dto.expert!),
+        ),
+      );
+    }
+    return MatchedProvidersPage(
+      items: items,
+      total: _int(data['total']) ?? items.length,
     );
   }
 

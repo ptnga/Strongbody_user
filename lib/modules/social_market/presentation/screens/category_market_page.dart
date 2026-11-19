@@ -25,10 +25,10 @@ import '../widgets/market_service_card.dart';
 import '../widgets/market_ui.dart';
 import '../widgets/medical_travel_widgets.dart';
 
-/// Trang category (web `CategoryPage` — `/longevity`, `/health-pro-advisory`,
-/// `/personal-helper`, `/medical-travel`): hero 2 dòng truyền cảm hứng → [Medical
-/// Travel: Destinations] → In the spotlight → Services → services theo ngôn ngữ →
-/// Experts. Mục rỗng thì ẩn; tìm kiếm ở listing mà "View all" của mỗi mục dẫn tới.
+/// Trang nhãn "Browse by need" (web `CategoryPage` nhánh `need` — `/longevity`,
+/// `/mental`, `/personal-helper`, `/medical-travel`): hero 2 dòng truyền cảm hứng →
+/// [Medical Travel: Destinations] → mỗi category doanh nghiệp một section service (tiêu
+/// đề = tên category, "View all" mở listing đã chọn category) → Experts. Mục rỗng thì ẩn.
 class CategoryMarketPage extends StatelessWidget {
   final MarketPageScope scope;
 
@@ -56,42 +56,7 @@ class CategoryMarketPage extends StatelessWidget {
                   slivers: [
                     SliverToBoxAdapter(child: _Hero(scope: scope)),
                     if (scope.isMedicalTravel) const _DestinationsSection(),
-                    _ServicesSection(
-                      kind: MarketSectionKind.spotlight,
-                      title: LocaleKeys.marketCategorySpotlightTitle.tr(),
-                      viewAllLabel: LocaleKeys.marketCategorySpotlightViewAll
-                          .tr(),
-                      onViewAll: (c) =>
-                          c.push(MarketRoutes.scopeServices(scope)),
-                      select: (s) => s.spotlight,
-                    ),
-                    _ServicesSection(
-                      kind: MarketSectionKind.services,
-                      title: LocaleKeys.marketCategoryServicesTitle.tr(),
-                      viewAllLabel: LocaleKeys.marketCategoryServicesViewAll
-                          .tr(),
-                      onViewAll: (c) =>
-                          c.push(MarketRoutes.scopeServices(scope)),
-                      select: (s) => s.services,
-                      showError: true,
-                    ),
-                    _ServicesSection(
-                      kind: MarketSectionKind.language,
-                      title: LocaleKeys.marketCategoryLanguageTitle.tr(),
-                      viewAllLabel: LocaleKeys.marketCategoryLanguageViewAll.tr(
-                        namedArgs: {
-                          'language': LocaleKeys.marketCategoryLanguageName
-                              .tr(),
-                        },
-                      ),
-                      onViewAll: (c) => c.push(
-                        MarketRoutes.scopeServices(
-                          scope,
-                          language: c.read<CategoryMarketBloc>().state.language,
-                        ),
-                      ),
-                      select: (s) => s.languageServices,
-                    ),
+                    _NeedServicesSections(scope: scope),
                     _ExpertsSection(scope: scope),
                     SliverGap(24.h + MediaQuery.paddingOf(context).bottom),
                   ],
@@ -263,44 +228,111 @@ Widget _grid(List<Widget> children) => Column(
   ],
 );
 
-class _ServicesSection extends StatelessWidget {
-  final MarketSectionKind kind;
-  final String title;
-  final String viewAllLabel;
-  final void Function(BuildContext context) onViewAll;
-  final List<MarketServiceEntity> Function(CategoryMarketState state) select;
-  final bool showError;
+/// Section theo category doanh nghiệp (web `NeedSectionsLoader` +
+/// `CategoryNeedServicesSection`): tiêu đề là tên category (không hiện số lượng), lưới
+/// như Services; tải → 3 khung chờ, lỗi → khối thử lại, category rỗng → ẩn.
+class _NeedServicesSections extends StatelessWidget {
+  final MarketPageScope scope;
 
-  const _ServicesSection({
-    required this.kind,
-    required this.title,
-    required this.viewAllLabel,
-    required this.onViewAll,
-    required this.select,
-    this.showError = false,
-  });
+  const _NeedServicesSections({required this.scope});
 
   @override
   Widget build(BuildContext context) => _EngagementScope(
     target: EngagementTarget.service,
-    ids: (s) => select(s).map((e) => e.id),
-    child: _Section<MarketServiceEntity>(
-      kind: kind,
-      title: title,
-      viewAllLabel: viewAllLabel,
-      onViewAll: onViewAll,
-      select: select,
-      showError: showError,
-      builder: (context, items) => _grid([
-        for (final s in items)
-          MarketServiceGridCard(
-            service: s,
-            onTap: () => MarketNavigation.openServiceCard(context, s),
-          ),
-      ]),
+    ids: (s) => s.serviceIds,
+    child: BlocBuilder<CategoryMarketBloc, CategoryMarketState>(
+      buildWhen: (a, b) =>
+          a.status(MarketSectionKind.services) !=
+              b.status(MarketSectionKind.services) ||
+          a.categorySections != b.categorySections,
+      builder: (context, state) {
+        const kind = MarketSectionKind.services;
+        final sections = state.categorySections;
+        final List<Widget> children;
+        if (state.status(kind) == SectionStatus.failure && sections.isEmpty) {
+          children = [
+            MarketSectionError(
+              title: LocaleKeys.marketCategoryServicesTitle.tr(),
+              onRetry: () => context.read<CategoryMarketBloc>().add(
+                const CategoryMarketSectionRetried(kind),
+              ),
+            ),
+          ];
+        } else if (state.isLoading(kind) && sections.isEmpty) {
+          children = [
+            for (var i = 0; i < 3; i++)
+              _sectionSkeleton(CategoryMarketBloc.servicesShown),
+          ];
+        } else {
+          children = [
+            for (final section in sections)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  MarketSectionHeading(
+                    title: MarketFormatters.needCategoryName(
+                      context,
+                      section.category.slug,
+                      section.category.name,
+                    ),
+                    compact: true,
+                    viewAllLabel: LocaleKeys.marketCategoryByCategoryViewAll
+                        .tr(),
+                    onViewAll: () => context.push(
+                      MarketRoutes.scopeServices(
+                        scope,
+                        category: section.category.slug,
+                      ),
+                    ),
+                  ),
+                  Gap(20.h),
+                  _grid([
+                    for (final s in section.items)
+                      MarketServiceGridCard(
+                        service: s,
+                        onTap: () =>
+                            MarketNavigation.openServiceCard(context, s),
+                      ),
+                  ]),
+                ],
+              ),
+          ];
+        }
+        return SliverList.list(
+          children: [
+            for (final child in children)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
+                child: child,
+              ),
+          ],
+        );
+      },
     ),
   );
 }
+
+/// Khung chờ của một section: tiêu đề + [count] card.
+Widget _sectionSkeleton(int count) => Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: [
+    FractionallySizedBox(
+      alignment: Alignment.centerLeft,
+      widthFactor: 0.5,
+      child: Container(
+        height: 24.h,
+        decoration: BoxDecoration(
+          color: Colour.subtle,
+          borderRadius: BorderRadius.circular(6.r),
+        ),
+      ),
+    ),
+    for (var i = 0; i < count; i++) ...[
+      Gap(i == 0 ? 20.h : 8.h),
+      const MarketCardSkeleton(height: 280),
+    ],
+  ],
+);
 
 class _ExpertsSection extends StatelessWidget {
   final MarketPageScope scope;

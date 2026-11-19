@@ -20,8 +20,8 @@ import '../request_formatters.dart';
 import '../widgets/common/flow_header.dart';
 
 /// "Providers for your request" (web `/buyer/request/matches/{id}`): đã đăng → yêu cầu
-/// của bạn → chuyên gia khớp với chính yêu cầu đó (nút Chat chia sẻ request vào cuộc
-/// trò chuyện) → "View my requests".
+/// của bạn → "View my requests". Khối chuyên gia khớp (nút Chat chia sẻ request vào cuộc
+/// trò chuyện) tạm ẩn như web — xem [RequestMatchesCubit.showMatchedExperts].
 class RequestMatchesPage extends StatelessWidget {
   const RequestMatchesPage({super.key});
 
@@ -195,8 +195,10 @@ class _Body extends StatelessWidget {
           ),
         ],
         divider,
-        _Matches(state: state),
-        divider,
+        if (RequestMatchesCubit.showMatchedExperts) ...[
+          _Matches(state: state),
+          divider,
+        ],
         const Center(child: _MyRequestsLink()),
       ],
     );

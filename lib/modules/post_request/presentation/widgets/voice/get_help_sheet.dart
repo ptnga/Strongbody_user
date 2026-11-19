@@ -215,7 +215,10 @@ class _GetHelpSheetState extends State<_GetHelpSheet> {
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
-        Gap(32.h),
+        // Câu mẫu ngay dưới sóng âm để người dùng biết nói gì (web `VoiceExamples`).
+        Gap(24.h),
+        _VoiceExamples(active: recording),
+        Gap(28.h),
         Row(
           children: [
             Expanded(
@@ -296,14 +299,6 @@ class _GetHelpSheetState extends State<_GetHelpSheet> {
             ),
           ],
         ),
-        Gap(16.h),
-        Text(
-          LocaleKeys.getHelpVoiceHint.tr(),
-          textAlign: TextAlign.center,
-          style: AppTextStyle.lightBodySmallRegular.copyWith(
-            color: Colour.textSecondary,
-          ),
-        ),
       ],
     );
   }
@@ -345,6 +340,103 @@ class _GetHelpSheetState extends State<_GetHelpSheet> {
             onPressed: _text.text.trim().isEmpty ? null : _sendText,
             child: Text(LocaleKeys.getHelpSend.tr()),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Câu mẫu khi ghi âm (web `VoiceExamples`): hiện TỪNG câu một, mỗi câu ~3,5 giây rồi mờ
+/// dần sang câu kế. Mọi câu xếp chồng trong cùng một ô → khung cao bằng câu dài nhất, đổi
+/// câu không làm nhảy bố cục. Chỉ chạy khi đang ghi âm ([active]).
+class _VoiceExamples extends StatefulWidget {
+  final bool active;
+
+  const _VoiceExamples({required this.active});
+
+  @override
+  State<_VoiceExamples> createState() => _VoiceExamplesState();
+}
+
+class _VoiceExamplesState extends State<_VoiceExamples> {
+  static const _interval = Duration(milliseconds: 3500);
+
+  Timer? _timer;
+  int _index = 0;
+
+  static List<String> get _examples => [
+    LocaleKeys.getHelpExample1.tr(),
+    LocaleKeys.getHelpExample2.tr(),
+    LocaleKeys.getHelpExample3.tr(),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(covariant _VoiceExamples oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) _sync();
+  }
+
+  void _sync() {
+    _timer?.cancel();
+    _timer = null;
+    if (!widget.active) return;
+    _timer = Timer.periodic(_interval, (_) {
+      if (mounted) setState(() => _index = (_index + 1) % _examples.length);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final examples = _examples;
+    final style = AppTextStyle.lightBodyMediumRegular.copyWith(
+      height: 1.35,
+      color: Colour.textSecondary,
+    );
+    return Column(
+      children: [
+        Text(
+          LocaleKeys.getHelpExamplesLabel.tr(),
+          textAlign: TextAlign.center,
+          style: AppTextStyle.lightBodyMediumRegular.copyWith(
+            color: Colour.textTertiary,
+          ),
+        ),
+        Gap(8.h),
+        Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            for (final (i, example) in examples.indexed)
+              AnimatedSlide(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOut,
+                offset: i == _index ? Offset.zero : const Offset(0, 0.08),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOut,
+                  opacity: i == _index ? 1 : 0,
+                  child: ExcludeSemantics(
+                    excluding: i != _index,
+                    child: Text(
+                      example,
+                      textAlign: TextAlign.center,
+                      style: style,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );

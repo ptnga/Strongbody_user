@@ -14,7 +14,8 @@ import 'engagement_widgets.dart';
 import 'market_ui.dart';
 
 /// Card service (web `ServiceCard`): tiêu đề + lưu →
-/// badge hình thức → seller → mô tả → meta → số engagement → giá + "Send Inquiry".
+/// badge hình thức → seller → mô tả → service classification → meta → số engagement →
+/// giá + "Send Inquiry". Service thuộc organization: hàng seller là organization.
 /// Service Medical Travel: ẩn giá (badge), nút "View & book".
 class MarketServiceCard extends StatelessWidget {
   final MarketServiceEntity service;
@@ -111,6 +112,11 @@ class MarketServiceCard extends StatelessWidget {
             ),
           ),
         ],
+        // Service classification ngay dưới mô tả (chưa có → không hiện).
+        if (s.classifications.isNotEmpty) ...[
+          Gap(12.h),
+          MarketClassificationBadges(s.classifications),
+        ],
         if (meta.isNotEmpty) ...[Gap(6.h), Text(meta, style: metaStyle)],
         if (showEngagement) ...[
           Gap(12.h),
@@ -182,24 +188,14 @@ class _ImageStripState extends State<_ImageStrip> {
       child: Stack(
         fit: StackFit.expand,
         children: [
+          // Không có ảnh → ảnh dự phòng chung (web `FALLBACK_IMAGE`).
           if (images.isEmpty)
-            const ColoredBox(
-              color: Colour.subtle,
-              child: Icon(
-                Icons.medical_services_outlined,
-                color: Colour.textTertiary,
-              ),
-            )
+            const MarketImageFallback()
           else
             PageView.builder(
               itemCount: images.length,
               onPageChanged: (i) => setState(() => _index = i),
-              itemBuilder: (context, i) => Image.network(
-                images[i],
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
-                    const ColoredBox(color: Colour.subtle),
-              ),
+              itemBuilder: (context, i) => MarketServiceImage(images[i]),
             ),
           if (widget.deliveries.isNotEmpty)
             Positioned(
@@ -262,16 +258,7 @@ class _Price extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Tư vấn: khoảng giá tham khảo, giá chốt sau inquiry (web `card.consultation`).
-        if (price.consultation) ...[
-          Text(
-            LocaleKeys.marketCardConsultation.tr(),
-            style: AppTextStyle.lightBodySmallMedium.copyWith(
-              color: Colour.textSecondary,
-            ),
-          ),
-          Gap(4.h),
-        ],
+        // Tư vấn: chỉ khoảng giá, không còn nhãn "Consultation" (web bcda61a95).
         Text(
           price.text,
           style: AppTextStyle.lightBodyXLargeSemiBold.copyWith(
@@ -294,9 +281,10 @@ class _Price extends StatelessWidget {
 
 /// Card service của lưới trang category + listing (web `ServiceCard` với
 /// `deliveryFooter compact showSeller={false} showEngagement={false}`): ảnh bìa 16:9
-/// (nút lưu ở góc) → tiêu đề 2 dòng → mô tả 2 dòng → người cung cấp (avatar viền
-/// xác minh, tên, cờ + nước · ngôn ngữ) → giá (Tư vấn: nhãn "Consultation" + khoảng
-/// giá; Medical Travel: nhãn thay giá) · số lượt lưu. Cả card bấm được.
+/// (nút lưu ở góc; không có ảnh → ảnh dự phòng chung) → tiêu đề 2 dòng → mô tả 2 dòng →
+/// service classification → người cung cấp (avatar viền xác minh, tên, cờ + nước ·
+/// ngôn ngữ) → giá (Tư vấn: khoảng giá; Medical Travel: nhãn thay giá) · số lượt lưu
+/// (0 → ẩn). Cả card bấm được.
 class MarketServiceGridCard extends StatelessWidget {
   final MarketServiceEntity service;
   final VoidCallback? onTap;
@@ -322,21 +310,7 @@ class MarketServiceGridCard extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (image == null)
-                  const ColoredBox(
-                    color: Colour.subtle,
-                    child: Icon(
-                      Icons.medical_services_outlined,
-                      color: Colour.textTertiary,
-                    ),
-                  )
-                else
-                  Image.network(
-                    image,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        const ColoredBox(color: Colour.subtle),
-                  ),
+                MarketServiceImage(image),
                 Positioned(
                   top: 4.h,
                   right: 4.w,
@@ -374,6 +348,11 @@ class MarketServiceGridCard extends StatelessWidget {
                     color: Colour.textSecondary,
                   ),
                 ),
+                // Service classification ngay dưới mô tả (chưa có → không hiện).
+                if (s.classifications.isNotEmpty) ...[
+                  Gap(12.h),
+                  MarketClassificationBadges(s.classifications),
+                ],
                 Gap(12.h),
                 const Divider(height: 1, color: Colour.lineSubtle),
                 Gap(12.h),
@@ -563,7 +542,7 @@ class MarketVerifiedAvatar extends StatelessWidget {
   }
 }
 
-/// Giá ở chân card lưới: Tư vấn → "Consultation" cùng dòng với khoảng giá.
+/// Giá ở chân card lưới (Tư vấn: khoảng giá, không nhãn "Consultation").
 class _GridPrice extends StatelessWidget {
   final MarketServiceEntity service;
 
@@ -577,13 +556,6 @@ class _GridPrice extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.end,
       spacing: 4.w,
       children: [
-        if (price.consultation)
-          Text(
-            LocaleKeys.marketCardConsultation.tr(),
-            style: AppTextStyle.lightBodySmallMedium.copyWith(
-              color: Colour.textSecondary,
-            ),
-          ),
         Text(
           price.text,
           style: AppTextStyle.lightBodyLargeSemiBold.copyWith(
@@ -597,6 +569,46 @@ class _GridPrice extends StatelessWidget {
               color: Colour.textSecondary,
               decoration: TextDecoration.lineThrough,
             ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Service classification trên card (web `ClassificationBadges`): [max] tên đầu dạng badge
+/// ocean, phần còn lại gom "+N" (chạm xem đủ). Rỗng → không hiện gì.
+class MarketClassificationBadges extends StatelessWidget {
+  final List<String> items;
+
+  /// Số classification hiện thẳng (mặc định 2).
+  final int max;
+
+  /// false: bỏ badge "+N" của phần còn lại.
+  final bool more;
+
+  const MarketClassificationBadges(
+    this.items, {
+    super.key,
+    this.max = 2,
+    this.more = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final names = items.map((n) => n.trim()).where((n) => n.isNotEmpty);
+    if (names.isEmpty) return const SizedBox.shrink();
+    final rest = more ? names.skip(max).toList() : const <String>[];
+    return Wrap(
+      spacing: 6.w,
+      runSpacing: 6.h,
+      children: [
+        for (final name in names.take(max))
+          MarketBadge(name, tone: MarketBadgeTone.ocean),
+        if (rest.isNotEmpty)
+          Tooltip(
+            message: rest.join(', '),
+            triggerMode: TooltipTriggerMode.tap,
+            child: MarketBadge('+${rest.length}'),
           ),
       ],
     );

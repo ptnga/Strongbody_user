@@ -14,6 +14,29 @@ import 'engagement_widgets.dart';
 import 'market_service_card.dart' show MarketVerifiedAvatar;
 import 'market_ui.dart';
 
+/// Dòng phụ dưới tên provider (web `ExpertCard`): provider Business → tên category doanh
+/// nghiệp (dịch theo ngôn ngữ app); không thì nghề; không có nghề → nhãn Medical Travel,
+/// hoặc đơn vị trực thuộc của coordinator.
+String? expertSubtitle(BuildContext context, MarketExpertEntity e) {
+  final category = e.providerCategory;
+  if (category != null) {
+    return MarketFormatters.needCategoryName(
+      context,
+      category.slug,
+      category.name,
+    );
+  }
+  return e.subtitle ??
+      (e.medicalTravel ? LocaleKeys.marketMedicalTravel.tr() : null) ??
+      (e.representativeOf != null
+          ? LocaleKeys.marketCardRepresentativeOf.tr(
+              namedArgs: {'org': e.representativeOf!},
+            )
+          : e.independent
+          ? LocaleKeys.marketCardIndependent.tr()
+          : null);
+}
+
 /// Card hồ sơ (web `ExpertCard` biến thể `profile`): avatar + tên (+ Licence
 /// verified) + "🇦🇺 Australia · 5 yrs" → "nghề · ★ 4.9 (12)" → giới thiệu 3 dòng →
 /// ngôn ngữ → số engagement → "N booked" → "View profile".
@@ -35,17 +58,7 @@ class MarketExpertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final e = expert;
     final name = e.name.isEmpty ? LocaleKeys.marketFallbackSeller.tr() : e.name;
-    // Không có nghề → nhãn Medical Travel, hoặc đơn vị trực thuộc của coordinator.
-    final subtitle =
-        e.subtitle ??
-        (e.medicalTravel ? LocaleKeys.marketMedicalTravel.tr() : null) ??
-        (e.representativeOf != null
-            ? LocaleKeys.marketCardRepresentativeOf.tr(
-                namedArgs: {'org': e.representativeOf!},
-              )
-            : e.independent
-            ? LocaleKeys.marketCardIndependent.tr()
-            : null);
+    final subtitle = expertSubtitle(context, e);
     final years = MarketFormatters.years(e.yearsOfExperience);
     final metaStyle = AppTextStyle.lightBodyMediumRegular.copyWith(
       color: Colour.textSecondary,
@@ -166,32 +179,28 @@ class MarketExpertCard extends StatelessWidget {
 
 /// Card chân dung của lưới trang category + listing provider (web `ExpertCard`
 /// biến thể `spotlight`): căn giữa — avatar 72 (đã xác minh: viền + huy hiệu số mục ở
-/// góc), tên 2 dòng, nghề / tổ chức · số năm, cờ + nước · ngôn ngữ, rating, giới thiệu
+/// góc), tên 2 dòng, nghề / category doanh nghiệp / tổ chức · số năm, cờ + nước · ngôn ngữ, rating, giới thiệu
 /// 2 dòng. Chỉ có nút lưu (không like).
 class MarketExpertSpotlightCard extends StatelessWidget {
   final MarketExpertEntity expert;
   final VoidCallback? onTap;
 
+  /// Dòng thêm cuối thân card, dưới giới thiệu (web `extra` của biến thể spotlight —
+  /// vd. badge + nút Chat ở trang request đã gửi).
+  final Widget? extra;
+
   const MarketExpertSpotlightCard({
     super.key,
     required this.expert,
     this.onTap,
+    this.extra,
   });
 
   @override
   Widget build(BuildContext context) {
     final e = expert;
     final name = e.name.isEmpty ? LocaleKeys.marketFallbackSeller.tr() : e.name;
-    final subtitle =
-        e.subtitle ??
-        (e.medicalTravel ? LocaleKeys.marketMedicalTravel.tr() : null) ??
-        (e.representativeOf != null
-            ? LocaleKeys.marketCardRepresentativeOf.tr(
-                namedArgs: {'org': e.representativeOf!},
-              )
-            : e.independent
-            ? LocaleKeys.marketCardIndependent.tr()
-            : null);
+    final subtitle = expertSubtitle(context, e);
     // Tổ chức khác tên provider thì đứng thay nghề.
     final profession = e.organization != null && e.organization != e.name
         ? e.organization
@@ -320,6 +329,7 @@ class MarketExpertSpotlightCard extends StatelessWidget {
                     color: Colour.textPrimary,
                   ),
                 ),
+                if (extra != null) ...[Gap(12.h), extra!],
               ],
             ),
           ),

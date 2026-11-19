@@ -739,7 +739,7 @@ class _RadioCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.r),
         side: BorderSide(
-          color: checked ? Colour.textPrimary : Colour.border,
+          color: checked ? Colour.buttonPrimary : Colour.border,
           width: checked ? 1.5 : 1,
         ),
       ),
@@ -757,7 +757,7 @@ class _RadioCard extends StatelessWidget {
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
                   size: 18.r,
-                  color: checked ? Colour.textPrimary : Colour.lineStrong,
+                  color: checked ? Colour.buttonPrimary : Colour.lineStrong,
                 ),
                 Gap(12.w),
                 Expanded(
@@ -792,9 +792,11 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? Colour.textPrimary : Colour.surface,
+      color: selected ? Colour.buttonPrimary : Colour.surface,
       shape: StadiumBorder(
-        side: BorderSide(color: selected ? Colour.textPrimary : Colour.border),
+        side: BorderSide(
+          color: selected ? Colour.buttonPrimary : Colour.border,
+        ),
       ),
       child: InkWell(
         customBorder: const StadiumBorder(),

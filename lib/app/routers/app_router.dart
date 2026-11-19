@@ -23,6 +23,7 @@ import 'package:strongbody_buyer/modules/chat/presentation/screens/chat_page.dar
 import 'package:strongbody_buyer/modules/chat/presentation/screens/messages_page.dart';
 import 'package:strongbody_buyer/modules/home/presentation/bloc/home/home_bloc.dart';
 import 'package:strongbody_buyer/modules/home/presentation/screens/home_page.dart';
+import 'package:strongbody_buyer/modules/home/presentation/screens/offers_page.dart';
 import 'package:strongbody_buyer/modules/post_request/domain/entities/provider_keyword.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/bloc/matching_providers/matching_providers_bloc.dart';
 import 'package:strongbody_buyer/modules/post_request/presentation/bloc/my_requests/my_requests_bloc.dart';
@@ -45,6 +46,7 @@ import 'package:strongbody_buyer/modules/social_market/domain/entities/market_fe
 import 'package:strongbody_buyer/modules/social_market/domain/entities/market_listing_entities.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/bloc/category_market/category_market_bloc.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/bloc/engagement/engagement_cubit.dart';
+import 'package:strongbody_buyer/modules/social_market/presentation/bloc/market_listing/listing_facets_cubit.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/bloc/market_listing/market_listing_bloc.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/screens/category_market_page.dart';
 import 'package:strongbody_buyer/modules/social_market/presentation/screens/market_listing_page.dart';
@@ -311,6 +313,10 @@ class AppRoutes {
         ),
       ),
       GoRoute(
+        path: RouteName.offers,
+        builder: (context, state) => const OffersPage(),
+      ),
+      GoRoute(
         path: RouteName.matchingProviders,
         builder: (context, state) {
           final args = MatchingProvidersPageArgs.fromExtra(state.extra);
@@ -344,8 +350,8 @@ Widget _categoryPage(BuildContext context, MarketPageScope scope) =>
       child: CategoryMarketPage(scope: scope),
     );
 
-/// Listing "View all" của trang category: `services` (`?lang=` = ngôn ngữ seller) và
-/// `providers` (web `/services/{category}`, `/providers/{category}`).
+/// Listing "View all" của trang nhãn: `services` (`?category=` = category doanh nghiệp
+/// đã chọn) và `providers` (web `/services/{category}`, `/providers/{category}`).
 List<RouteBase> _listingRoutes(
   MarketPageScope Function(GoRouterState state) scopeOf,
 ) => [
@@ -353,21 +359,27 @@ List<RouteBase> _listingRoutes(
     path: 'services',
     builder: (context, state) {
       final scope = scopeOf(state);
+      final category = ListingFacetsCubit.validCategory(
+        scope,
+        state.uri.queryParameters[MarketRoutes.listingCategoryParam],
+      );
       return MultiBlocProvider(
         providers: [
           BlocProvider(
             create: (_) => getIt<MarketListingBloc<MarketServiceEntity>>(
               param1: scope,
-              param2: state.uri.queryParameters[MarketRoutes
-                  .listingLanguageParam],
+              param2: category,
             )..add(const MarketListingStarted()),
+          ),
+          BlocProvider(
+            create: (_) => getIt<ListingFacetsCubit>()..load(scope, category),
           ),
           BlocProvider(
             create: (_) =>
                 getIt<EngagementCubit>(param1: EngagementTarget.service),
           ),
         ],
-        child: MarketServicesListingPage(scope: scope),
+        child: MarketServicesListingPage(scope: scope, category: category),
       );
     },
   ),

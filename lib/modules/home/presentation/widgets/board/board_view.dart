@@ -19,23 +19,9 @@ import '../../../domain/entities/board_entities.dart';
 import '../../bloc/board/board_cubit.dart';
 import 'board_filter_sheet.dart';
 
-/// Chủ đề của board Requests (`category_id`, web `topics`).
-const boardTopics = <({int id, String key})>[
-  (id: 96655, key: 'longevity'),
-  (id: 96656, key: 'medicalTravel'),
-  (id: 96657, key: 'healthPro'),
-  (id: 96658, key: 'personalHelper'),
-];
-
-String _topicLabel(String key) => switch (key) {
-  'longevity' => LocaleKeys.boardTopicLongevity.tr(),
-  'medicalTravel' => LocaleKeys.boardTopicMedicalTravel.tr(),
-  'healthPro' => LocaleKeys.boardTopicHealthPro.tr(),
-  _ => LocaleKeys.boardTopicPersonalHelper.tr(),
-};
-
-/// Một board (web `BoardFrame` + feed): tiêu đề → (chủ đề) → ô tìm + "Filters" → hàng
-/// bộ lọc đang dùng → danh sách cuộn tải thêm → trạng thái trống / lỗi.
+/// Một board (web `BoardFrame` + feed): tiêu đề → ô tìm + "Filters" → hàng bộ lọc đang
+/// dùng → danh sách cuộn tải thêm → trạng thái trống / lỗi. Nay chỉ dùng cho trang Offers
+/// (bảng Requests trang chủ là feed gọn `HomeRequestsFeed`, web bỏ tìm kiếm / chủ đề).
 class BoardView<T> extends StatefulWidget {
   final BoardKind kind;
   final Widget Function(BuildContext context, T item) itemBuilder;
@@ -132,8 +118,7 @@ class _BoardViewState<T> extends State<BoardView<T>>
             padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 96.h),
             children: [
               _header(),
-              if (_requests) ...[Gap(12.h), _topics(state)],
-              Gap(12.h),
+              Gap(16.h),
               _toolbar(state),
               if (state.isSearching && state.status == BoardStatus.success)
                 _activeFilters(state),
@@ -146,62 +131,32 @@ class _BoardViewState<T> extends State<BoardView<T>>
     );
   }
 
+  /// Web cột / trang `/offers` mobile: chỉ tiêu đề (lời giới thiệu đã ở hero trang chủ).
   Widget _header() {
     final title = _requests
         ? LocaleKeys.boardRequestsTitle.tr()
         : LocaleKeys.boardOffersTitle.tr();
-    final desc = _requests
-        ? LocaleKeys.boardRequestsDesc.tr()
-        : LocaleKeys.boardOffersDesc.tr();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: AppTextStyle.lightHeadingXSmall.copyWith(
-                  color: Colour.textPrimary,
-                ),
+        Expanded(
+          child: Semantics(
+            header: true,
+            child: Text(
+              title,
+              style: AppTextStyle.lightHeadingSmall.copyWith(
+                color: Colour.textPrimary,
               ),
             ),
-            if (_requests)
-              MarketButton(
-                label: LocaleKeys.boardRequestsPost.tr(),
-                onPressed: _postRequest,
-              ),
-          ],
-        ),
-        Gap(4.h),
-        Text(
-          desc,
-          style: AppTextStyle.lightBodyMediumRegular.copyWith(
-            color: Colour.textSecondary,
           ),
         ),
+        if (_requests)
+          MarketButton(
+            label: LocaleKeys.boardRequestsPost.tr(),
+            onPressed: _postRequest,
+          ),
       ],
     );
   }
-
-  Widget _topics(BoardState<T> state) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      children: [
-        for (final t in boardTopics) ...[
-          _Pill(
-            label: _topicLabel(t.key),
-            selected: state.topicId == t.id,
-            onTap: () {
-              _search.clear();
-              context.read<BoardCubit<T>>().toggleTopic(t.id);
-            },
-          ),
-          Gap(8.w),
-        ],
-      ],
-    ),
-  );
 
   Widget _toolbar(BoardState<T> state) {
     final active = state.filters.activeCount;
@@ -519,37 +474,4 @@ class _BoardViewState<T> extends State<BoardView<T>>
       ),
     );
   }
-}
-
-class _Pill extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _Pill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: selected ? Colour.textPrimary : Colour.surface,
-    shape: StadiumBorder(
-      side: BorderSide(color: selected ? Colour.textPrimary : Colour.border),
-    ),
-    child: InkWell(
-      customBorder: const StadiumBorder(),
-      onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
-        child: Text(
-          label,
-          style: AppTextStyle.lightBodySmallMedium.copyWith(
-            color: selected ? Colour.surface : Colour.textPrimary,
-          ),
-        ),
-      ),
-    ),
-  );
 }

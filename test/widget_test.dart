@@ -201,6 +201,13 @@ class _FakePostRequestRepository implements PostRequestRepository {
   ) async => const Right([]);
 
   @override
+  Future<Either<Failure, MatchedProvidersPage>> getMatchedProviders(
+    int requestId, {
+    int page = 1,
+    int limit = 20,
+  }) async => const Right(MatchedProvidersPage());
+
+  @override
   Future<Either<Failure, SentRequest>> getSentRequest(int id) async =>
       Left(NotFoundFailure('none'));
 

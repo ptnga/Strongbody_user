@@ -60,7 +60,8 @@ class MedicalCenteredHeading extends StatelessWidget {
   }
 }
 
-/// Chip lọc (web `chipVariants` tone brand).
+/// Chip lọc (web `chipVariants`): đang chọn nền ocean đặc chữ trắng (web 260310fa4 —
+/// trạng thái chọn của phía người mua dùng ocean).
 class MarketFilterChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -76,12 +77,10 @@ class MarketFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? Colour.brand50 : Colour.surface,
+      color: selected ? Colour.buttonPrimary : Colour.surface,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected
-              ? Colour.primary.withValues(alpha: 0.2)
-              : Colour.border,
+          color: selected ? Colour.buttonPrimary : Colour.border,
         ),
       ),
       child: InkWell(
@@ -92,7 +91,7 @@ class MarketFilterChip extends StatelessWidget {
           child: Text(
             label,
             style: AppTextStyle.lightBodyMediumMedium.copyWith(
-              color: selected ? Colour.primary : Colour.textSecondary,
+              color: selected ? Colour.surface : Colour.textSecondary,
             ),
           ),
         ),

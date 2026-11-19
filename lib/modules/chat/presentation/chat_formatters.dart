@@ -47,23 +47,37 @@ class ChatFormatters {
     return DateFormat(sameYear ? 'd MMM' : 'd MMM y', locale).format(time);
   }
 
-  /// Nhãn ngăn ngày trong chat: "Today" / "Yesterday" / "Sat 24 Oct".
-  static String dayLabel(DateTime time, String locale, {DateTime? now}) {
-    final today = _day(now ?? DateTime.now());
-    final days = today.difference(_day(time)).inDays;
-    if (days == 0) return LocaleKeys.chatToday.tr();
-    if (days == 1) return LocaleKeys.chatYesterday.tr();
-    final sameYear = time.year == today.year;
-    return DateFormat(
-      sameYear ? 'EEE d MMM' : 'EEE d MMM y',
+  /// Khoảng lặng mở một cụm tin mới có mốc giờ (web `TIME_SEPARATOR_GAP`, kiểu Messenger).
+  static const clusterGap = Duration(hours: 1);
+
+  /// Tin [current] mở cụm mới (hiện mốc giờ căn giữa phía trên) khi là tin đầu tiên hoặc
+  /// cách tin hiển thị liền trước [previous] >= [clusterGap] (web `ChatBody`).
+  static bool startsCluster(DateTime? previous, DateTime current) =>
+      previous == null || current.difference(previous) >= clusterGap;
+
+  /// Mốc giờ căn giữa đầu cụm tin (web `formatChatSeparatorTime`): hôm nay "10:42",
+  /// trong 7 ngày "Mon 10:42", cùng năm "17 Nov, 10:42", năm khác thêm năm.
+  static String separatorTime(DateTime time, String locale, {DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final today = _day(current);
+    final hm = DateFormat.Hm(locale).format(time);
+    if (!time.isBefore(today)) return hm;
+    final weekStart = DateTime(today.year, today.month, today.day - 6);
+    if (!time.isBefore(weekStart)) {
+      return '${DateFormat.E(locale).format(time)} $hm';
+    }
+    final sameYear = time.year == current.year;
+    final date = DateFormat(
+      sameYear ? 'd MMM' : 'd MMM y',
       locale,
     ).format(time);
+    return '$date, $hm';
   }
 
-  static String time(DateTime time, String locale) =>
-      DateFormat.Hm(locale).format(time);
-
-  static bool sameDay(DateTime a, DateTime b) => _day(a) == _day(b);
+  /// Giờ đầy đủ của một tin (web `formatChatFullTime`) — hiện khi chạm bong bóng:
+  /// "Monday, 17 November 2026 10:42".
+  static String fullTime(DateTime time, String locale) =>
+      DateFormat.yMMMMEEEEd(locale).add_Hm().format(time);
 
   /// Dòng xem trước: text / "Voice message · 0:14" / "Photo"… (+ "You: " nếu mình gửi).
   static String preview(ConversationEntity c, int myUserId) {

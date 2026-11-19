@@ -174,10 +174,16 @@ class MarketMapper {
     final org = _representedOrg(profile);
     final place = _sellerPlace(profile);
     final professions = _list(u?['professions']);
-    final languages = sellerLanguageLabels(
-      profile?['supported_languages'],
-      profile?['language_items'],
-    );
+    // Người đại diện organization: ngôn ngữ của organization, trống thì của seller.
+    final orgLanguages = org == null
+        ? const <String>[]
+        : sellerLanguageLabels(org['languages'], null);
+    final languages = orgLanguages.isNotEmpty
+        ? orgLanguages
+        : sellerLanguageLabels(
+            profile?['supported_languages'],
+            profile?['language_items'],
+          );
     return MarketSeller(
       id: _int(inner?['id']) ?? _int(u?['id']),
       shopName:
@@ -219,9 +225,36 @@ class MarketMapper {
   static String? _firstName(Object? list) =>
       _list(list).map(label).nonNulls.firstOrNull;
 
+  /// Key BE → key của card (web `KEY_ALIAS`).
+  static const _verificationAlias = {
+    'profession': 'diploma',
+    'organisation': 'organization',
+  };
+
+  /// `verification.checks` → mọi mục `state == verified` (web `verificationsFromChecks`):
+  /// không đóng cứng danh sách — loại BE thêm sau tự tính vào [MarketVerifications.others].
+  static MarketVerifications? verificationsFromChecks(Object? checks) {
+    if (checks is! List) return null;
+    final keys = <String>{};
+    for (final c in checks) {
+      if (c is! Map || c['state'] != 'verified') continue;
+      final key = _text(c['key']);
+      if (key != null) keys.add(_verificationAlias[key] ?? key);
+    }
+    const known = {'identity', 'phone', 'diploma', 'organization'};
+    final out = MarketVerifications(
+      identity: keys.contains('identity'),
+      phone: keys.contains('phone'),
+      diploma: keys.contains('diploma'),
+      organization: keys.contains('organization'),
+      others: keys.where((k) => !known.contains(k)).toList(),
+    );
+    return out.any ? out : null;
+  }
+
   /// Mục xác minh của seller (web `slimVerifications` / `sellerVerifications`):
-  /// `verification.checks` với `state == verified` (`profession` = bằng cấp); BE cũ chưa
-  /// có checks → suy từ `seller_verified` / `is_mobile_verified` / `certificates`.
+  /// `verification.checks` (verificationsFromChecks); BE cũ chưa có checks → suy từ
+  /// `seller_verified` / `is_mobile_verified` / `certificates`.
   static MarketVerifications? sellerVerifications(Object? raw) {
     final u = _map(raw);
     if (u == null) return null;
@@ -231,30 +264,53 @@ class MarketMapper {
         _map(u['verification'])?['checks'] ??
         _map(inner?['verification'])?['checks'] ??
         _map(_map(sp?['User'])?['verification'])?['checks'];
-    final MarketVerifications out;
-    if (checks is List) {
-      bool ok(String key) => checks.any(
-        (c) => c is Map && c['key'] == key && c['state'] == 'verified',
-      );
-      out = MarketVerifications(
-        identity: ok('identity'),
-        phone: ok('phone'),
-        diploma: ok('profession'),
-      );
-    } else {
-      final certs =
-          sp?['certificates'] ?? _map(sp?['Organization'])?['certificates'];
-      out = MarketVerifications(
-        identity: (sp?['seller_verified'] ?? u['seller_verified']) == true,
-        phone:
-            u['is_mobile_verified'] == true ||
-            inner?['is_mobile_verified'] == true ||
-            _map(sp?['User'])?['is_mobile_verified'] == true,
-        diploma: certs is List && certs.isNotEmpty,
-      );
-    }
+    if (checks is List) return verificationsFromChecks(checks);
+    final certs =
+        sp?['certificates'] ?? _map(sp?['Organization'])?['certificates'];
+    final out = MarketVerifications(
+      identity: (sp?['seller_verified'] ?? u['seller_verified']) == true,
+      phone:
+          u['is_mobile_verified'] == true ||
+          inner?['is_mobile_verified'] == true ||
+          _map(sp?['User'])?['is_mobile_verified'] == true,
+      diploma: certs is List && certs.isNotEmpty,
+    );
     return out.any ? out : null;
   }
+
+  /// Organization hiển thị được (web `displayableOrganization`): có id + tên.
+  static Map<String, dynamic>? _displayableOrg(Object? raw) {
+    final org = _map(raw);
+    if (org == null || (_int(org['id']) ?? 0) == 0) return null;
+    return _text(org['name']) == null ? null : org;
+  }
+
+  /// Người đứng tên service trên card (web `resolveServiceProvider`): service THUỘC
+  /// organization (`services.organization_id`) → tên, logo, nước, ngôn ngữ của
+  /// organization; `id` vẫn là seller (inquiry / chat đi tới seller).
+  static MarketSeller serviceProvider(Map<String, dynamic> s) {
+    final seller = MarketMapper.seller(s['user']);
+    final org = _displayableOrg(s['organization']);
+    if (org == null) return seller;
+    final name = _text(org['name'])!;
+    final place = _sellerPlace({'is_org_owner': true, 'organization': org});
+    final languages = sellerLanguageLabels(org['languages'], null);
+    return MarketSeller(
+      id: seller.id,
+      shopName: name,
+      avatar: _text(org['logo']) ?? seller.avatar,
+      // Organization chưa khai địa chỉ / ngôn ngữ → của seller.
+      country: place.country ?? seller.country,
+      flag: place.country != null ? place.flag : seller.flag,
+      slug: seller.slug,
+      verifications: seller.verifications,
+      languages: languages.isNotEmpty ? languages : seller.languages,
+    );
+  }
+
+  /// Tên service classification (web `ClassificationBadges` đọc `service_classifications`).
+  static List<String> classificationNames(Object? raw) =>
+      _list(raw).map((c) => _text(_map(c)?['name'])).nonNulls.toSet().toList();
 
   // ---------------------------------------------------------------- service
 
@@ -359,7 +415,7 @@ class MarketMapper {
             original > price.amount!
         ? formatMoney(original, price.currency)
         : null;
-    final seller = MarketMapper.seller(s['user']);
+    final seller = serviceProvider(s);
     final coverage = deliveries
         .map((d) => d.coverage)
         .firstWhere((c) => c.isNotEmpty, orElse: () => '');
@@ -392,10 +448,49 @@ class MarketMapper {
       rawDescription: _text(s['description']),
       pricingMode: _text(s['pricing_mode']),
       priceMax: s['price_max'] is num ? s['price_max'] as num : null,
+      classifications: classificationNames(s['service_classifications']),
     );
   }
 
   // ----------------------------------------------------------------- expert
+
+  /// Loại provider Business (onboarding 2026): dòng phụ là category doanh nghiệp.
+  static const _businessProviderTypes = {
+    'clinic',
+    'wellness',
+    'health_product',
+  };
+
+  /// Dòng phụ dưới tên provider theo loại (web `providerLine`):
+  /// - Business: category doanh nghiệp (`provider_category`); chưa có → trống.
+  /// - Expert: profession đã chọn lúc onboarding, không có thì chữ nghề tự gõ.
+  /// - Seller cũ (chưa có loại): chữ nghề tự gõ, không có thì profession đầu. KHÔNG lấy
+  ///   category (category tự gán theo product, không mô tả người bán).
+  static ({String? subtitle, ({String slug, String name})? providerCategory})
+  providerLine(Map<String, dynamic> e) {
+    final type = _text(e['provider_type']);
+    if (type != null && _businessProviderTypes.contains(type)) {
+      final c = _map(e['provider_category']);
+      final name = _text(c?['name']);
+      return (
+        subtitle: null,
+        providerCategory: name == null
+            ? null
+            : (slug: _text(c?['slug']) ?? '', name: name),
+      );
+    }
+    if (type == 'expert') {
+      return (
+        subtitle:
+            _firstName(e['professions']) ?? professionText(e['profession']),
+        providerCategory: null,
+      );
+    }
+    return (
+      subtitle: professionText(e['profession']) ?? _firstName(e['professions']),
+      providerCategory: null,
+    );
+  }
 
   /// Expert `/expert/balanced` → card `profile` (web `expertToCard`).
   static MarketExpertEntity expert(Map<String, dynamic> e) {
@@ -413,24 +508,28 @@ class MarketMapper {
               norm(c['slug']).startsWith('medical-travel') ||
               norm(c['name']).startsWith('medical-travel'),
         );
-    final primaryId = _int(e['primary_category_id']);
-    final primary = primaryId == null
-        ? null
-        : categories.where((c) => _int(c['id']) == primaryId).firstOrNull;
-    final categoryName = _text((primary ?? categories.firstOrNull)?['name']);
     final summary = _map(e['review_summary']);
     final user = _map(e['user']);
-    // Tên = tên shop của chính provider (không rơi về họ tên tài khoản); provider thuộc
-    // organization: avatar + tên vẫn là của provider, tên organization ở dòng dưới.
+    // Người đại diện organization (provider Business): hồ sơ public là của organization →
+    // tên + logo của organization (trống thì của seller). Seller chỉ là thành viên: tên +
+    // avatar của seller, tên organization ở dòng dưới (web `expertToCard`).
     final shopName = _text(e['shop_name']);
+    final ownName = shopName != null && shopName != 'undefined'
+        ? shopName
+        : null;
     final orgName =
         _text(org?['name']) ?? _text(_map(e['organization'])?['name']);
     final identity = e['seller_verified'] == true;
-    final verifications = MarketVerifications(
-      identity: identity,
-      phone: user?['is_mobile_verified'] == true,
-      diploma: _list(e['certificates']).isNotEmpty,
-    );
+    // `user.verification.checks` (mọi mục đã xác minh, kể cả tổ chức); BE cũ → suy ra.
+    final checks = _map(user?['verification'])?['checks'];
+    final verifications = checks is List
+        ? verificationsFromChecks(checks)
+        : MarketVerifications(
+            identity: identity,
+            phone: user?['is_mobile_verified'] == true,
+            diploma: _list(e['certificates']).isNotEmpty,
+          );
+    final line = providerLine(e);
 
     final orgLanguages = org == null
         ? const <String>[]
@@ -442,16 +541,14 @@ class MarketMapper {
     return MarketExpertEntity(
       id: _int(e['id']),
       userId: _int(e['user_id']) ?? _int(user?['id']),
-      name: shopName != null && shopName != 'undefined'
-          ? shopName
-          : orgName ?? '',
+      name: (org != null ? orgName : null) ?? ownName ?? orgName ?? '',
       slug: _text(e['slug']),
-      avatar: _text(user?['profile_picture']) ?? _text(org?['logo']),
+      avatar:
+          (org != null ? _text(org['logo']) : null) ??
+          _text(user?['profile_picture']),
       organization: orgName,
-      subtitle:
-          professionText(e['profession']) ??
-          _firstName(e['professions']) ??
-          (medicalTravel ? null : categoryName),
+      subtitle: line.subtitle,
+      providerCategory: line.providerCategory,
       medicalTravel: medicalTravel,
       country: place.country,
       flag: place.flag,
@@ -461,7 +558,9 @@ class MarketMapper {
       booked: _positiveInt(e['served_customers']),
       // `verified` = danh tính (`seller_verified`); bằng cấp là một mục trong [verifications].
       verified: identity,
-      verifications: verifications.any ? verifications : null,
+      verifications: verifications != null && verifications.any
+          ? verifications
+          : null,
       about: org != null
           ? (_orgDescription(org['description']) ?? _text(e['about']))
           : _text(e['about']),
@@ -562,10 +661,9 @@ class MarketMapper {
     final s = _map(o['seller']);
     final profile = _map(s?['seller_profile']);
     final place = _sellerPlace(profile);
-    final fullName = [
-      _text(s?['first_name']),
-      _text(s?['last_name']),
-    ].nonNulls.join(' ');
+    // Chỉ tên shop (organization nếu là người đại diện — web `slimOffer`), không rơi về họ
+    // tên tài khoản.
+    final represented = _representedOrg(profile);
     final prices = <({String mode, double amount})>[
       for (final (mode, key) in [
         ('remote', 'price_remote'),
@@ -577,9 +675,8 @@ class MarketMapper {
     return MarketOfferEntity(
       id: _int(o['id']),
       sellerUserId: _int(s?['id']) ?? _int(o['seller_id']),
-      sellerName:
-          _text(profile?['shop_name']) ?? (fullName.isEmpty ? null : fullName),
-      sellerAvatar: _text(s?['profile_picture']),
+      sellerName: _text(represented?['name']) ?? _text(profile?['shop_name']),
+      sellerAvatar: _text(represented?['logo']) ?? _text(s?['profile_picture']),
       profession: _text(s?['profession']) ?? _text(profile?['profession']),
       country: place.country,
       flag: place.flag,
@@ -793,8 +890,48 @@ class MarketMapper {
       rawDescription: base.rawDescription,
       pricingMode: base.pricingMode,
       priceMax: base.priceMax,
+      classifications: base.classifications,
     );
   }
+
+  /// Một section của `/public/services/by-category` (web `CategorySection`).
+  static MarketCategorySection? categorySection(Map<String, dynamic> raw) {
+    final category = businessCategory(raw['category']);
+    if (category == null) return null;
+    final items = _list(raw['items']).map(_map).nonNulls.map(service).toList();
+    return MarketCategorySection(
+      category: category,
+      total: _int(raw['total']) ?? items.length,
+      items: items,
+    );
+  }
+
+  static MarketBusinessCategory? businessCategory(Object? raw) {
+    final c = _map(raw);
+    final slug = _text(c?['slug']);
+    final name = _text(c?['name']);
+    if (slug == null || name == null) return null;
+    return MarketBusinessCategory(id: _int(c?['id']), slug: slug, name: name);
+  }
+
+  /// `data` của `/public/services/classifications` (web `getPublicServiceClassifications`).
+  static MarketClassifications classifications(Map<String, dynamic> data) =>
+      MarketClassifications(
+        category: businessCategory(data['category']),
+        list: [
+          for (final c in _list(data['list']).map(_map).nonNulls)
+            if ((_text(c['slug']), _text(c['name'])) case (
+              final slug?,
+              final name?,
+            ))
+              MarketClassificationFacet(
+                id: _int(c['id']),
+                slug: slug,
+                name: name,
+                count: _int(c['count']) ?? 0,
+              ),
+        ],
+      );
 
   static MarketDestination? destination(Map<String, dynamic> c) {
     final id = _int(c['id']);
@@ -833,9 +970,11 @@ class MarketMapper {
     final sellerProfile = _map(s['seller_profile']);
     final org = _map(s['organization']);
     final hasOrg = (_int(org?['id']) ?? 0) > 0 && _text(org?['name']) != null;
-    final represented = _representedOrg(sellerProfile);
+    // Service thuộc organization (hoặc seller là người đại diện) → tên + logo organization
+    // (web `serviceOrganization` / `providerNameFor` / `providerAvatarFor`).
+    final owner = _displayableOrg(org) ?? _representedOrg(sellerProfile);
     final providerName =
-        _text(represented?['name']) ?? _text(sellerProfile?['shop_name']);
+        _text(owner?['name']) ?? _text(sellerProfile?['shop_name']);
     final orgCountry = hasOrg ? _map(org?['country']) : null;
     final country = orgCountry ?? _map(s['country']);
 
@@ -883,7 +1022,8 @@ class MarketMapper {
       organizationName: hasOrg ? _text(org?['name']) : providerName,
       providerName: providerName,
       providerSlug: _text(sellerProfile?['slug']),
-      providerAvatar: _text(_map(s['user'])?['profile_picture']),
+      providerAvatar:
+          _text(owner?['logo']) ?? _text(_map(s['user'])?['profile_picture']),
       certs: [
         for (final c in MarketCert.values)
           if (accreditations[c.apiValue] == true) c,

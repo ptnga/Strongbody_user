@@ -25,6 +25,15 @@ abstract class SocialMarketRemoteDataSource {
 
   Future<RawListPage> getExperts(Map<String, dynamic> query);
 
+  /// `data.sections` của `/public/services/by-category` (lỗi body `code != 0` → ném).
+  Future<List<Map<String, dynamic>>> getServicesByCategory({
+    required List<String> categories,
+    required int per,
+  });
+
+  /// `data` của `/public/services/classifications`.
+  Future<Map<String, dynamic>> getServiceClassifications(String categorySlug);
+
   Future<RawListPage> getPublicOffers({required int page, required int limit});
 
   Future<RawListPage> getPublicRequests({
@@ -142,6 +151,43 @@ class SocialMarketRemoteDataSourceImpl implements SocialMarketRemoteDataSource {
   @override
   Future<RawListPage> getExperts(Map<String, dynamic> query) async =>
       _page(await _public(SocialMarketApiConfig.expertsBalanced, query));
+
+  @override
+  Future<List<Map<String, dynamic>>> getServicesByCategory({
+    required List<String> categories,
+    required int per,
+  }) async {
+    final data = _data(
+      _ok(
+        await _public(SocialMarketApiConfig.publicServicesByCategory, {
+          'categories': categories.join(','),
+          'per': per,
+        }),
+      ),
+    );
+    final sections = data['sections'];
+    if (sections is! List) {
+      throw Exception('Invalid services-by-category response');
+    }
+    return _maps(sections);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getServiceClassifications(
+    String categorySlug,
+  ) async {
+    final data = _data(
+      _ok(
+        await _public(SocialMarketApiConfig.publicServiceClassifications, {
+          'provider_category_slug': categorySlug,
+        }),
+      ),
+    );
+    if (data['list'] is! List) {
+      throw Exception('Invalid service classifications response');
+    }
+    return data;
+  }
 
   @override
   Future<RawListPage> getPublicOffers({

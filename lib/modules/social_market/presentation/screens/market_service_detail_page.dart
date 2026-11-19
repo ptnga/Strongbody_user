@@ -13,12 +13,15 @@ import 'package:strongbody_buyer/core/di/locator.dart';
 import 'package:strongbody_buyer/core/domain/storages/global_storage.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
+import 'package:strongbody_buyer/core/utils/toast_util.dart';
 import 'package:strongbody_buyer/modules/auth/presentation/widgets/auth_sheet.dart';
 import 'package:strongbody_buyer/modules/chat/presentation/chat_page_args.dart';
 
 import '../../data/mappers/market_mapper.dart';
 import '../../domain/entities/medical_travel_entities.dart';
+import '../../domain/entities/market_feed_entities.dart';
 import '../bloc/category_market/category_market_bloc.dart' show SectionStatus;
+import '../bloc/engagement/engagement_cubit.dart';
 import '../bloc/medical_travel/service_detail_cubit.dart';
 import '../widgets/appointment_sheet.dart';
 import '../widgets/market_hero.dart';
@@ -37,6 +40,16 @@ class MarketServiceDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Like · Save của service (web ff31a6b21 `DetailProviders` → EngagementProvider).
+    return BlocProvider(
+      create: (_) =>
+          getIt<EngagementCubit>(param1: EngagementTarget.service)
+            ..load([serviceId]),
+      child: _scaffold(context),
+    );
+  }
+
+  Widget _scaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: Colour.surface,
       body: SafeArea(
@@ -247,6 +260,8 @@ class _DetailBody extends StatelessWidget {
           ),
         ),
         if (d.images.isNotEmpty) _Gallery(images: d.images),
+        // Like · Save ngay dưới ảnh, nút có chữ; chủ service → nút bị tắt.
+        _LikeSave(serviceId: d.id, blocked: isOwnService(d)),
         // Thông tin nhanh (web `BookingFacts`).
         block(
           Column(
@@ -716,6 +731,90 @@ class _BookingBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Thanh Like · Save dưới ảnh (web `LikeSave`): nút viền bo tròn có icon + chữ; đang bật →
+/// viền + icon màu (Like đỏ, Save vàng). Khách → popup đăng nhập; chủ service → tắt.
+class _LikeSave extends StatelessWidget {
+  final int serviceId;
+  final bool blocked;
+
+  const _LikeSave({required this.serviceId, required this.blocked});
+
+  void _toggle(BuildContext context, EngagementKind kind) {
+    if (blocked) return;
+    final cubit = context.read<EngagementCubit>();
+    if (!cubit.isLoggedIn) {
+      showAuthSheet(context, source: 'medical_travel_${kind.name}');
+      return;
+    }
+    cubit.toggle(serviceId, kind);
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocConsumer<EngagementCubit, EngagementCubitState>(
+        listenWhen: (a, b) => a.errorCount != b.errorCount,
+        listener: (context, _) =>
+            ToastUtil.showError(LocaleKeys.marketGenericError.tr()),
+        builder: (context, state) {
+          final item = state.of(serviceId);
+          Widget button(EngagementKind kind) {
+            final like = kind == EngagementKind.like;
+            final on = like ? item.liked : item.saved;
+            final color = on
+                ? (like ? Colour.primary : Colour.amber)
+                : Colour.textSecondary;
+            return _OwnerBlocked(
+              blocked: blocked,
+              child: Opacity(
+                opacity: blocked ? 0.6 : 1,
+                child: OutlinedButton.icon(
+                  onPressed: state.isPending(serviceId, kind)
+                      ? null
+                      : () => _toggle(context, kind),
+                  style: OutlinedButton.styleFrom(
+                    shape: const StadiumBorder(),
+                    side: BorderSide(color: on ? color : Colour.border),
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    minimumSize: Size(0, 36.h),
+                  ),
+                  icon: Icon(
+                    like
+                        ? (on ? Icons.favorite : Icons.favorite_border)
+                        : (on ? Icons.bookmark : Icons.bookmark_border),
+                    size: 18.r,
+                    color: color,
+                  ),
+                  label: Text(
+                    like
+                        ? LocaleKeys.marketSvcLike.tr()
+                        : LocaleKeys.marketSvcSave.tr(),
+                    style: AppTextStyle.lightBodyMediumMedium.copyWith(
+                      color: Colour.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return Container(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colour.lineSubtle)),
+            ),
+            child: Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: [
+                button(EngagementKind.like),
+                button(EngagementKind.save),
+              ],
+            ),
+          );
+        },
+      );
 }
 
 /// Seller đang xem chương trình của CHÍNH mình (web 797986a93, so `session.user.id` với

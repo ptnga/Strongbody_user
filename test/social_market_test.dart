@@ -40,6 +40,8 @@ class _Repo implements SocialMarketRepository {
     String? orderBy,
     String? orderDir,
     String? language,
+    String? subCategory,
+    String? classification,
   }) async {
     serviceCalls.add((
       slug: categorySlug,
@@ -58,6 +60,31 @@ class _Repo implements SocialMarketRepository {
         totalPages: 3,
       ),
     );
+  }
+
+  final sectionCalls = <({List<String> categories, int per})>[];
+
+  @override
+  Future<Either<Failure, List<MarketCategorySection>>> getServicesByCategory({
+    required List<String> categories,
+    required int per,
+  }) async {
+    sectionCalls.add((categories: categories, per: per));
+    return Right([
+      MarketCategorySection(
+        category: const MarketBusinessCategory(slug: 'a', name: 'A'),
+        total: 4,
+        items: [
+          for (var i = 1; i <= 3; i++) MarketMapper.service({'id': i}),
+        ],
+      ),
+      // Category chưa có service → ẩn section.
+      const MarketCategorySection(
+        category: MarketBusinessCategory(slug: 'b', name: 'B'),
+        total: 0,
+        items: [],
+      ),
+    ]);
   }
 
   @override
@@ -213,8 +240,9 @@ void main() {
       ],
       'years_of_experience': 0,
     });
-    // Web expertToCard: tên = tên shop của provider, organization ở dòng dưới.
-    expect(e.name, 'Dr A');
+    // Web expertToCard (6a0496ba6): người đại diện organization → hồ sơ public là của
+    // organization (tên + logo của organization).
+    expect(e.name, 'BlueNet Hospitals');
     expect(e.organization, 'BlueNet Hospitals');
     expect(e.country, 'Mexico');
     expect(e.flag, 'https://flagcdn.com/w40/mx.png');
@@ -333,7 +361,7 @@ void main() {
     () async {
       final repo = _Repo();
       final bloc = MarketListingBloc<MarketServiceEntity>(
-        fetch: (page) => GetMarketServicesUseCase(repo)(
+        fetch: (page, _) => GetMarketServicesUseCase(repo)(
           MarketPageParams(
             categorySlug: MarketCategory.longevity.slug,
             page: page,
@@ -366,13 +394,12 @@ void main() {
     final repo = _Repo()..failExperts = true;
     final bloc =
         CategoryMarketBloc(
-          getServices: GetMarketServicesUseCase(repo),
+          getServicesByCategory: GetServicesByCategoryUseCase(repo),
           getExperts: GetMarketExpertsUseCase(repo),
-          getCoordinators: GetCoordinatorsUseCase(repo),
           getDestinations: GetDestinationsUseCase(repo),
         )..add(
           CategoryMarketStarted(
-            MarketPageScope.of(MarketCategory.healthProAdvisory),
+            MarketPageScope.of(MarketCategory.mental),
             language: 'en',
           ),
         );
@@ -384,12 +411,15 @@ void main() {
       bloc.state.status(MarketSectionKind.services),
       SectionStatus.success,
     );
-    // Spotlight (10, quality_score) · Services (12, thứ tự BE) · ngôn ngữ (10, mới nhất).
-    expect(repo.serviceCalls, [
-      (slug: 'health-pro-advisory-1', page: 1, limit: 10, newest: false),
-      (slug: 'health-pro-advisory-1', page: 1, limit: 12, newest: false),
-      (slug: 'health-pro-advisory-1', page: 1, limit: 10, newest: true),
-    ]);
+    // 1 request cho mọi section: category của nhãn Mental Health, 3 service mỗi section.
+    expect(repo.sectionCalls.single.per, 3);
+    expect(
+      repo.sectionCalls.single.categories,
+      MarketPageScope.of(MarketCategory.mental).need!.services,
+    );
+    // Category rỗng bị ẩn; mobile hiện 2 service mỗi section.
+    expect(bloc.state.categorySections.map((s) => s.category.slug), ['a']);
+    expect(bloc.state.categorySections.single.items.length, 2);
     await bloc.close();
   });
 }

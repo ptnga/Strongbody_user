@@ -110,6 +110,11 @@ class RequestMatchesCubit extends Cubit<RequestMatchesState> {
   /// Số chuyên gia gợi ý tối đa (web trang riêng: 6).
   static const maxMatches = 6;
 
+  /// ⚠ Web (b260fc079) bỏ khối "chuyên gia phù hợp" khỏi trang đã đăng: BE tự gửi request tới
+  /// chuyên gia khớp dịch vụ (auto-match) và báo cho người mua; khối chuyên gia đã nhận
+  /// request đang tạm ẩn (`SHOW_MATCHED_EXPERTS = false`). Đổi `true` để tìm + hiện lại.
+  static const showMatchedExperts = false;
+
   /// Đã chia sẻ request X cho chuyên gia Y → không gửi lại thẻ + lời chào.
   static final _shared = <String>{};
 
@@ -140,7 +145,7 @@ class RequestMatchesCubit extends Cubit<RequestMatchesState> {
         request: request,
       ),
     );
-    await _findMatches(request, language);
+    if (showMatchedExperts) await _findMatches(request, language);
   }
 
   Future<void> _findMatches(SentRequest request, String language) async {

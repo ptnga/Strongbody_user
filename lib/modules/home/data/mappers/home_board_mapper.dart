@@ -69,7 +69,9 @@ class HomeBoardMapper {
       country: _text(country?['title']) ?? _text(r['author_country']),
       flag: MarketMapper.flagUrl(country?['flag'], country?['code']),
       createdAt: _date(r['created_at'] ?? r['time']),
+      // Loại dịch vụ (service_classification) nếu có, không thì category của request.
       category:
+          _text(_map(r['service_classification'])?['name']) ??
           _text(_map(r['category'])?['name']) ??
           (categories is List && categories.isNotEmpty
               ? _text(_map(categories.first)?['name'])
@@ -134,6 +136,35 @@ class HomeBoardMapper {
       priceMax: consultation ? _num(s['price_max']) : null,
       consultation: consultation,
       deliveryTypes: _offerDelivery.where(types.contains).toList(),
+      classification: switch (s['service_classifications']) {
+        final List list =>
+          list.map((c) => _text(_map(c)?['name'])).nonNulls.firstOrNull,
+        _ => null,
+      },
+    );
+  }
+
+  /// `data` của board-stats → số liệu tuần + "Recently matched".
+  static BoardStats stats(Map<String, dynamic> d) {
+    final recent = d['recent_matched'];
+    return BoardStats(
+      weekTotal: _int(d['week_total']) ?? 0,
+      weekMatched: _int(d['week_matched']) ?? 0,
+      recentMatched: [
+        if (recent is List)
+          for (final m in recent.map(_map).nonNulls)
+            if (_int(m['id']) case final id?)
+              BoardMatchedItem(
+                id: id,
+                title: _text(m['title']) ?? '',
+                service: _text(m['service']) ?? '',
+                country: _text(_map(m['country'])?['title']),
+                flag: MarketMapper.flagUrl(
+                  _map(m['country'])?['flag'],
+                  _map(m['country'])?['code'],
+                ),
+              ),
+      ],
     );
   }
 
