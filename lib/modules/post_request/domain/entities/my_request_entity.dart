@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:strongbody_buyer/modules/social_market/domain/entities/market_listing_entities.dart';
+
 import 'request_form_values.dart';
 
 /// Request của buyer trong "My requests" (`GET /user/requests`).
@@ -26,6 +28,13 @@ class MyRequestEntity extends Equatable {
   /// Request sinh từ inquiry: provider nhận trả lời trong chat (không gửi offer).
   final RequestInquiryInfo? inquiry;
 
+  /// Kết quả AI chấm request (`ai_refine`); null = chưa chấm.
+  final RequestAiRefine? aiRefine;
+
+  /// Số chuyên gia request đã được gửi thẳng tới (BE auto-match theo dịch vụ AI gán,
+  /// `matched_providers`) — web "Sent to N matched experts".
+  final int matchedProviders;
+
   const MyRequestEntity({
     required this.id,
     required this.status,
@@ -37,16 +46,40 @@ class MyRequestEntity extends Equatable {
     this.hasVoice = false,
     this.isPrivate = false,
     this.inquiry,
+    this.aiRefine,
+    this.matchedProviders = 0,
   });
 
   String get description => details.description;
 
+  /// Bị từ chối nhưng người đăng đã sửa & gửi lại, AI đang chấm lại (`ai_refine.rescoring`)
+  /// → web hiển thị "In review" chứ không còn "Not approved".
+  bool get isRescoring =>
+      (status == 'rejected' || isInReviewStatus) &&
+      (aiRefine?.rescoring ?? false);
+
+  bool get isInReviewStatus =>
+      status == 'pending' || status == 'pending_approval';
+
   /// Đang duyệt (web badge "In review").
-  bool get isInReview => status == 'pending' || status == 'pending_approval';
+  bool get isInReview => isInReviewStatus || isRescoring;
 
   /// Bị từ chối (web: cancelled / rejected / spam → "Not approved").
   bool get isRejected =>
+      !isRescoring &&
       const {'cancelled', 'canceled', 'rejected', 'spam'}.contains(status);
+
+  /// Web `AIReview`: chờ duyệt (`pending_approval`) / bị từ chối mà AI chấm dưới điểm duyệt
+  /// → hiện lý do (gợi ý AI); request khác AI chấm 0 điểm → chỉ hiện gợi ý.
+  bool get showsAiReview {
+    final refine = aiRefine;
+    if (refine == null) return false;
+    if (isRescoring) return true;
+    if (status == 'pending_approval' || status == 'rejected') {
+      return refine.belowApproval;
+    }
+    return refine.needsSuggestion;
+  }
 
   /// Không còn nhận offer: đã đóng / hết hạn / bị từ chối.
   bool get isClosed => status == 'closed' || status == 'expired' || isRejected;
@@ -63,7 +96,99 @@ class MyRequestEntity extends Equatable {
     details,
     isPrivate,
     inquiry,
+    aiRefine,
+    matchedProviders,
   ];
+}
+
+/// Kết quả AI chấm request (web `RequestAIRefine`, API `ai_refine`).
+class RequestAiRefine extends Equatable {
+  /// Điểm AI tối thiểu để request tự được duyệt (BE `RequestAutoApproveMinScore`).
+  static const minScore = 5;
+
+  final num score;
+
+  /// Không đọc ra nhu cầu.
+  final bool isEmpty;
+
+  /// Gợi ý bằng ngôn ngữ của request / bằng tiếng Anh.
+  final String suggestion;
+  final String suggestionEn;
+
+  /// AI đang chấm (lại) — vd người đăng vừa sửa; điểm / gợi ý là của lần trước.
+  final bool rescoring;
+
+  const RequestAiRefine({
+    this.score = 0,
+    this.isEmpty = false,
+    this.suggestion = '',
+    this.suggestionEn = '',
+    this.rescoring = false,
+  });
+
+  bool get _hasSuggestion => suggestion.isNotEmpty || suggestionEn.isNotEmpty;
+
+  /// Web `belowAIScore`: dưới điểm duyệt (hoặc không đọc ra nhu cầu) và có gợi ý.
+  bool get belowApproval => (isEmpty || score < minScore) && _hasSuggestion;
+
+  /// Web `needsAISuggestion`: AI chấm 0 điểm (Empty) và có gợi ý.
+  bool get needsSuggestion => (isEmpty || score == 0) && _hasSuggestion;
+
+  /// Trang của chính người đăng chỉ hiện MỘT bản (web `singleLanguage`): trang tiếng Anh →
+  /// bản tiếng Anh trước; ngôn ngữ khác → bản ngôn ngữ của request trước.
+  String suggestionFor(String locale) {
+    final primary = locale == 'en' ? suggestionEn : suggestion;
+    return primary.isNotEmpty
+        ? primary
+        : (suggestionEn.isNotEmpty ? suggestionEn : suggestion);
+  }
+
+  @override
+  List<Object?> get props => [
+    score,
+    isEmpty,
+    suggestion,
+    suggestionEn,
+    rescoring,
+  ];
+}
+
+/// Chuyên gia request đã được gửi thẳng tới (web `MatchedProvider`, chỉ chủ request).
+class MatchedProviderEntity extends Equatable {
+  final int userId;
+  final String name;
+  final String? avatar;
+  final String? country;
+  final String? flag;
+
+  /// Provider đã nhắn lại người mua trong chat.
+  final bool replied;
+
+  /// Hồ sơ chuyên gia (card như trang category) — null khi hồ sơ không còn công khai.
+  final MarketExpertEntity? expert;
+
+  const MatchedProviderEntity({
+    required this.userId,
+    this.name = '',
+    this.avatar,
+    this.country,
+    this.flag,
+    this.replied = false,
+    this.expert,
+  });
+
+  @override
+  List<Object?> get props => [userId, name, avatar, country, replied, expert];
+}
+
+class MatchedProvidersPage extends Equatable {
+  final List<MatchedProviderEntity> items;
+  final int total;
+
+  const MatchedProvidersPage({this.items = const [], this.total = 0});
+
+  @override
+  List<Object?> get props => [items, total];
 }
 
 /// Web `RequestInquiryInfo` — item đã hỏi + provider nhận của request riêng.

@@ -30,6 +30,12 @@ class MarketPageParams extends Equatable {
   /// Ngôn ngữ làm việc của seller (`language`, vd "vi").
   final String? language;
 
+  /// Trang nhãn: category doanh nghiệp đang chọn (chip `?category=`).
+  final String? subCategory;
+
+  /// Tab service classification (slug) trong [subCategory].
+  final String? classification;
+
   const MarketPageParams({
     this.categorySlug = '',
     this.page = 1,
@@ -39,6 +45,8 @@ class MarketPageParams extends Equatable {
     this.orderBy,
     this.orderDir,
     this.language,
+    this.subCategory,
+    this.classification,
   });
 
   @override
@@ -51,6 +59,8 @@ class MarketPageParams extends Equatable {
     orderBy,
     orderDir,
     language,
+    subCategory,
+    classification,
   ];
 }
 
@@ -71,7 +81,34 @@ class GetMarketServicesUseCase
     orderBy: p.orderBy,
     orderDir: p.orderDir,
     language: p.language,
+    subCategory: p.subCategory,
+    classification: p.classification,
   );
+}
+
+typedef ServicesByCategoryParams = ({List<String> categories, int per});
+
+/// Section theo category doanh nghiệp của trang nhãn (web `getServicesByCategory`).
+class GetServicesByCategoryUseCase
+    implements UseCase<List<MarketCategorySection>, ServicesByCategoryParams> {
+  final SocialMarketRepository _repository;
+  GetServicesByCategoryUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, List<MarketCategorySection>>> call(
+    ServicesByCategoryParams p,
+  ) => _repository.getServicesByCategory(categories: p.categories, per: p.per);
+}
+
+/// Tab classification của listing đã chọn category (web `getPublicServiceClassifications`).
+class GetServiceClassificationsUseCase
+    implements UseCase<MarketClassifications, String> {
+  final SocialMarketRepository _repository;
+  GetServiceClassificationsUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, MarketClassifications>> call(String slug) =>
+      _repository.getServiceClassifications(slug);
 }
 
 class GetMarketExpertsUseCase

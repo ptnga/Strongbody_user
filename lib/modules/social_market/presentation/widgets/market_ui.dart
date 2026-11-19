@@ -1,9 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 
 import 'package:strongbody_buyer/components/initials_avatar.dart';
+import 'package:strongbody_buyer/core/constants/app_svg.dart';
 import 'package:strongbody_buyer/core/design_tokens/colour.dart';
 import 'package:strongbody_buyer/core/l10n/locale_keys.g.dart';
 import 'package:strongbody_buyer/core/themes/app_text_style.dart';
@@ -44,7 +46,7 @@ class MarketCard extends StatelessWidget {
   }
 }
 
-enum MarketBadgeTone { neutral, seller, warning, info, overlay }
+enum MarketBadgeTone { neutral, seller, warning, info, overlay, ocean }
 
 /// Badge bo tròn chữ nhỏ (web `badgeVariants`).
 class MarketBadge extends StatelessWidget {
@@ -67,6 +69,11 @@ class MarketBadge extends StatelessWidget {
       MarketBadgeTone.warning => (Colour.amber50, Colour.amber700),
       MarketBadgeTone.info => (Colour.info50, Colour.blue700),
       MarketBadgeTone.overlay => (Colour.surface, Colour.textPrimary),
+      // Web `tone="ocean"` (ocean-50 / ocean-800) — nhãn service classification.
+      MarketBadgeTone.ocean => (
+        Colour.buttonPrimary.withValues(alpha: 0.1),
+        Colour.buttonPrimary,
+      ),
     };
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
@@ -91,6 +98,41 @@ class MarketBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Ảnh dự phòng chung khi service không có ảnh / ảnh lỗi (web `FALLBACK_IMAGE`
+/// `/images/fallback.svg`: nền gradient thương hiệu + quả địa cầu + logo).
+class MarketImageFallback extends StatelessWidget {
+  const MarketImageFallback({super.key});
+
+  @override
+  Widget build(BuildContext context) => SvgPicture.asset(
+    AppSvg.fallbackImage,
+    fit: BoxFit.cover,
+    width: double.infinity,
+    height: double.infinity,
+    placeholderBuilder: (_) => const ColoredBox(color: Colour.subtle),
+  );
+}
+
+/// Ảnh mạng của card service; không có / lỗi → [MarketImageFallback].
+class MarketServiceImage extends StatelessWidget {
+  final String? url;
+
+  const MarketServiceImage(this.url, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final src = url;
+    if (src == null || src.isEmpty) return const MarketImageFallback();
+    return Image.network(
+      src,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (_, _, _) => const MarketImageFallback(),
     );
   }
 }

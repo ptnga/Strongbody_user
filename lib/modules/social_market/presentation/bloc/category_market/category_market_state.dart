@@ -1,8 +1,8 @@
 part of 'category_market_bloc.dart';
 
-/// Các mục của trang, theo thứ tự web `CategoryPage`: [Destinations — chỉ Medical
-/// Travel] · In the spotlight · Services · services theo ngôn ngữ · Experts.
-enum MarketSectionKind { destinations, spotlight, services, language, experts }
+/// Các phần của trang nhãn, theo thứ tự web `CategoryPage`: [Destinations — chỉ Medical
+/// Travel] · các section theo category doanh nghiệp · Experts.
+enum MarketSectionKind { destinations, services, experts }
 
 enum SectionStatus { initial, loading, success, failure }
 
@@ -11,9 +11,9 @@ class CategoryMarketState extends Equatable {
   final String language;
   final Map<MarketSectionKind, SectionStatus> statuses;
   final List<MarketDestination> destinations;
-  final List<MarketServiceEntity> spotlight;
-  final List<MarketServiceEntity> services;
-  final List<MarketServiceEntity> languageServices;
+
+  /// Section service theo category doanh nghiệp (đã bỏ category rỗng).
+  final List<MarketCategorySection> categorySections;
   final List<MarketExpertEntity> experts;
 
   const CategoryMarketState({
@@ -21,11 +21,13 @@ class CategoryMarketState extends Equatable {
     this.language = 'en',
     this.statuses = const {},
     this.destinations = const [],
-    this.spotlight = const [],
-    this.services = const [],
-    this.languageServices = const [],
+    this.categorySections = const [],
     this.experts = const [],
   });
+
+  /// Mọi service đang hiện (nạp số engagement).
+  Iterable<int?> get serviceIds =>
+      categorySections.expand((s) => s.items).map((s) => s.id);
 
   SectionStatus status(MarketSectionKind section) =>
       statuses[section] ?? SectionStatus.initial;
@@ -59,18 +61,14 @@ class CategoryMarketState extends Equatable {
     String? language,
     Map<MarketSectionKind, SectionStatus>? statuses,
     List<MarketDestination>? destinations,
-    List<MarketServiceEntity>? spotlight,
-    List<MarketServiceEntity>? services,
-    List<MarketServiceEntity>? languageServices,
+    List<MarketCategorySection>? categorySections,
     List<MarketExpertEntity>? experts,
   }) => CategoryMarketState(
     scope: scope ?? this.scope,
     language: language ?? this.language,
     statuses: statuses ?? this.statuses,
     destinations: destinations ?? this.destinations,
-    spotlight: spotlight ?? this.spotlight,
-    services: services ?? this.services,
-    languageServices: languageServices ?? this.languageServices,
+    categorySections: categorySections ?? this.categorySections,
     experts: experts ?? this.experts,
   );
 
@@ -80,9 +78,7 @@ class CategoryMarketState extends Equatable {
     language,
     statuses,
     destinations,
-    spotlight,
-    services,
-    languageServices,
+    categorySections,
     experts,
   ];
 }

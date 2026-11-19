@@ -52,6 +52,14 @@ class _PostRequestPageState extends State<PostRequestPage> {
 
   bool get _isSend => widget.args.isSend;
 
+  /// ⚠ Web TẠM ẨN (2026-11-12, `SHOW_DELIVERY_TYPES`): câu hỏi "Where would you like to
+  /// receive the service?". Giá trị đã có (AI soạn, Me too) vẫn giữ nguyên khi gửi.
+  static const _showDeliveryTypes = false;
+
+  /// ⚠ Web TẠM ẨN (2026-11-17, `SHOW_ANONYMOUS`): ô "Post anonymously". Request mới gửi
+  /// `anonymous: false` (mặc định của form).
+  static const _showAnonymous = false;
+
   @override
   void initState() {
     super.initState();
@@ -432,13 +440,15 @@ class _PostRequestPageState extends State<PostRequestPage> {
             ),
             if (showBudgetError)
               RequestFieldError(LocaleKeys.postRequestBudgetInvalid.tr()),
-            Gap(16.h),
-            RequestFieldLabel(LocaleKeys.postRequestSupportLabel.tr()),
-            RequestDeliveryPicker(
-              value: values.deliveryTypes,
-              onChanged: (types) =>
-                  _update(values.copyWith(deliveryTypes: types)),
-            ),
+            if (_showDeliveryTypes) ...[
+              Gap(16.h),
+              RequestFieldLabel(LocaleKeys.postRequestSupportLabel.tr()),
+              RequestDeliveryPicker(
+                value: values.deliveryTypes,
+                onChanged: (types) =>
+                    _update(values.copyWith(deliveryTypes: types)),
+              ),
+            ],
             if (!_isSend) ...[
               Gap(16.h),
               RequestFieldLabel(LocaleKeys.postRequestWorkingLanguage.tr()),
@@ -447,6 +457,8 @@ class _PostRequestPageState extends State<PostRequestPage> {
                 onChanged: (codes) =>
                     _update(values.copyWith(sellerLanguages: codes)),
               ),
+            ],
+            if (!_isSend && _showAnonymous) ...[
               Gap(12.h),
               Row(
                 children: [
@@ -527,7 +539,12 @@ class _PostRequestPageState extends State<PostRequestPage> {
                     Text(LocaleKeys.postRequestPosting.tr()),
                   ],
                 )
-              : Text(LocaleKeys.postRequestSubmit.tr()),
+              // Đăng công khai: BE gửi thẳng request tới tối đa 20 chuyên gia khớp dịch vụ.
+              : Text(
+                  _isSend
+                      ? LocaleKeys.postRequestSubmit.tr()
+                      : LocaleKeys.postRequestSubmitMatched.tr(),
+                ),
         ),
       ),
     );

@@ -146,7 +146,8 @@ void main() {
     })!;
     expect(d.images, ['b', 'c', 'a']);
     expect(d.organizationName, 'BlueNet Hospitals');
-    expect(d.providerName, 'Sergio');
+    // Web eb66bc6af: service thuộc organization → người đứng tên là organization.
+    expect(d.providerName, 'BlueNet Hospitals');
     expect(d.locationTitle, 'Mexico');
     expect(d.locationFlag, 'https://flagcdn.com/w40/mx.png');
     expect(d.certs, [MarketCert.jciAccredited]);

@@ -25,14 +25,15 @@ class MyRequestFormatters {
     };
   }
 
-  /// Nhãn trạng thái request như web `getStatusLabel`: pending / pending_approval →
-  /// "In review", active → "Open", closed → "Closed", cancelled / rejected / spam →
-  /// "Not approved" (không lộ chữ "Spam"); trạng thái lạ → viết hoa chữ đầu.
+  /// Nhãn trạng thái request như web `getStatusLabel`: pending / pending_approval (hoặc bị
+  /// từ chối mà AI đang chấm lại) → "In review", active → "Open", closed → "Solved" (BE chỉ
+  /// có `closed`; người mua đóng request qua "Request resolved"), cancelled / rejected /
+  /// spam → "Not approved" (không lộ chữ "Spam"); trạng thái lạ → viết hoa chữ đầu.
   static String status(MyRequestEntity request) => switch (request.status) {
     _ when request.isInReview => LocaleKeys.myRequestsStatusPending.tr(),
     _ when request.isRejected => LocaleKeys.myRequestsStatusRejected.tr(),
     'active' => LocaleKeys.myRequestsStatusOpen.tr(),
-    'closed' => LocaleKeys.myRequestsStatusClosed.tr(),
+    'closed' => LocaleKeys.myRequestsStatusSolved.tr(),
     'expired' => LocaleKeys.myRequestsStatusExpired.tr(),
     '' => LocaleKeys.myRequestsStatusPending.tr(),
     final other => other[0].toUpperCase() + other.substring(1),

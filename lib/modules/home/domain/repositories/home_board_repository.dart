@@ -15,4 +15,7 @@ abstract class HomeBoardRepository {
 
   /// Nước có item của board (facet, nhiều item trước).
   Future<Either<Failure, List<BoardCountry>>> getCountries(BoardKind kind);
+
+  /// Số liệu tuần này + "Recently matched" của bảng Requests trang chủ.
+  Future<Either<Failure, BoardStats>> getStats();
 }

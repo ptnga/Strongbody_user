@@ -47,6 +47,7 @@ void registerChatModule(GetIt getIt) {
       () => ChatBadgeNotifier(
         getUnreadTotal: getIt<GetChatUnreadTotalUseCase>(),
         storage: getIt<GlobalStorage>(),
+        pollInterval: ChatBadgeNotifier.webPollInterval,
       ),
     )
     ..registerFactory(

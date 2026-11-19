@@ -72,6 +72,8 @@ class SocialMarketRepositoryImpl implements SocialMarketRepository {
     String? orderBy,
     String? orderDir,
     String? language,
+    String? subCategory,
+    String? classification,
   }) => _guard(() async {
     final raw = await _remote.getServices(
       servicesQuery(
@@ -83,14 +85,39 @@ class SocialMarketRepositoryImpl implements SocialMarketRepository {
         orderBy: orderBy,
         orderDir: orderDir,
         language: language,
+        subCategory: subCategory,
+        classification: classification,
       ),
     );
     return _page(raw, MarketMapper.service);
   }, 'Cannot load services');
 
+  @override
+  Future<Either<Failure, List<MarketCategorySection>>> getServicesByCategory({
+    required List<String> categories,
+    required int per,
+  }) => _guard(() async {
+    final sections = await _remote.getServicesByCategory(
+      categories: categories,
+      per: per,
+    );
+    return sections.map(MarketMapper.categorySection).nonNulls.toList();
+  }, 'Cannot load services');
+
+  @override
+  Future<Either<Failure, MarketClassifications>> getServiceClassifications(
+    String categorySlug,
+  ) => _guard(
+    () async => MarketMapper.classifications(
+      await _remote.getServiceClassifications(categorySlug),
+    ),
+    'Cannot load service types',
+  );
+
   /// Query `/public/services` như web: listing (`fetchServicesPage`) luôn gửi `page` +
   /// mới nhất trước, sắp xếp riêng thắng mặc định; mục Services (`fetchCategoryPackages`)
-  /// chỉ gửi `page` từ trang 2.
+  /// chỉ gửi `page` từ trang 2. Trang nhãn (web `servicesQueryFor`): lọc theo category
+  /// doanh nghiệp của nhãn / chip [subCategory]; tab [classification] chỉ khi chip thuộc nhãn.
   static Map<String, dynamic> servicesQuery({
     String categorySlug = '',
     required int page,
@@ -100,8 +127,16 @@ class SocialMarketRepositoryImpl implements SocialMarketRepository {
     String? orderBy,
     String? orderDir,
     String? language,
+    String? subCategory,
+    String? classification,
   }) {
     final listing = newestFirst || orderBy != null;
+    final need = scope?.need;
+    final withClassification =
+        need != null &&
+        subCategory != null &&
+        classification != null &&
+        need.services.contains(subCategory);
     return {
       'page': ?(page > 1 || listing ? page : null),
       'limit': limit,
@@ -109,13 +144,15 @@ class SocialMarketRepositoryImpl implements SocialMarketRepository {
         'order_by': orderBy ?? 'created_at',
         'order_dir': orderDir ?? 'DESC',
       },
-      ...?scope?.servicesScope,
+      ...?scope?.servicesScopeFor(subCategory),
       if (scope == null) 'category_slug': categorySlug,
       'language': ?language,
+      if (withClassification) 'service_classification_slug': classification,
     };
   }
 
-  /// Query `/expert/balanced` của listing / section Experts (web `fetchProvidersPage`).
+  /// Query `/expert/balanced` của listing / section Experts (web `fetchProvidersPage`):
+  /// trang nhãn xếp `score` (như score_rank nhưng không bỏ doanh nghiệp mới chưa có điểm).
   static Map<String, dynamic> expertsQuery({
     String categorySlug = '',
     required int page,
@@ -126,7 +163,7 @@ class SocialMarketRepositoryImpl implements SocialMarketRepository {
     'limit': limit,
     ...?scope?.providersScope,
     if (scope == null) 'category_slug': categorySlug,
-    'sort': 'score_rank',
+    'sort': scope?.need != null ? 'score' : 'score_rank',
   };
 
   @override

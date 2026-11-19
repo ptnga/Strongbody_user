@@ -15,6 +15,7 @@ import '../domain/usecases/social_market_use_cases.dart';
 import '../presentation/bloc/category_market/category_market_bloc.dart';
 import '../presentation/bloc/engagement/engagement_cubit.dart';
 import '../presentation/bloc/inquiry/inquiry_cubit.dart';
+import '../presentation/bloc/market_listing/listing_facets_cubit.dart';
 import '../presentation/bloc/market_listing/market_listing_bloc.dart';
 import '../presentation/bloc/medical_travel/appointment_cubit.dart';
 import '../presentation/bloc/medical_travel/destination_cubit.dart';
@@ -44,6 +45,12 @@ void registerSocialMarketModule(GetIt getIt) {
       () => GetMarketExpertsUseCase(getIt<SocialMarketRepository>()),
     )
     ..registerFactory(
+      () => GetServicesByCategoryUseCase(getIt<SocialMarketRepository>()),
+    )
+    ..registerFactory(
+      () => GetServiceClassificationsUseCase(getIt<SocialMarketRepository>()),
+    )
+    ..registerFactory(
       () => GetPublicOffersUseCase(getIt<SocialMarketRepository>()),
     )
     ..registerFactory(
@@ -64,9 +71,8 @@ void registerSocialMarketModule(GetIt getIt) {
     )
     ..registerFactory(
       () => CategoryMarketBloc(
-        getServices: getIt<GetMarketServicesUseCase>(),
+        getServicesByCategory: getIt<GetServicesByCategoryUseCase>(),
         getExperts: getIt<GetMarketExpertsUseCase>(),
-        getCoordinators: getIt<GetCoordinatorsUseCase>(),
         getDestinations: getIt<GetDestinationsUseCase>(),
       ),
     )
@@ -81,17 +87,30 @@ void registerSocialMarketModule(GetIt getIt) {
     ..registerFactory(
       () => InquiryCubit(sendInquiry: getIt<SendInquiryUseCase>()),
     )
-    // param2: ngôn ngữ seller (`?lang=`) của "View all services in …".
+    // param2: category doanh nghiệp đang chọn (`?category=`) của trang nhãn; bộ lọc
+    // phụ của bloc = tab service classification.
     ..registerFactoryParam<
       MarketListingBloc<MarketServiceEntity>,
       MarketPageScope,
       String?
     >(
-      (scope, language) => MarketListingBloc<MarketServiceEntity>(
-        fetch: (page) => getIt<GetMarketServicesUseCase>()(
-          listingParams(scope, page, newestFirst: true, language: language),
+      (scope, category) => MarketListingBloc<MarketServiceEntity>(
+        fetch: (page, classification) => getIt<GetMarketServicesUseCase>()(
+          listingParams(
+            scope,
+            page,
+            newestFirst: true,
+            subCategory: ListingFacetsCubit.validCategory(scope, category),
+            classification: classification,
+          ),
         ),
         idOf: (s) => s.id,
+      ),
+    )
+    ..registerFactory(
+      () => ListingFacetsCubit(
+        getSections: getIt<GetServicesByCategoryUseCase>(),
+        getClassifications: getIt<GetServiceClassificationsUseCase>(),
       ),
     )
     ..registerFactoryParam<
@@ -100,7 +119,7 @@ void registerSocialMarketModule(GetIt getIt) {
       void
     >(
       (scope, _) => MarketListingBloc<MarketExpertEntity>(
-        fetch: (page) =>
+        fetch: (page, _) =>
             getIt<GetMarketExpertsUseCase>()(listingParams(scope, page)),
         idOf: (e) => e.id,
       ),

@@ -12,6 +12,9 @@ class RouteName {
   /// Offer của một request (đè lên tab; `extra` = `RequestOffersPageArgs`).
   static const String requestOffers = '/requestOffers';
 
+  /// Bảng Offers (web `/offers`, mục "Offers" ở menu ☰ Home) — đè lên tab.
+  static const String offers = '/offers';
+
   //-----------------ACCOUNT---------------
   static const String account = '/account';
   static const String lionPoints = '/lionPoints';

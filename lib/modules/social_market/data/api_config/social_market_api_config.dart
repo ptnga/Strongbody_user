@@ -6,6 +6,15 @@ class SocialMarketApiConfig {
   /// Mục Selling + listing service (web `getServices`, header `x-api-key`) → `data.list`.
   static const String publicServices = '/public/services';
 
+  /// Trang nhãn "Browse by need": service nhóm theo category doanh nghiệp
+  /// (`categories=slug,slug&per=N`) → `data.sections[{category,total,items}]`.
+  static const String publicServicesByCategory = '/public/services/by-category';
+
+  /// Service classification của 1 category doanh nghiệp + số service
+  /// (`provider_category_slug=`) → `data.{category,list}` — tab của listing.
+  static const String publicServiceClassifications =
+      '/public/services/classifications';
+
   /// Mục Profiles + listing provider (web `getExperts`) → `data.list`.
   static const String expertsBalanced = '/user/strongbodyai/expert/balanced';
 

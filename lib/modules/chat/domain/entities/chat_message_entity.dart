@@ -118,6 +118,9 @@ class ChatCardEntity extends Equatable {
   final String? country;
   final String? slug;
 
+  /// Thẻ request: người đăng request (web `request.buyerId`); tin cũ không có.
+  final int? buyerId;
+
   const ChatCardEntity({
     required this.kind,
     this.id,
@@ -136,6 +139,7 @@ class ChatCardEntity extends Equatable {
     this.categoryName,
     this.country,
     this.slug,
+    this.buyerId,
   });
 
   bool get hasBudget =>
@@ -162,6 +166,7 @@ class ChatCardEntity extends Equatable {
     categoryName,
     country,
     slug,
+    buyerId,
   ];
 }
 

@@ -21,6 +21,7 @@ import 'package:strongbody_buyer/core/themes/app_text_style.dart';
 import '../widgets/voice/get_help_sheet.dart';
 
 import '../bloc/my_requests/my_requests_bloc.dart';
+import '../matching_providers_page_args.dart';
 import '../request_offers_page_args.dart';
 import '../widgets/my_requests/my_request_card.dart';
 
@@ -281,12 +282,9 @@ class _EmptyState extends StatelessWidget {
         actionIconAsset: AppSvg.refresh,
         onAction: () => bloc.add(const MyRequestsStarted()),
       ),
-      // Web: tab Private trống → chỉ thông báo, không có nút đăng request.
-      _ when state.tab == MyRequestsTab.private => EmptyStateView(
-        icon: Icons.lock_outline_rounded,
-        title: LocaleKeys.myRequestsNoPrivateTitle.tr(),
-        message: LocaleKeys.myRequestsNoPrivateMessage.tr(),
-      ),
+      // Web `PrivateRequestsEmpty`: báo trống + "Find a provider" + 3 bước gửi request riêng.
+      _ when state.tab == MyRequestsTab.private =>
+        const _PrivateRequestsEmpty(),
       _ => EmptyStateView(
         iconAsset: AppSvg.microphone,
         title: LocaleKeys.myRequestsNoneTitle.tr(),
@@ -296,5 +294,164 @@ class _EmptyState extends StatelessWidget {
         onAction: speak,
       ),
     };
+  }
+}
+
+/// Tab "Private requests" chưa có gì (web `PrivateRequestsEmpty`): báo trống + nút tìm
+/// provider, kèm 3 bước gửi request riêng (tìm provider → gửi request từ hồ sơ / service /
+/// product / offer → trả lời trong Messages).
+class _PrivateRequestsEmpty extends StatelessWidget {
+  const _PrivateRequestsEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final steps = [
+      (
+        LocaleKeys.myRequestsPrivateStepFindTitle.tr(),
+        LocaleKeys.myRequestsPrivateStepFindDesc.tr(),
+      ),
+      (
+        LocaleKeys.myRequestsPrivateStepSendTitle.tr(),
+        LocaleKeys.myRequestsPrivateStepSendDesc.tr(),
+      ),
+      (
+        LocaleKeys.myRequestsPrivateStepChatTitle.tr(),
+        LocaleKeys.myRequestsPrivateStepChatDesc.tr(),
+      ),
+    ];
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.all(16.r),
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: theme.surface(context),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: theme.border(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(20.w, 28.h, 20.w, 24.h),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 56.r,
+                      height: 56.r,
+                      decoration: BoxDecoration(
+                        color: theme.muted(context),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 26.r,
+                        color: theme.textSecondary(context),
+                      ),
+                    ),
+                    Gap(14.h),
+                    Text(
+                      LocaleKeys.myRequestsNoPrivateTitle.tr(),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyle.lightBodyXLargeBold.copyWith(
+                        color: theme.textPrimary(context),
+                      ),
+                    ),
+                    Gap(6.h),
+                    Text(
+                      LocaleKeys.myRequestsNoPrivateMessage.tr(),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyle.lightBodyMediumRegular.copyWith(
+                        height: 1.4,
+                        color: theme.textSecondary(context),
+                      ),
+                    ),
+                    Gap(18.h),
+                    FilledButton.icon(
+                      onPressed: () => context.push(
+                        RouteName.matchingProviders,
+                        extra: const MatchingProvidersPageArgs(),
+                      ),
+                      icon: Icon(Icons.search_rounded, size: 18.r),
+                      label: Text(LocaleKeys.myRequestsPrivateCta.tr()),
+                      style: FilledButton.styleFrom(
+                        minimumSize: Size(0, 46.h),
+                        padding: EdgeInsets.symmetric(horizontal: 22.w),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        textStyle: AppTextStyle.lightBodyMediumBold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: theme.border(context)),
+              Padding(
+                padding: EdgeInsets.all(20.r),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      LocaleKeys.myRequestsPrivateStepsTitle.tr(),
+                      style: AppTextStyle.lightBodyMediumMedium.copyWith(
+                        color: theme.textSecondary(context),
+                      ),
+                    ),
+                    for (final (i, (title, desc)) in steps.indexed) ...[
+                      Gap(14.h),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 28.r,
+                            height: 28.r,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: theme.muted(context),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${i + 1}',
+                              style: AppTextStyle.lightBodyMediumSemiBold
+                                  .copyWith(color: theme.textPrimary(context)),
+                            ),
+                          ),
+                          Gap(12.w),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: AppTextStyle.lightBodyMediumMedium
+                                      .copyWith(
+                                        color: theme.textPrimary(context),
+                                      ),
+                                ),
+                                Gap(2.h),
+                                Text(
+                                  desc,
+                                  style: AppTextStyle.lightBodyMediumRegular
+                                      .copyWith(
+                                        height: 1.4,
+                                        color: theme.textSecondary(context),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

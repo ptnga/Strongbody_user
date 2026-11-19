@@ -300,6 +300,7 @@ class ChatMapper {
       categoryName: _str(json['categoryName'] ?? json['category_name']),
       country: _str(json['country']),
       slug: _str(json['slug']),
+      buyerId: _int(json['buyerId'] ?? json['buyer_id']),
     );
   }
 

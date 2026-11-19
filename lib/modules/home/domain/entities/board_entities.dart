@@ -101,6 +101,10 @@ class BoardOffer extends Equatable {
   /// `remote` · `at_office` · `at_home` theo thứ tự hiển thị.
   final List<String> deliveryTypes;
 
+  /// Service classification ĐẦU (`service_classifications[0].name`) — web `ClassificationBadges
+  /// max={1}` ngay dưới mô tả; null = chưa có.
+  final String? classification;
+
   const BoardOffer({
     required this.service,
     this.freeConsultation = false,
@@ -109,6 +113,7 @@ class BoardOffer extends Equatable {
     this.priceMax,
     this.consultation = false,
     this.deliveryTypes = const [],
+    this.classification,
   });
 
   int? get id => service.id;
@@ -121,7 +126,51 @@ class BoardOffer extends Equatable {
     price,
     priceMax,
     consultation,
+    classification,
   ];
+}
+
+/// Một request vừa có chuyên gia phản hồi (khối "Recently matched", web `BoardMatchedItem`).
+class BoardMatchedItem extends Equatable {
+  final int id;
+
+  /// Dòng đầu của request (BE đã cắt ngắn).
+  final String title;
+
+  /// Loại dịch vụ chính; rỗng khi chưa phân loại (không hiện trong khối).
+  final String service;
+  final String? country;
+  final String? flag;
+
+  const BoardMatchedItem({
+    required this.id,
+    this.title = '',
+    this.service = '',
+    this.country,
+    this.flag,
+  });
+
+  @override
+  List<Object?> get props => [id, title, service, country, flag];
+}
+
+/// Số liệu đầu bảng Requests trang chủ (web `BoardStatsResponse`, API board-stats).
+class BoardStats extends Equatable {
+  /// Request công khai tạo trong 7 ngày gần nhất.
+  final int weekTotal;
+
+  /// Trong số đó, request đã có chuyên gia phản hồi.
+  final int weekMatched;
+  final List<BoardMatchedItem> recentMatched;
+
+  const BoardStats({
+    this.weekTotal = 0,
+    this.weekMatched = 0,
+    this.recentMatched = const [],
+  });
+
+  @override
+  List<Object?> get props => [weekTotal, weekMatched, recentMatched];
 }
 
 /// Nước có item (facet) — chọn để lọc board.

@@ -427,17 +427,27 @@ class _ChatPageState extends State<ChatPage> {
         }
         final message = messages[index];
         if (pairing.hidden.contains(message.id)) return const SizedBox.shrink();
-        final older = index + 1 < messages.length ? messages[index + 1] : null;
-        final newDay =
-            older == null ||
-            !ChatFormatters.sameDay(older.createdAt, message.createdAt);
+        // Web (Messenger): không ghi giờ dưới từng tin — chỉ một mốc giờ căn giữa ở đầu
+        // mỗi cụm cách tin hiển thị liền trước >= 1 giờ (thẻ đã gộp không tính).
+        var olderIndex = index + 1;
+        while (olderIndex < messages.length &&
+            pairing.hidden.contains(messages[olderIndex].id)) {
+          olderIndex++;
+        }
+        final older = olderIndex < messages.length
+            ? messages[olderIndex]
+            : null;
+        final newCluster = ChatFormatters.startsCluster(
+          older?.createdAt,
+          message.createdAt,
+        );
         final mine = message.senderId == me;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (newDay)
-              _DaySeparator(
-                label: ChatFormatters.dayLabel(message.createdAt, locale),
+            if (newCluster)
+              _TimeSeparator(
+                label: ChatFormatters.separatorTime(message.createdAt, locale),
               ),
             Padding(
               padding: EdgeInsets.only(bottom: 10.h),
@@ -450,6 +460,7 @@ class _ChatPageState extends State<ChatPage> {
                   translation: state.translationFor(message),
                   showOriginal: state.showOriginal.contains(message.id),
                   read: message.id == readId,
+                  myUserId: me,
                   partner: state.session?.partner,
                   attachedCard: pairing.attached[message.id],
                   onToggleOriginal: () => context.read<ChatBloc>().add(
@@ -514,29 +525,22 @@ class _BlockedBanner extends StatelessWidget {
   }
 }
 
-class _DaySeparator extends StatelessWidget {
+/// Mốc giờ căn giữa đầu cụm tin (web `ChatBody`: `text-xs text-tertiary`, không nền).
+class _TimeSeparator extends StatelessWidget {
   final String label;
 
-  const _DaySeparator({required this.label});
+  const _TimeSeparator({required this.label});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8.h),
-      child: Center(
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
-          decoration: BoxDecoration(
-            color: theme.border(context).withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            label,
-            style: AppTextStyle.lightBodySmallRegular.copyWith(
-              color: theme.textSecondary(context),
-            ),
-          ),
+      padding: EdgeInsets.symmetric(vertical: 12.h),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: AppTextStyle.lightBodySmallRegular.copyWith(
+          color: theme.textTertiary(context),
         ),
       ),
     );

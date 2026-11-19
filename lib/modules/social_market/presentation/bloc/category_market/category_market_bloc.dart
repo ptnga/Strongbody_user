@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -14,45 +12,37 @@ import '../../../domain/usecases/social_market_use_cases.dart';
 part 'category_market_event.dart';
 part 'category_market_state.dart';
 
-/// Trang category — web `CategoryPage` (chung cho Longevity, Health Pro Advisory,
-/// Personal Helper và Medical Travel): mỗi mục tải độc lập (web stream từng Suspense).
-/// - "In the spotlight": điểm AI refine cao nhất (`order_by=quality_score`).
-/// - Services: thứ tự mặc định BE, bỏ service đã ở spotlight.
-/// - "Care that speaks your language": seller làm việc bằng ngôn ngữ giao diện, bỏ
-///   service đã có ở 2 mục trên.
-/// - Experts: seller của category xếp `score_rank`; Medical Travel = coordinator.
-/// Services / Experts lỗi → khối "Couldn't load"; các mục khác lỗi / rỗng → ẩn.
+/// Trang của nhãn "Browse by need" — web `CategoryPage` nhánh `need` (Longevity, Mental
+/// Health, Personal Helper và Medical Travel): mỗi phần tải độc lập (web stream từng
+/// Suspense).
+/// - [Medical Travel] Destinations ngay dưới hero.
+/// - Mỗi category doanh nghiệp một section service: 1 request cho cả trang
+///   (`/public/services/by-category`), category rỗng → ẩn section.
+/// - Experts: doanh nghiệp thuộc category của nhãn HOẶC expert có profession của nhãn,
+///   xếp `score`.
+/// Services / Experts lỗi → khối "Couldn't load"; Destinations lỗi / rỗng → ẩn.
 class CategoryMarketBloc
     extends BlocWithApi<CategoryMarketEvent, CategoryMarketState> {
-  final GetMarketServicesUseCase _getServices;
+  final GetServicesByCategoryUseCase _getServicesByCategory;
   final GetMarketExpertsUseCase _getExperts;
-  final GetCoordinatorsUseCase _getCoordinators;
   final GetDestinationsUseCase _getDestinations;
 
-  /// Số item mỗi section (web `CATEGORY_LIMITS`): service 6, expert 9.
-  static const servicesLimit = 6;
+  /// Số service xin mỗi section (web luôn xin số của desktop `NEED_SECTION_LIMITS` = 3
+  /// để mobile / desktop dùng chung cache).
+  static const servicesPerSection = 3;
+
+  /// Số service hiện mỗi section trên mobile (`NEED_SECTION_LIMITS.services.mobile`).
+  static const servicesShown = 2;
+
+  /// Số expert (web `CATEGORY_LIMITS.experts`).
   static const expertsLimit = 9;
 
-  /// Lấy dư để còn chỗ bỏ service trùng giữa các section (web `SERVICES_FETCH`).
-  static const servicesFetch = 12;
-
-  /// Trang 1 của listing (web `LISTING_PAGE_SIZE`) — spotlight / ngôn ngữ dùng cùng hàm.
-  static const listingPageSize = 10;
-
-  static const _serviceSections = [
-    MarketSectionKind.spotlight,
-    MarketSectionKind.services,
-    MarketSectionKind.language,
-  ];
-
   CategoryMarketBloc({
-    required GetMarketServicesUseCase getServices,
+    required GetServicesByCategoryUseCase getServicesByCategory,
     required GetMarketExpertsUseCase getExperts,
-    required GetCoordinatorsUseCase getCoordinators,
     required GetDestinationsUseCase getDestinations,
-  }) : _getServices = getServices,
+  }) : _getServicesByCategory = getServicesByCategory,
        _getExperts = getExperts,
-       _getCoordinators = getCoordinators,
        _getDestinations = getDestinations,
        super(const CategoryMarketState()) {
     on<CategoryMarketStarted>(_onStarted);
@@ -61,7 +51,7 @@ class CategoryMarketBloc
       (event, emit) => switch (event.section) {
         MarketSectionKind.destinations => _loadDestinations(emit),
         MarketSectionKind.experts => _loadExperts(emit),
-        _ => _loadServices(emit),
+        MarketSectionKind.services => _loadServices(emit),
       },
     );
   }
@@ -84,110 +74,42 @@ class CategoryMarketBloc
     _loadExperts(emit, refresh: refresh),
   ]);
 
-  MarketPageParams _params({
-    required int limit,
-    String? orderBy,
-    String? orderDir,
-    bool newestFirst = false,
-    String? language,
-  }) => MarketPageParams(
-    scope: state.scope,
-    categorySlug: state.scope?.slug ?? '',
-    limit: limit,
-    orderBy: orderBy,
-    orderDir: orderDir,
-    newestFirst: newestFirst,
-    language: language,
-  );
-
-  /// Spotlight + Services + ngôn ngữ: gọi song song rồi bỏ trùng (web
-  /// `loadServiceSections` + `LanguageServicesLoader`).
+  /// Section theo category (web `NeedSectionsLoader`): category chưa có service → ẩn.
   Future<void> _loadServices(
     Emitter<CategoryMarketState> emit, {
     bool refresh = false,
   }) async {
-    if (state.scope == null) return;
+    final need = state.scope?.need;
+    if (need == null) return;
+    const section = MarketSectionKind.services;
     // Kéo để làm mới: giữ dữ liệu cũ trên màn trong lúc tải.
-    if (!refresh) {
-      emit(state.withSections(_serviceSections, SectionStatus.loading));
-    }
-    final results = await Future.wait([
-      _getServices(
-        _params(
-          limit: listingPageSize,
-          orderBy: 'quality_score',
-          orderDir: 'DESC',
-        ),
+    if (!refresh) emit(state.withSection(section, SectionStatus.loading));
+    await callApi(
+      useCase: _getServicesByCategory,
+      param: (categories: need.services, per: servicesPerSection),
+      onSuccess: (sections) async => emit(
+        state
+            .copyWith(categorySections: visibleSections(sections))
+            .withSection(section, SectionStatus.success),
       ),
-      _getServices(_params(limit: servicesFetch)),
-      _getServices(
-        _params(
-          limit: listingPageSize,
-          newestFirst: true,
-          language: state.language,
-        ),
-      ),
-    ]);
-    if (isClosed) return;
-    final sections = splitServiceSections(
-      spotlight: results[0].toNullable()?.items,
-      latest: results[1].toNullable()?.items,
-      language: results[2].toNullable()?.items,
-    );
-    emit(
-      state
-          .copyWith(
-            spotlight: sections.spotlight ?? const [],
-            services: sections.main ?? const [],
-            languageServices: sections.language ?? const [],
-          )
-          .withSection(
-            MarketSectionKind.spotlight,
-            sections.spotlight == null
-                ? SectionStatus.failure
-                : SectionStatus.success,
-          )
-          .withSection(
-            MarketSectionKind.services,
-            sections.main == null
-                ? SectionStatus.failure
-                : SectionStatus.success,
-          )
-          .withSection(
-            MarketSectionKind.language,
-            sections.language == null
-                ? SectionStatus.failure
-                : SectionStatus.success,
-          ),
+      onFailure: (_) => emit(state.withSection(section, SectionStatus.failure)),
     );
   }
 
-  /// Bỏ service trùng giữa các section (null = nguồn đó lỗi).
-  static ({
-    List<MarketServiceEntity>? spotlight,
-    List<MarketServiceEntity>? main,
-    List<MarketServiceEntity>? language,
-  })
-  splitServiceSections({
-    required List<MarketServiceEntity>? spotlight,
-    required List<MarketServiceEntity>? latest,
-    required List<MarketServiceEntity>? language,
-    int limit = servicesLimit,
-  }) {
-    final top = spotlight?.take(limit).toList();
-    final taken = {...?top?.map((s) => s.id).nonNulls};
-    final main = latest
-        ?.where((s) => !taken.contains(s.id))
-        .take(limit)
-        .toList();
-    final seen = {...taken, ...?main?.map((s) => s.id).nonNulls};
-    final own = language
-        ?.where((s) => !seen.contains(s.id))
-        .take(limit)
-        .toList();
-    return (spotlight: top, main: main, language: own);
-  }
+  /// Bỏ category rỗng, mỗi section [servicesShown] service.
+  static List<MarketCategorySection> visibleSections(
+    List<MarketCategorySection> sections,
+  ) => [
+    for (final s in sections)
+      if (s.items.isNotEmpty)
+        MarketCategorySection(
+          category: s.category,
+          total: s.total,
+          items: s.items.take(servicesShown).toList(),
+        ),
+  ];
 
+  /// Experts của nhãn (web `NeedExpertsLoader`, `sort=score`).
   Future<void> _loadExperts(
     Emitter<CategoryMarketState> emit, {
     bool refresh = false,
@@ -196,33 +118,19 @@ class CategoryMarketBloc
     if (scope == null) return;
     const section = MarketSectionKind.experts;
     if (!refresh) emit(state.withSection(section, SectionStatus.loading));
-    void fail(String _) =>
-        emit(state.withSection(section, SectionStatus.failure));
-    void done(List<MarketExpertEntity> items) => emit(
-      state
-          .copyWith(experts: items.take(expertsLimit).toList())
-          .withSection(section, SectionStatus.success),
-    );
-
-    if (scope.isMedicalTravel) {
-      // Medical Travel: seller là coordinator (owner của organization) - web getCoordinators.
-      await callApi(
-        useCase: _getCoordinators,
-        param: CoordinatorsPhase(
-          category: true,
-          page: 1,
-          seed: Random().nextInt(1 << 31).toRadixString(36),
-        ),
-        onSuccess: (r) async => done(r.items),
-        onFailure: fail,
-      );
-      return;
-    }
     await callApi(
       useCase: _getExperts,
-      param: _params(limit: expertsLimit),
-      onSuccess: (page) async => done(page.items),
-      onFailure: fail,
+      param: MarketPageParams(
+        scope: scope,
+        categorySlug: scope.slug,
+        limit: expertsLimit,
+      ),
+      onSuccess: (page) async => emit(
+        state
+            .copyWith(experts: page.items.take(expertsLimit).toList())
+            .withSection(section, SectionStatus.success),
+      ),
+      onFailure: (_) => emit(state.withSection(section, SectionStatus.failure)),
     );
   }
 

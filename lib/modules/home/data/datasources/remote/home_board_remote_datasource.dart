@@ -36,6 +36,9 @@ abstract class HomeBoardRemoteDataSource {
 
   Future<List<Map<String, dynamic>>> getRequestCountries();
 
+  /// `data` của board-stats (`week_total`, `week_matched`, `recent_matched`).
+  Future<Map<String, dynamic>> getRequestBoardStats();
+
   /// [withAuth] = gửi token khi đã đăng nhập (thứ tự "recommended" theo người xem).
   Future<BoardRawPage> getServices(
     Map<String, dynamic> query, {
@@ -103,8 +106,26 @@ class HomeBoardRemoteDataSourceImpl implements HomeBoardRemoteDataSource {
       'status': 'active',
       'type': 'ldp',
       'statuses': 'active,closed',
+      'feed': HomeBoardApiConfig.requestFeed,
     }),
   );
+
+  @override
+  Future<Map<String, dynamic>> getRequestBoardStats() async {
+    final data = _data(
+      await _get(HomeBoardApiConfig.requestBoardStats, {
+        'type': 'ldp',
+        'limit': HomeBoardApiConfig.statsLimit,
+        'statuses': 'active,closed',
+        'feed': HomeBoardApiConfig.requestFeed,
+      }),
+    );
+    // BE trả lỗi trong body (vd `{code: 65, data: null}`) với HTTP 200 → coi như lỗi.
+    if (data['week_total'] is! num) {
+      throw const FormatException('board-stats: no week_total');
+    }
+    return data;
+  }
 
   @override
   Future<BoardRawPage> getServices(

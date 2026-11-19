@@ -56,6 +56,13 @@ abstract class PostRequestRepository {
     int requestId,
   );
 
+  /// Chuyên gia request đã được gửi thẳng tới (auto-match), đã trả lời lên trước.
+  Future<Either<Failure, MatchedProvidersPage>> getMatchedProviders(
+    int requestId, {
+    int page = 1,
+    int limit = 20,
+  });
+
   /// Request vừa đăng (`GET /user/request/{id}`).
   Future<Either<Failure, SentRequest>> getSentRequest(int id);
 

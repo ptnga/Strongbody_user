@@ -24,6 +24,12 @@ class MyRequestDto {
   /// Request sinh từ inquiry (web `RequestInquiryInfo`): provider nhận + item đã hỏi.
   final Map<String, dynamic>? inquiry;
 
+  /// Kết quả AI chấm (`ai_refine`: score, is_empty, suggestion, suggestion_en, rescoring).
+  final Map<String, dynamic>? aiRefine;
+
+  /// Số provider request đã được gửi thẳng tới (`matched_providers`, chỉ danh sách của chủ).
+  final int? matchedProviders;
+
   const MyRequestDto({
     this.id,
     this.description,
@@ -42,6 +48,8 @@ class MyRequestDto {
     this.voiceUrl,
     this.isPrivate,
     this.inquiry,
+    this.aiRefine,
+    this.matchedProviders,
   });
 
   factory MyRequestDto.fromJson(Map<String, dynamic> json) => MyRequestDto(
@@ -65,6 +73,12 @@ class MyRequestDto {
     inquiry: json['inquiry'] is Map
         ? Map<String, dynamic>.from(json['inquiry'] as Map)
         : null,
+    aiRefine: json['ai_refine'] is Map
+        ? Map<String, dynamic>.from(json['ai_refine'] as Map)
+        : null,
+    matchedProviders: (json['matched_providers'] is num)
+        ? (json['matched_providers'] as num).toInt()
+        : int.tryParse('${json['matched_providers'] ?? ''}'),
   );
 
   static bool? _bool(Object? v) =>
@@ -235,4 +249,39 @@ class RequestOfferDto {
     final uri = Uri.tryParse(url);
     return uri != null && uri.hasScheme && uri.host.isNotEmpty ? url : null;
   }
+}
+
+/// Item của `GET /user/request/{id}/matched-providers` (web `MatchedProvider`).
+class MatchedProviderDto {
+  final int? userId;
+  final String? name;
+  final String? avatar;
+  final Map<String, dynamic>? country;
+  final bool replied;
+  final Map<String, dynamic>? expert;
+
+  const MatchedProviderDto({
+    this.userId,
+    this.name,
+    this.avatar,
+    this.country,
+    this.replied = false,
+    this.expert,
+  });
+
+  factory MatchedProviderDto.fromJson(Map<String, dynamic> json) =>
+      MatchedProviderDto(
+        userId: json['user_id'] is num
+            ? (json['user_id'] as num).toInt()
+            : int.tryParse('${json['user_id'] ?? ''}'),
+        name: json['name']?.toString(),
+        avatar: json['avatar']?.toString(),
+        country: json['country'] is Map
+            ? Map<String, dynamic>.from(json['country'] as Map)
+            : null,
+        replied: json['replied'] == true,
+        expert: json['expert'] is Map
+            ? Map<String, dynamic>.from(json['expert'] as Map)
+            : null,
+      );
 }

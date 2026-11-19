@@ -91,7 +91,8 @@ class MarketEngagementLine extends StatelessWidget {
       );
 }
 
-/// "N saved" ở chân card lưới (web `EngagementSaved`) — luôn hiện, kể cả 0.
+/// "N saved" ở chân card lưới (web `EngagementSaved`). Chưa ai lưu (0) → không hiện
+/// (web ecbe7bf3c: không ghi "0 saved").
 class MarketSavedCount extends StatelessWidget {
   final int? id;
   final TextStyle style;
@@ -103,12 +104,14 @@ class MarketSavedCount extends StatelessWidget {
     if (id == null) return const SizedBox.shrink();
     return BlocBuilder<EngagementCubit, EngagementCubitState>(
       buildWhen: (a, b) => a.of(id).saves != b.of(id).saves,
-      builder: (context, state) => Text(
-        LocaleKeys.marketSaved.tr(
-          namedArgs: {'count': '${state.of(id).saves}'},
-        ),
-        style: style,
-      ),
+      builder: (context, state) {
+        final saves = state.of(id).saves;
+        if (saves <= 0) return const SizedBox.shrink();
+        return Text(
+          LocaleKeys.marketSaved.tr(namedArgs: {'count': '$saves'}),
+          style: style,
+        );
+      },
     );
   }
 }

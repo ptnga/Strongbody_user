@@ -15,6 +15,11 @@ class PostRequestApiConfig {
   /// Một request của buyer (web `getRequestById`) — trang "Providers for your request".
   static String request(int id) => '/user/request/$id';
 
+  /// Chuyên gia request đã được gửi thẳng tới (auto-match theo dịch vụ, chỉ chủ request) —
+  /// web `getMatchedProviders` (`?page=&limit=`), mỗi item kèm hồ sơ `expert`.
+  static String matchedProviders(int id) =>
+      '/user/request/$id/matched-providers';
+
   /// Bảng `currencies` (không cần đăng nhập — web `getCurrencies`).
   static const String currencies = '/admin/currencies';
 

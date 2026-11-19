@@ -11,7 +11,8 @@ import '../entities/medical_travel_entities.dart';
 abstract class SocialMarketRepository {
   /// Service theo category. `newestFirst` / [orderBy] = web `fetchServicesPage`
   /// (luôn gửi `page`); không có = mục Services (web `fetchCategoryPackages`, thứ tự
-  /// mặc định BE). [scope] thắng [categorySlug].
+  /// mặc định BE). [scope] thắng [categorySlug]. Trang nhãn "Browse by need":
+  /// [subCategory] = category doanh nghiệp đang chọn, [classification] = tab classification.
   Future<Either<Failure, MarketPage<MarketServiceEntity>>> getServices({
     required String categorySlug,
     required int page,
@@ -21,9 +22,22 @@ abstract class SocialMarketRepository {
     String? orderBy,
     String? orderDir,
     String? language,
+    String? subCategory,
+    String? classification,
   });
 
-  /// Seller của category, xếp `score_rank`.
+  /// Trang nhãn: service nhóm theo category doanh nghiệp, [per] service mỗi section.
+  Future<Either<Failure, List<MarketCategorySection>>> getServicesByCategory({
+    required List<String> categories,
+    required int per,
+  });
+
+  /// Tab service classification của 1 category doanh nghiệp (listing đã chọn category).
+  Future<Either<Failure, MarketClassifications>> getServiceClassifications(
+    String categorySlug,
+  );
+
+  /// Seller của category, xếp `score_rank` (trang nhãn: `score`).
   Future<Either<Failure, MarketPage<MarketExpertEntity>>> getExperts({
     required String categorySlug,
     required int page,

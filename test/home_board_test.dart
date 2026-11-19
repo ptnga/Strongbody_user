@@ -34,6 +34,10 @@ class _Repo implements HomeBoardRepository {
   Future<Either<Failure, List<BoardCountry>>> getCountries(
     BoardKind kind,
   ) async => const Right([BoardCountry(id: 230, title: 'Vietnam', count: 3)]);
+
+  @override
+  Future<Either<Failure, BoardStats>> getStats() async =>
+      const Right(BoardStats());
 }
 
 BoardRequest _req(int id) => BoardRequest(id: id, text: 'Request $id');
@@ -193,6 +197,8 @@ void main() {
     expect(body['q'], 'physio');
     expect(body['sort'], 'relevance');
     expect(body['include_closed'], isTrue);
+    // Web acb552dcc: bảng Requests trang chủ chỉ request của tài khoản seed.
+    expect(body['feed'], 'home');
     expect(body['with_facets'], isTrue);
     expect(body['viewer_language'], 'vi');
     expect(body['filters'], {
