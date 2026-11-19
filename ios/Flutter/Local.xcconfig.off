@@ -1,0 +1,6 @@
+// Máy của Bunn: Personal Team (Thuy Nga). File này không commit.
+SB_DEVELOPMENT_TEAM = 8QFV49T6PZ
+SB_BUNDLE_ID_BASE = ai.strongbody.strongbodyBuyer.bunn
+
+// Ký framework lần lượt (không song song) → chỉ 1 hộp thoại Keychain thay vì hàng chục.
+COCOAPODS_PARALLEL_CODE_SIGN = false
